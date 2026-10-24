@@ -419,3 +419,75 @@ None filed: the engine's door was opened before the round, and the factory is it
 - **A host that empties the adopted sheets after the factory is made** (a `document.open()`, as BelType's kept print frame does) loses the continuation dressing until a new factory is made: the factory calls the door once. Neither the harness nor the studio does so; the studio's sheets are all appended. Calling the door per fill would cost a lookup and an `includes` per page.
 - **`ensureDressing` answers its remembered record**, so a host without the provision whose adopted words sheet was taken off does not get it back (BelType's NEEDED-FIXES, *two of Cicero's sheets are remembered, not asked for*). Not met: BelType's page and the studio both carry the provision (the studio splices the engine's head fragment in its `vite.config.js`).
 - **A node test of the factory**: it would need a stub document answering `assertRenderConditions`, `registerGcpmProperties` and `readGeometryTable` to prove two calls; `--bare` is the check.
+
+## A space beside a space
+
+Written 2026-10-25, on the branch `round/a-space-beside-a-space`, for docs/found.md's "A typed double space collapses on the page". Run it again with `npm test` (25 tests, in node, 12 of them the plugin's), and, with the studio's dev server started on a free port (`npx vite --port <port> --strictPort` in the studio), `node scripts/spaces.mjs --url <its url> --out <a file outside the studio>` for the typing, and the studio's `node scripts/fragview-pages.mjs --demo <demo> --url <its url> --out <a file outside the studio>` on `quiet-press` and `report` for the regression. The studio carries the plugin on its branch of the same name (da9c7e9).
+
+### The decision
+
+The document is HTML, and HTML collapses whitespace: a space beside a space, and a space at a line's start or end, draw nothing, on the Cicero page and in BelType's CLI round alike. The page is right to collapse them, under *one engine, two hosts, one answer*, since the trial it lays out as lays out under the body's `white-space`; the fault is the editor's, whose model held a character print never draws. So whitespace collapses in the editor as in print, and a space that would collapse is promoted to U+00A0, a non-breaking space, a glyph print draws: model, CLI round and page agree on a visible character. It is what CKEditor 5 and TinyMCE do where the host collapses whitespace, and what Chromium's contenteditable does on its own under `white-space: normal`; here it is deliberate and the same in every browser. Not chosen: refusing the second space, or giving the measure context the editing mechanics, which would make the view disagree with the CLI.
+
+### Step 1, before
+
+`scripts/spaces.mjs` in the studio on its default demo, the quiet press, on both paths (the old orchestrator, and `?view=fragmented` on the generic schema with structured marks), in the paragraph "Quis ut minim consequat…" on page 2: `A`, space, space, `B` typed with `page.keyboard.type` between the second and third letters of "sollicitudin", each key 600 ms after the last; a space typed at the paragraph's end, then `x`; a space typed at its start. Each place read as the model's code points (`studio.state.doc.textBetween`), the drawn text node's code points, and the width of a `Range` over the characters. Steps are the collab plugin's version before the act and after the authority confirmed it.
+
+| Path | Place | Model | Drawn | Width | Steps |
+| :--- | :--- | :--- | :--- | :--- | ---: |
+| old | middle | U+0041 U+0020 U+0020 U+0042 | the same | 24.44 px: 9.58, 6.14, 0, 8.75 | 4 |
+| old | end | U+002E U+0020 | the same | the space 0 px | 1 |
+| old | start | U+0020 U+0051 | the same | the space 0 px | 1 |
+| view | middle | U+0041 U+0020 U+0020 U+0042 | the same | 24.44 px: 9.58, 6.14, 0, 8.75 | 4 |
+| view | end | U+002E U+0020 | the same | the space 0 px | 1 |
+| view | start | U+0020 U+0051 | the same | the space 0 px | 1 |
+
+**The browser promotes nothing, on either path**: a typed space is U+0020 in the model and in the DOM in all three places. Both paths cancel `beforeinput` and draw from the model (the old path's `input.js`, the view's `onBeforeInput`), so Chromium's own promotion under `white-space: normal` never runs. The model really holds two U+0020, and the page really draws one. Undo took one key per press on both paths (after two, `A`, U+0020, `c`).
+
+Under the view the three clicks did not reach the model: the title page refills every frame and each refill redraws the model's selection over the browser's (docs/found.md, "The title page refills every frame" and the view's "A refill redraws the model's selection over a click not yet read"). The script puts the caret where the click's own `posAtCoords` says when the model's head did not move, and says how often it had to (3 of 3 under the view, 0 of 3 on the old path); the keys are real either way.
+
+### The plugin
+
+`collapsedSpaces()` in `src/spaces.js`, exported from `src/index.js`: a plain function returning a `Plugin`, named for what it looks for, a space the layout collapses. Its one hook is `appendTransaction`, so the studio's verbs are left alone: typed text still reaches `insert:text` through the studio's `handleTextInput`, and a paste `paste` through `handlePaste`, and the plugin reads the document those verbs made.
+
+- **Where it looks**: the ranges every step of the transactions inserted, mapped to the new document (a deletion is an empty range), and the one character on each side of each, and at each only on the side the change touched: the character before is asked about its new next, the one after about its new previous, so a run of whitespace a provider wrote is never rewritten.
+- **What it promotes**, left to right over a textblock's characters (an inline node with content is walked through, an inline leaf is ink, a `br` is a line's edge): a U+0020 whose previous character is a collapsible space (U+0020, a tab, a line feed) or a line's start; one whose next is a line's end; and an inserted one whose next is a collapsible space the transaction did not insert, so a space typed before a space promotes itself and not its neighbour. A run inserted at once alternates, space, U+00A0, space, U+00A0, so a line still breaks inside it, as CKEditor does with a paste.
+- **What it gives back**: a U+00A0 becomes U+0020 again only when the change put ink on both its sides and, in the document before, it stood beside a space or at a line's edge, where it stood in for a collapsed space; a space typed at a paragraph's end and then a word is a plain space between two words, as Chromium leaves it. A U+00A0 an author or a provider wrote between words is never demoted, and one the transaction inserted is kept.
+- **What it leaves alone**: a textblock whose spec says `code` (the generic schema's `pre`, `white-space: pre`), a transaction marked `addToHistory: false` (a collaborator's steps are that client's to promote, and a host's bookkeeping, the values' writes among them, is not an edit), and tabs and line feeds, which it never writes over.
+- **How**: one appended transaction, each promotion a `replaceWith` of one character by one, with the character's own marks; positions do not move. `prosemirror-history` folds an appended transaction into its parent's event, so one undo takes a space and its promotion together (pinned in node).
+
+**The authority counts the promotion.** The collab plugin's unconfirmed steps include the appended transaction's, so a promoted space reaches the authority as two steps in one submission, the insertion and the replacement. The studio's checks that compare steps are not reached: `authority-check` builds its own states with no plugin, `roundtrip` serializes without editing, and the values' writes the `binds` check counts are `addToHistory: false`, which the plugin skips.
+
+### Step 3, the studio
+
+One commit on the studio's branch, da9c7e9: `src/fragmented.js` imports `collapsedSpaces` beside `ciceroContainers` and appends it to the plugins `listen` reconfigures the state with, after the editing props. Nothing else changed. The old path would want it too, since its root collapses whitespace the same way (24.44 px above); it is not installed there, which would be the provider's `plugins`.
+
+### Step 4, after
+
+The same script, the plugin installed under the switch (at 596df51 and again at fceba92, the same numbers both times):
+
+| Path | Place | Model | Drawn | Width | Steps |
+| :--- | :--- | :--- | :--- | :--- | ---: |
+| old | middle, end, start | as before | as before | as before | 4, 1, 1 |
+| view | middle | U+0041 U+0020 U+00A0 U+0042 | the same | 29.2 px: 9.58, 5.47, 5.47, 8.73 | 5 |
+| view | end | U+002E U+00A0 | the same | the space 3.17 px | 2 |
+| view | start | U+00A0 U+0051 | the same | the space 8.42 px | 2 |
+
+`A  B` now draws two spaces' worth (the paragraph is justified, so both spaces are stretched alike, 5.47 px, where the one drawn space was 6.14 before). After the space at the end, `x` gives `.`, U+0020, `x`: the promoted space was given back. Undo, one key a press: the first undo leaves `A`, U+0020, U+00A0, `c`; the second `A`, U+0020, `c`, the second space and its promotion taken together. The middle act's four keys reached the authority as five steps, the edges' one key each as two.
+
+### The regression
+
+The studio's witness on its own server, the old path against the view:
+
+| Demo | Old path | View | Same | First difference | As last recorded |
+| :--- | ---: | ---: | ---: | :--- | :--- |
+| quiet-press | 30 | 30 | 30 | none | yes |
+| report | 11 | 11 | 11 | none | yes |
+
+No warning from the view; the old path's one 404 on load is as before.
+
+### Not done
+
+- **The old path** does not carry the plugin (above).
+- **Enter beside a space**: the rule reads the document after the step, so a paragraph split before a space begins the new paragraph with a U+00A0, and one split after a space ends the old one with one; both are the truth of what print would hide, and a Backspace that joins them gives the space back. Measured in neither demo.
+- **A run the provider wrote**: a source whose paragraphs hold runs of collapsible whitespace (line feeds and indentation) keeps them; the plugin looks only beside a change, and a space typed at the end of such a run is promoted alone, so the run still draws one space and the typed one a second, and a trailing space a provider wrote stays a space when a word is typed before it (pinned in node).
+- **The title page's refill loop** is filed, not fixed: the round was not to touch `cicero-page.js`.
