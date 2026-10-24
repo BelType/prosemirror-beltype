@@ -16,7 +16,7 @@
  *
  * The page resets the text mechanics the fragmented view's editing host sets (`white-space: break-spaces`, `overflow-wrap`, the ligatures and, from the editing host's own UA style, `line-break`) to what the document's body computes, because the trial in the measure context inherits from the body and the page's content inherits from the host. Measured 2026-10-24 with the reset left out: the cuts were the same, since the trial decides them, but the specimen's third page set its text on more lines than the trial had and its clip hid 21 of its 113 words, and the flow fixture differed from its first page.
  *
- * The law copy is measured too (2026-10-24): with the trial read as its own source, the flow fixture's `break-inside: avoid` box was cut through on its fourth page and every page after it differed (22 pages against the CLI's 26).
+ * The law copy is measured too (2026-10-24): with the trial read as its own source, the flow fixture's fourth page cut between the lines of its `break-inside: avoid` box, which the CLI moves whole, and every page after it differed (22 pages against the CLI's 26).
  *
  * @packageDocumentation
  */
