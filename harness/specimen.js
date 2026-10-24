@@ -1,0 +1,143 @@
+/**
+ * The harness the specimen's measurement injects into BelType's own page (`scripts/specimen.mjs`): the reading of a page's words, the same for the engine's pages and the view's, and the view mounted beside the root over the same served document.
+ *
+ * @remarks
+ * Loaded as a module from Vite's server into a page BelType's dev server serves, so the sheets, the faces, the geometry and the browser are the CLI's own. The engine's modules this file reaches through `../src/` are a second instance beside the page's: `customElements.define` is guarded on both sides, so `<beltype-page>` is whichever registered first, and nothing here asks `instanceof` of it.
+ *
+ * The document is the served HTML fetched again and parsed, never the root's light DOM, which the intake has reordered (blocks, then fixed boxes, then running elements). Its body's children, less the scripts, the styles and the engine's own scaffolding, are seated in a hidden holder so the studio's structured marks can read their computed style (`boxReason`), parsed with the generic schema, and taken out.
+ *
+ * A page's words are read by one function for both hosts: the text nodes its content slot holds, flattened, in order, each word kept where an inked rect of it lies inside the page box above the flow's clip, so a straddler's tail the engine clips at the cut is not read as the page's. A word that runs across two text nodes with nothing between them is one word.
+ *
+ * @packageDocumentation
+ */
+
+import { EditorState } from 'prosemirror-state';
+import { FragmentedView } from 'prosemirror-fragview';
+import * as g from 'beltype-studio-experiment/src/schema-generic.js';
+import { ciceroContainers } from '../src/index.js';
+
+/** The Gauge's word: a maximal run of what a breaking space does not divide. */
+const WORD = /[\S  ﻿]+/g;
+
+/**
+ * The visible words of one `<beltype-page>`, in order.
+ * @param {Element} page
+ * @returns {string[]}
+ */
+export function wordsOf(page) {
+  const shadow = /** @type {ShadowRoot} */ (page.shadowRoot);
+  const flow = /** @type {HTMLElement} */ (shadow.querySelector('.flow'));
+  const slot = /** @type {HTMLSlotElement} */ (flow.querySelector('slot'));
+  const box = page.getBoundingClientRect();
+  const clipped = getComputedStyle(flow).overflowY === 'clip';
+  const foot = clipped ? Math.min(box.bottom, flow.getBoundingClientRect().bottom) : box.bottom;
+  const range = document.createRange();
+  /** @type {string[]} */
+  const words = [];
+  /** The text node the last word kept ended at the end of, so a word that goes on in the next node is joined to it. */
+  let open = null;
+  const visit = (/** @type {Node} */ node) => {
+    if (node.nodeType === 3) {
+      const text = /** @type {Text} */ (node);
+      for (const m of text.data.matchAll(WORD)) {
+        range.setStart(text, /** @type {number} */ (m.index));
+        range.setEnd(text, /** @type {number} */ (m.index) + m[0].length);
+        const seen = [...range.getClientRects()].some((r) => r.width > 0.5 && r.top >= box.top - 0.5 && r.bottom <= foot + 0.5 && r.left >= box.left - 0.5 && r.right <= box.right + 0.5);
+        if (!seen) { open = null; continue; }
+        if (m.index === 0 && open && open.ends) words[words.length - 1] += m[0];
+        else words.push(m[0]);
+        open = { ends: m.index + m[0].length === text.data.length };
+      }
+      if (!/\S$/.test(text.data)) open = null;
+      return;
+    }
+    if (node.nodeType === 1) {
+      const display = getComputedStyle(/** @type {Element} */ (node)).display;
+      if (display !== 'inline' && display !== 'contents') open = null;
+      for (const child of node.childNodes) visit(child);
+      if (display !== 'inline' && display !== 'contents') open = null;
+    }
+  };
+  for (const node of slot.assignedNodes({ flatten: true })) visit(node);
+  return words;
+}
+
+/**
+ * Each page's first and last visible word and its word count.
+ * @param {Element[]} pages
+ */
+export function readPages(pages) {
+  return pages.map((page) => {
+    page.scrollIntoView({ block: 'center' });
+    const words = wordsOf(page);
+    return { first: words[0] ?? null, last: words.at(-1) ?? null, count: words.length, size: [Math.round(page.getBoundingClientRect().width), Math.round(page.getBoundingClientRect().height)] };
+  });
+}
+
+/** The engine's pages, as the root presents them. */
+export const rootPages = () => [.../** @type {ShadowRoot} */ (/** @type {Element} */ (document.querySelector('beltype-root')).shadowRoot).querySelectorAll('beltype-page')];
+
+/**
+ * The served document as a ProseMirror doc of the studio's generic schema with structured marks.
+ */
+async function servedDoc() {
+  const html = await (await fetch(location.href)).text();
+  const served = new DOMParser().parseFromString(html, 'text/html');
+  const holder = document.createElement('div');
+  holder.style.display = 'none';
+  for (const el of [...served.body.children]) {
+    if (['SCRIPT', 'STYLE'].includes(el.tagName) || el.id.startsWith('__beltype') || el.localName === 'beltype-root') continue;
+    holder.appendChild(document.importNode(el, true));
+  }
+  document.body.appendChild(holder);
+  const doc = g.parseBody(g.structuredSchema, holder, {}, { layout: holder });
+  holder.remove();
+  return doc;
+}
+
+/**
+ * Mount the view beside the root, the root hidden, and wait for the chain to fill whole.
+ * @param {{ settleMs?: number, timeoutMs?: number }} [options]
+ */
+export async function mount({ settleMs = 300, timeoutMs = 120000 } = {}) {
+  /** @type {any[]} */
+  const fills = [];
+  const doc = await servedDoc();
+  const root = /** @type {HTMLElement} */ (document.querySelector('beltype-root'));
+  root.style.display = 'none';
+  const host = document.createElement('div');
+  host.id = 'prosemirror-beltype-view';
+  document.body.appendChild(host);
+  const style = document.createElement('style');
+  style.textContent = '#prosemirror-beltype-view .fragview { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 16px 0; outline: none; } #prosemirror-beltype-view beltype-page { box-shadow: 0 1px 4px rgba(0,0,0,.2); flex: none; }';
+  document.head.appendChild(style);
+  const factory = ciceroContainers(document);
+  const started = performance.now();
+  const view = new FragmentedView(host, {
+    state: EditorState.create({ doc }),
+    words: { attribute: 'data-beltype' },
+    containers: (index, hint, entries) => {
+      const page = factory(index, hint, entries);
+      const fill = page.fill.bind(page);
+      page.fill = async (...args) => {
+        const t0 = performance.now();
+        const answer = await fill(...args);
+        fills.push({ index, ms: performance.now() - t0, ...page.account });
+        return answer;
+      };
+      return page;
+    },
+  });
+  // Settled: nothing in flight and nothing dirty, for `settleMs` in a row.
+  let quiet = 0;
+  while (quiet < settleMs) {
+    if (performance.now() - started > timeoutMs) throw new Error('the chain did not settle');
+    await new Promise((r) => setTimeout(r, 50));
+    quiet = view.filling.size === 0 && !view.entries.some((e) => e.dirty) ? quiet + 50 : 0;
+  }
+  const ms = performance.now() - started - settleMs;
+  const pages = view.fragments.map((f) => /** @type {any} */ (f.container)?.dom).filter(Boolean);
+  return { ms, entries: view.entries.map(({ from, to }) => ({ from, to })), fills, pages: readPages(pages), docSize: doc.content.size };
+}
+
+Object.assign(window, { __prosemirrorBeltype: { wordsOf, readPages, rootPages, mount } });
