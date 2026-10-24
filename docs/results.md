@@ -231,3 +231,55 @@ Each was found by a measurement that failed and was taken out of it by the fix; 
 - A row inside a row item, a blank shell at the document's end, the repeated table header and the footer's reservation, the root's parity demand, the composed mode.
 - `pinExtents` (§5.3's extension for a divided row item, a `min-height` or a cell's `height` to the foot): visual only, no word moves; not written.
 - Editing over a shell or a row cut was not tried.
+
+## The page starts at its first in-flow box
+
+Written 2026-10-24, on the branch `round/the-page-starts-at-its-first-box`, for docs/found.md's "A running element at the document's start makes a page of its own". Run it again with `npm test` (13 tests, in node), `npm run specimen`, `node scripts/specimen.mjs <absolute path>` on each fixture under `fixtures/`, and, with the studio's dev server started on a free port, the studio's `node scripts/fragview-pages.mjs --demo <demo> --url <its url> --out <a file outside the studio>` on `report`, `manuale` and `showcase`.
+
+### What was built
+
+| Module | Lines | What it is |
+| :--- | ---: | :--- |
+| `src/turn.js` | 196 | `inFlowStart(doc, from, away)`: the page's start as the driver's cursor stands, the first in-flow box at or after `from`, past the unshown whitespace leaves and the boxes `away` names among `from`'s siblings. Pinned in node. |
+| `src/cicero-page.js` | 667 | `fill` reads the page's name (`nameAt`), the grab's cursor (`grab`) and the start address `extensionPx` is given (`addressAt`) at that box, asking `isFixedBox` of the law copy's element for each node passed; `textBefore`, which the name's descent asks, leaves out the text a running element or a fixed box holds, as the driver's word count does. The header says the placement in the margin box is phase 2's. |
+| `fixtures/running/` | 812 words | A press mark (`position: running(press)`) at the top level and a mark nested in the cover's header (`position: running(logo)`), before a cover on a named page with `break-before: right`, then a front matter on a named page that owes a right page, and three families that each open a page. |
+
+### The two causes, as measured
+
+**The put-away does not miss the element.** Measured in the studio on 2026-10-24 under the generic schema and under the studio's own (`schema=studio`), on the report, the manual and the showcase, by a probe in `trial` on the first page's law copy and by reading the page's content after the fill: the law copy is connected when asked, the sheets the studio rewrote into its layer reach it (`--beltype-running` computes `mark`, `logo`, `press` in the hidden holder), `isFixedBox` names the element (the report's `svg.mark`, the manual's `svg.logo.running`, the showcase's `div.press-mark`), the trial copy carries `away`, and on the page the element computes `display: none` with no height. The walk reaches every depth (the pairing walks every element of both copies, and `show` every element of the page), and the predicate's cache is keyed by the element asked, which is a fresh one on every trial and every page. The fixture's nested mark is put away too: its two words are on no page. What looked like a drawn mark was the second cause: a page named `''` whose first line is the cover's kicker.
+
+**The page was named, and its grab's cursor read, at the running element or at a whitespace leaf.** The generic schema begins a document with a `ws` leaf, which the page does not draw, so `nameAt(t, 0)` found a text node in the law holder and answered the holder's name, `''`; under the studio's schema the first node is the running element itself, whose effective name is its own (`''` for the report's and the manual's, `cover` for the showcase's, which declares `page: cover`). The grab's cursor stood at the cover, since the law copy's blocks leave the running element out, and the first event strictly after it was the cover's first child of another name than the page's: `cover` against `''`. So the report's page 1 ended after the kicker (0 to 28, 4 words), the showcase's after its kicker (0 to 68, 5 words) with the cover's rest on a left page and no blank, and the manual's cover, `display: flex` and 1 123 px on a page that has no margins, was measured on a page named `''` with margins and cut by an end-gap Class C at 899.9 px, its 222.6 px blank shell a page of its own. With the page's name and cursor read at its first in-flow box, the cover names page 1, an event at that box names the page or sets its side and does not end it, and the front matter's `break-before: right` owes the blank on page 2, as the CLI puts it. The running element's positions stay with page 1, invisible.
+
+### The measurement
+
+| Document | CLI | View | Same | First difference | Before the round |
+| :--- | ---: | ---: | ---: | :--- | :--- |
+| `test/specimen.md` | 9 | 9 | 9 | none | the same |
+| `fixtures/flow` | 26 | 26 | 26 | none | the same |
+| `fixtures/tall` | 10 | 10 | 10 | none | the same |
+| `fixtures/end-gap` | 6 | 6 | 6 | none | the same |
+| `fixtures/row` | 13 | 13 | 13 | none | the same |
+| `fixtures/multicol` | 6 | 6 | 6 | none | the same |
+| `fixtures/running` | 13 | 13 | 13 | none | 13 against 13, first difference page 1: page 1 the press mark and the cover's header alone (0 to 48, no word), the cover on page 2, no blank |
+
+The running fixture page by page beside the CLI: page 1 the cover, `A` to `platen.`, 21 words (0 to 210, named `cover`, its hint `blank`); page 2 the blank verso, named `front`; page 3 `Front` to `quire.`, 85 words; pages 4 to 13 the same on both sides, the last `Frontispiece` to `stonehand.`, 9 words. No warning from the view on any fixture.
+
+The studio's demos through its regression witness, the old path against the view, served by a dev server of the studio's own on a free port:
+
+| Demo | Old path | View before | View after | Same after | First difference after |
+| :--- | ---: | ---: | ---: | ---: | :--- |
+| report | 11 | 12 | 11 | 11 | none |
+| manuale | 7 | 8 | 7 | 6 | page 5: the repeated table header (`Operazione` and its four roles, 5 words), phase 1's "not done" |
+| showcase | 76 | 74 | 74 | 45 | page 13, the clusters the last round recorded; pages 1 and 2 are the cover and the blank verso on both paths |
+
+The showcase's count did not move: before the round its cover took two pages and its blank verso none, so the fix moved a page from the cover to the blank. Under the studio's own schema (`--query schema=studio`) the report is 11 and 11 the same, the manual 7 and 7 with its first difference page 4 (the table held as an atom, found.md's atom entry, the studio's), and the showcase 76 and 76 with its first difference page 25 (`string(family)`, the reads).
+
+### Doors
+
+None filed: neither cause is in the engine, and the predicate answers the view's copies as it answers the root's.
+
+### Not done
+
+- Placing a running element in its margin box (`setMarginBox`, the running assignments): the reads' work, phase 2.
+- A running element before a forced break in mid-document stays with the page before the break, since the grab's event names the in-flow block after it; the driver logs its assignment at that block. It decides nothing about a cut and matters only to the reads.
+- The root's parity demand (a `break-before: left` on the first in-flow box shifting every side) is still not read; the fixture's `break-before: right` on page 1 demands what page 1 already is.
