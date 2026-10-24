@@ -15,16 +15,20 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Fix**: never throw from `fill`. A verdict that maps to `from`, or inside a leaf, is an uncuttable run at the page's start: take the node at `from` whole and let it overflow in place, the driver's own answer (C2). The shells (an end-gap Class C, an edge cut through a monolith, a cut through a row) are phase 1's "not done"; until they exist, a shell verdict at the page's start falls back the same way.
 - **State**: CLOSED 2026-10-24, 3f9a59e and 1f6e816 on `round/the-page-always-advances`: `fill` never throws, an uncuttable run at the page's start is taken whole and overflows clipped with one console line, and the three shells are built as the engine builds them, so the showcase under the generic schema settles at 74 pages against the CLI's 76 with the glossary sliced as the CLI slices it (docs/results.md, "The page always advances, and the shells"). The studio's `atomWhole` shim is no longer reached and can go.
 
+- **Measured 2026-10-24 before the fix**, under the studio's generic ground: the showcase's multicol glossary gave 64 end-gap shell verdicts and 46 shim warnings and settled at 138 pages, one per term. After 1f6e816 the glossary fixture agrees with the CLI round, 6 and 6, and the showcase completes at 74 pages.
+
 ### A block the engine divides, held as an atom, moves whole and overflows clipped
 
 - **Seen**: the bill (`?demo=bolletta&view=fragmented`): 4 pages against the old path's 3, its page 2 ending at "F3." with 195 words against 353, because the readings table (a `<template data-repeat>` drawn as rows) is one `verbatim` atom, moved whole to page 3 and clipped at its foot; the old path divides the table between pages 2 and 3. The showcase's 26 pages that differ from the old path (of 76; first difference page 25) come in clusters, and every cluster but the first starts on a page holding a verbatim block the old path divides: the notes (pages 29 to 34), `aside.divided` (45 to 47), the figures of the flows family (50 to 58), `pre.code` (62 to 65), `aside.reacts` (71, 72). The chain comes back into step after each.
 - **Layer**: the studio's schema (`src/schema.js`, the `verbatim` node), not this package: an atom has no position inside it, so no fragmentainer can cut it. Under the generic schema the bill has the same 2 pages on both paths (where the template's rows are not drawn at all, a known gap of the generic schema's).
 - **Fix**: under the view, hold as nodes the flow content the engine divides (the generic schema does), or mark such a verbatim block `monolithic` so the page moves it whole on purpose and says so. The studio's README already names the generic schema as the view's ground.
-- **State**: OPEN, the studio's. Since 3f9a59e the page no longer throws at such an atom: it takes the atom whole, lets it overflow clipped by the page box, and says so once on the console with the page and the node's type. Dividing the block is the studio's choice of schema, which another agent is making today.
+- **The studio's half, done 2026-10-24** (studio a13830d, *the generic ground*): under the fragmented view the generic schema with structured marks is the ground, and the bill's `<template data-repeat>` rows enter the state as repeated rows the serializer drops on save, so the view divides the readings table between pages 2 and 3 as the old path does; page 3 misses only the repeated header row, phase 1's known gap. The `verbatim` atoms remain only under `?schema=studio`.
+- **State**: CLOSED 2026-10-24 on both sides; what remains is the repeated header, filed under phase 1's not-done items. Since 3f9a59e the page no longer throws at such an atom: it takes the atom whole, lets it overflow clipped by the page box, and says so once on the console with the page and the node's type. Dividing the block is the studio's choice of schema, which another agent is making today.
 
 ### A running element at the document's start makes a page of its own
 
 - **Seen**: the report (`?demo=report&view=fragmented`): 12 pages against 11, page 1 holding only "Annual … 2026" (4 words) from 0 to 24 and ending at the named switch to `cover`, every page after it one later. The manuale: 8 against 7, its page 1 empty (`svg.logo.running`, positions 0 to 4, closed by a Class C verdict at 899 px). The CLI's intake takes running elements and fixed boxes out of the flow before the first page; here the leading running element is laid out in the flow, and the named switch after it ends a page that holds nothing in flow.
+- **Seen again 2026-10-24**, a third shape, under the studio's generic ground: the showcase's leading `div.press-mark` (`position: running(press)`) is a node there, and the view ends page 1 after the cover's five-word kicker, the blank verso gone. The same fix.
 - **Layer**: the Cicero page, `src/cicero-page.js` (`trial` puts away what `isFixedBox` names, `grab`).
 - **Fix**: two parts, to be measured apart: check that `isFixedBox` on the law copy names a running element whose `position: running()` the rewrite moved into a custom property (the report's was drawn); and let the grab take an event with no in-flow box before it as the page's start, not its end, as the driver's "strictly after the page's start" means for a page whose start holds only out-of-flow boxes.
 - **State**: OPEN.
@@ -125,6 +129,13 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **State**: OPEN, seen on main too.
 
 ## The studio's wiring
+
+### Roundtrip's re-parse check cannot hold under structured marks
+
+- **Seen**: `npm run roundtrip` under the generic schema, with or without the switch, on 2026-10-24: the "re-parse equals the state" part fails on all four demos that have a data block, because structured marks mint a fresh instance id on every parse, and with plain marks the check's own parse drops the body's leading whitespace. The source-against-saved-body and body-against-page parts hold (quiet-press 619 nodes, report 874, manuale 1 159; the bill differs only in its data block, `giorni` 0 against 61, on `main` too). The check also crashes on the three demos without a data block, on `main` as well.
+- **Layer**: the studio's wiring, `scripts/roundtrip.mjs`.
+- **Fix**: compare after renumbering instance ids in order of first appearance, parse the serialization inside a `<body>` tag so the leading whitespace survives, and guard the demos without a data block.
+- **State**: OPEN.
 
 ### The studio's checks cannot see the view
 
