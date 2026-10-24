@@ -149,3 +149,16 @@ test('a cut moves the chain on when its position is later, or, at the page start
   assert.equal(advances(10, { pieces: [{ pos: 3, from: 4 }] }, { to: 10, next: { pieces: [{ pos: 3, from: 8 }] } }), true, 'a row item moved on');
   assert.equal(advances(10, { pieces: [{ pos: 3, from: 4 }] }, { to: 10, next: { pieces: [{ pos: 3, from: 4 }] } }), false);
 });
+
+test('a page begins at its first in-flow box: an unshown leaf and a box with no footprint at its start are passed over, at their depth only', async () => {
+  const { inFlowStart } = await import('../src/turn.js');
+  const s = new Schema({ nodes: { doc: { content: 'block+' }, section: { content: 'block+', group: 'block' }, paragraph: { content: 'text*', group: 'block' }, mark: { group: 'block', atom: true }, ws: { group: 'block', atom: true, unshown: true }, text: {} } });
+  const { section, paragraph, mark, ws } = s.nodes;
+  // ws 0–1, mark 1–2, ws 2–3, <section> 3– holding mark 4–5 and <p>Cover</p> 5–12.
+  const d = s.node('doc', null, [ws.create(), mark.create(), ws.create(), section.create(null, [mark.create(), paragraph.create(null, s.text('Cover'))])]);
+  const away = (/** @type {number} */ pos) => d.nodeAt(pos)?.type === mark;
+  assert.equal(inFlowStart(d, 0, away), 3, 'the cover section, past the leaves and the press mark');
+  assert.equal(inFlowStart(d, 4, away), 5, 'inside the section, past the nested mark');
+  assert.equal(inFlowStart(d, 3, away), 3, 'an in-flow box at the start is the start; the name lookup descends into it');
+  assert.equal(inFlowStart(d, 0, () => false), 1, 'with nothing away, only the whitespace leaf is passed over');
+});

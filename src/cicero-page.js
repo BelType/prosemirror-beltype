@@ -5,9 +5,9 @@
  * The page is the engine's own element, made with `document.createElement('beltype-page')` so whichever copy of the engine registered the element first is the one that answers (a second class would make `new` an illegal constructor, and an `instanceof` against either class lies across the two). It is given its geometry from the geometry table (`applyConditions`), dressed with its page context (`dress`), and takes its content through `setContent`, the door *the engine knows no view* opened for a host that is not the root.
  *
  * `fill(doc, from, render)` is the driver's page cycle (`driver.js`, `paginateOnce`), with the engine's functions called and the gaps filled the ProseMirror way:
- * 1. Conditions. The page's name is the effective page name at `from`, read off the trial's law copy (below) as the driver's `nameAt` reads it off the source; its geometry is the table's for that name, its side (`parityAt`), `:first` for the first page and `:blank` for a blank one.
- * 2. Trial. The slice from `from` is rendered twice: once into the engine's measure context (`createMeasureContext` at the page's content width, which neutralizes the native break properties and transforms inside it), and once into a hidden holder outside it, the LAW COPY. The two are the same tree, paired element by element, and the copy answers `sourceOf`: the Stonehand reads `break-*`, `orphans`, `widows` and the monolith grounds from the source because the measure context neutralizes them on what it lays out, so a slice cannot be its own source in the measure context. The trial is bounded as `OverflowBox` bounds its own (`firstSpan`), at a block boundary and never inside a box the driver's bound never cuts inside (`boundAt`, `sealedEnd`, the Cast-off's `neverCutInside`), and doubled until it reaches below the page's edge (`reachesBelowTheEdge`, the Cast-off's check) or the document's end. A fixed box or a running element (`isFixedBox`) is put away (`away`) on both copies and on the page, which is the engine's zero footprint for both. What the page begins with besides its slice, a shell or a row's pieces (below), is built on both copies before they are measured, as the driver's feed is built with them.
- * 3. The grab. The engine's `forcingIndexOf` is built over the law copy's top-level blocks with readers this package supplies, and asked for the first forcing event strictly after the page's start; where it finds one in the trial, the trial is rendered again up to the event, as the driver cuts its feed there.
+ * 1. Conditions. The page's name is the effective page name at its first in-flow box at or after `from` (`inFlowStart`: a running element, a fixed box or a whitespace leaf at `from` is passed over, since the driver's intake took them out before its cursor ever stood there), read off the trial's law copy (below) as the driver's `nameAt` reads it off the source; its geometry is the table's for that name, its side (`parityAt`), `:first` for the first page and `:blank` for a blank one.
+ * 2. Trial. The slice from `from` is rendered twice: once into the engine's measure context (`createMeasureContext` at the page's content width, which neutralizes the native break properties and transforms inside it), and once into a hidden holder outside it, the LAW COPY. The two are the same tree, paired element by element, and the copy answers `sourceOf`: the Stonehand reads `break-*`, `orphans`, `widows` and the monolith grounds from the source because the measure context neutralizes them on what it lays out, so a slice cannot be its own source in the measure context. The trial is bounded as `OverflowBox` bounds its own (`firstSpan`), at a block boundary and never inside a box the driver's bound never cuts inside (`boundAt`, `sealedEnd`, the Cast-off's `neverCutInside`), and doubled until it reaches below the page's edge (`reachesBelowTheEdge`, the Cast-off's check) or the document's end. A fixed box or a running element (`isFixedBox`) is put away (`away`) on both copies and on the page, at any depth, which is the engine's zero footprint for both; the page that begins with one holds its positions, invisible. Placing a running element in its margin box (`setMarginBox`, the running assignments) is the reads' work, phase 2's, and not done here. What the page begins with besides its slice, a shell or a row's pieces (below), is built on both copies before they are measured, as the driver's feed is built with them.
+ * 3. The grab. The engine's `forcingIndexOf` is built over the law copy's top-level blocks with readers this package supplies, and asked for the first forcing event strictly after the page's start, its first in-flow box, so an event there (a named page, a `break-before`) names the page or sets its side and does not end it; where it finds one in the trial, the trial is rendered again up to the event, as the driver cuts its feed there.
  * 4. Judgement. The fonts and the trial's images are awaited (`awaitFonts`, `awaitCloneImages`), the report taken (`takeReport`), the lead read (`report.contentTop` and the spent extent above a resumed box, `spentLead`), and the page's in-flow bottom compared with its content height as the driver compares it. A page that fits ends at the forced event or at the document's end; one that does not has the Stonehand rank the candidates (`adjudicate`).
  * 5. The verdict as the page's end (`cutOf`). A Class A boundary before a box is that box's position entered down its first-child chain (`enter`), the fragmented view's convention for a cut; a Class B cut between lines is the position of the first character the line after the cut shows, a word and, where the line begins inside it, a character (`placeAt`, `wordPoint`), so the breaking space before it stays on this page; a start-edge Class C resumes before the child after the gap. The three verdicts that continue a box in a form one position cannot say are built as the engine builds them (`shells.js` says what each side shows): the page edge's cut through a box (`E`) ends the page at the box's own position and the page after paints it, an end-gap Class C ends it after the box and the page after shows it as a blank shell, and a cut through a row ends it at the last item's place and gives every other item a piece of its own. Each is said to the page after in the hint (`next`: `at`, the position it was left for, `shell` and `row.items`).
  * 6. The page. The slice from `from` to the cut's own end (`openedAt(doc, to)`, or past `to` to the end of a box the page shows whole) is rendered into the page (`setContent`), the row pieces seated, the shells made, the tables and grids the page divides pinned to the tracks the trial laid them out at (`pinTracks`), the flow given the lead, the extent the verdict used and the extension a divided box takes (`setFlow`, `extensionPx`), and the answer is `{ to, next }` (`hintAfter`).
@@ -34,7 +34,7 @@ import { pathOf, normalizePath, extensionPx, divides } from '@egildo/beltype-eng
 import { joinedWords } from '@egildo/beltype-engine-cicero/src/fragments.js';
 import { blockChildrenOf, isFixedBox } from '@egildo/beltype-engine-cicero/src/word-space.js';
 import '@egildo/beltype-engine-cicero/src/chase.js';
-import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition, wholeAfter, advances } from './turn.js';
+import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition, wholeAfter, advances, inFlowStart } from './turn.js';
 import { Positions, nodeDom, nodeStart, continueAsShell, endAsShell, seatPieces, shellsOf, endsOf, pinTracks } from './shells.js';
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
@@ -167,6 +167,8 @@ export class CiceroPage {
     let report;
     let pageStart = 0;
     let end;
+    // The page's start as the driver's cursor stands: its first in-flow box, past a running element, a fixed box or a whitespace leaf at `from` (`inFlowStart`).
+    let first = from;
     for (let pours = 1; ; pours++) {
       end = this.boundAt(doc, from + span);
       t = this.trial(doc, from, end, render, forced, start);
@@ -174,8 +176,9 @@ export class CiceroPage {
       const sealed = end == null ? null : this.sealedEnd(t, doc, end);
       if (sealed !== end) t = this.trial(doc, from, (end = sealed), render, forced, start);
       if (!ctx) {
+        first = inFlowStart(doc, from, (pos) => { const el = nodeDom(t.lawRoot, t.law.positions, doc, pos); return !!el && isFixedBox(el); });
         // Entry N determines page N+1's conditions (C8): the name is the content's own at the page's start.
-        this.conditions = this.conditionsFor(this.nameAt(t, from));
+        this.conditions = this.conditionsFor(this.nameAt(t, first));
         ctx = createMeasureContext(this.doc, this.conditions.contentW);
       }
       ({ report, pageStart } = await this.measure(ctx, t, truncateLead, doc, from, start));
@@ -183,8 +186,8 @@ export class CiceroPage {
       span *= 2;
     }
 
-    // The grab: the first forcing event strictly after the page's start, in the trial.
-    const event = this.grab(t, from);
+    // The grab: the first forcing event strictly after the page's start, in the trial; an event at the first in-flow box named the page above, and does not end it.
+    const event = this.grab(t, first);
     /** @type {number | null} */
     let eventTo = null;
     let eventName = '';
@@ -239,7 +242,7 @@ export class CiceroPage {
       }
     }
 
-    const startCut = this.addressAt(t, from);
+    const startCut = this.addressAt(t, first);
     const endCut = to == null ? null : this.addressAt(t, to);
     // A page that ends in a shell takes no extension, nor one that resumes a painted shell (`extensionPx`, *the end gap takes no extension*); a row's divided items reach the foot.
     const shellEnd = !!cut?.shell && !cut.pieces?.length;
@@ -652,13 +655,13 @@ function shellHint(to, next) {
 }
 
 /**
- * The text standing in `el` before its descendant `child`.
+ * The text standing in `el` before its descendant `child`, less what a running element or a fixed box holds, which is no line of the container's (the driver counts words, and those boxes have none in its word space).
  * @param {Element} el
  * @param {Element} child
  */
 function textBefore(el, child) {
-  const range = /** @type {Document} */ (el.ownerDocument).createRange();
-  range.setStart(el, 0);
-  range.setEndBefore(child);
-  return range.toString();
+  const walk = /** @type {Document} */ (el.ownerDocument).createTreeWalker(el, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.nodeType === 1 && isFixedBox(/** @type {Element} */ (n)) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+  let text = '';
+  for (let n = walk.nextNode(); n && n !== child; n = walk.nextNode()) if (n.nodeType === 3) text += /** @type {Text} */ (n).data;
+  return text;
 }
