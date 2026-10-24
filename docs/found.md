@@ -31,7 +31,8 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen again 2026-10-24**, a third shape, under the studio's generic ground: the showcase's leading `div.press-mark` (`position: running(press)`) is a node there, and the view ends page 1 after the cover's five-word kicker, the blank verso gone. The same fix.
 - **Layer**: the Cicero page, `src/cicero-page.js` (`trial` puts away what `isFixedBox` names, `grab`).
 - **Fix**: two parts, to be measured apart: check that `isFixedBox` on the law copy names a running element whose `position: running()` the rewrite moved into a custom property (the report's was drawn); and let the grab take an event with no in-flow box before it as the page's start, not its end, as the driver's "strictly after the page's start" means for a page whose start holds only out-of-flow boxes.
-- **State**: OPEN.
+- **State**: CLOSED 2026-10-24, f74a440 (the page's start) and 477f79d (the fixture), on `round/the-page-starts-at-its-first-box`. The put-away never missed: measured on all three demos under both schemas, the law copy is connected, the rewritten sheets reach it, `isFixedBox` names the element at any depth and the page draws it `display: none`. The page was named, and its grab's cursor read, at the running element or at the generic schema's leading whitespace leaf, so it was named `''` and ended at the cover's first child of another name; it now reads both at its first in-flow box (`inFlowStart`), and the report is 11 pages, the manual 7 and the showcase's page 1 the cover with the blank verso back (docs/results.md, "The page starts at its first in-flow box").
+- **Remains**: the running element is not placed in its margin box, the reads' work (phase 2).
 
 ### A facsimile is drawn at the browser's 150 px object height
 

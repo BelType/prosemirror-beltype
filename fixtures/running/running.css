@@ -1,0 +1,13 @@
+/* The running fixture's sheet: two running elements at the document's start, a press mark at the top level and a mark nested inside the cover's header (as the studio's showcase and manual write them), then a cover on a named page and a front matter that owes a right page, so the blank verso falls on page 2. Neither element is placed in a margin box by the view yet (the reads are phase 2's); the CLI places both. */
+@page { size: 110mm 150mm; margin: 14mm 12mm; @bottom-left { content: element(press); } @top-left { content: element(logo); } }
+@page cover { margin: 20mm 14mm; background: #f4efe6; }
+@page front { margin: 14mm 12mm; }
+p { orphans: 2; widows: 2; }
+h2 { break-after: avoid; }
+.press-mark { position: running(press); font-style: italic; }
+.logo { position: running(logo); font-weight: 600; }
+.cover { page: cover; break-before: right; }
+.cover .kicker { font-size: 8pt; letter-spacing: 0.18em; text-transform: uppercase; }
+.cover h1 { font-size: 24pt; line-height: 30pt; margin: 40mm 0 0; }
+.front { page: front; break-before: right; }
+.family { break-before: page; }

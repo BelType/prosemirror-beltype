@@ -139,6 +139,22 @@ export function verdictPosition(v, { pieces, words, posAt, enter: into }) {
 }
 
 /**
+ * The page's start as the driver sees it: the first in-flow box at or after `from`. Whitespace leaves the page does not draw (`unshown`) and the boxes `away` names (a running element or a fixed box, the engine's zero footprint) are passed over among `from`'s siblings; the descent into the box found is the name lookup's own (`nameAt`, down the first in-flow block children).
+ *
+ * @remarks
+ * The driver never sees such a box at a page's start: its intake takes every running element and fixed box out before the first page (`topLevelBlocks`, `runningBoxes`, `fixedBoxes`), so its cursor stands at the first in-flow block, a forcing event there (a named page, a `break-before`) names the page or sets its side, and the grab's "strictly after" never ends a page on it. The view's slice keeps such a box where the author wrote it, invisible, so the page that begins with it holds its positions, and the page's name and the grab's cursor are read here, past it.
+ *
+ * @param {PMNode} doc
+ * @param {number} from
+ * @param {(pos: number) => boolean} away Whether the node at `pos` takes no room in the flow.
+ */
+export function inFlowStart(doc, from, away) {
+  let pos = from;
+  for (let $p = doc.resolve(pos); $p.nodeAfter && ($p.nodeAfter.type.spec.unshown || away(pos)); $p = doc.resolve(pos)) pos += /** @type {PMNode} */ ($p.nodeAfter).nodeSize;
+  return pos;
+}
+
+/**
  * Where a page that cannot cut ends: after the node at `from`, taken whole (*the build cannot fail*, C2: the driver answers a page whose only box is taller than the page by letting it overflow in place). The node is the atom at `from` when there is one, else the textblock `from` stands in, to its end, else the node that begins at `from`; whitespace leaves the page does not draw are passed over first. `to` is the position the next page begins at, past every parent that closes there and entered as a cut is (`enter`), or null at the document's end.
  * @param {PMNode} doc
  * @param {number} from
