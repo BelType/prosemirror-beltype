@@ -11,6 +11,7 @@
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
 /** @import { ContainerHint } from 'prosemirror-fragview/src/fragmentainer.js' */
+/** @import { Shell, Piece } from './shells.js' */
 
 /** The span of positions a first fill renders past `from` for its trial, as `OverflowBox` renders. */
 export const FIRST_SPAN = 2048;
@@ -109,7 +110,7 @@ export function placeAt(pieces, line) {
 }
 
 /**
- * A verdict of the Stonehand's as a position, which is `to`, with the four questions it asks of the DOM and the document injected: a box boundary is the box's position entered down its first-child chain, a Class B cut the position of the first character the line after the cut shows, a start-edge Class C the boundary before the child after the gap. An end-gap Class C, an edge cut and a cut through a row continue a box as a shell of so many pixels, which no position says: each answers the boundary after (an end gap) or before the box, and `shell` is set so the caller can say so.
+ * A verdict of the Stonehand's as a position, which is `to`, with the four questions it asks of the DOM and the document injected: a box boundary is the box's position entered down its first-child chain, a Class B cut the position of the first character the line after the cut shows, a start-edge Class C the boundary before the child after the gap. An end-gap Class C, an edge cut and a cut through a row continue a box as a shell of so many pixels, which no position says: the page builds those itself (`CiceroPage.cutOf`, `shells.js`) and never asks this; asked anyway, each answers the boundary after (an end gap) or before the box, with `shell` set.
  *
  * @remarks
  * A Class B cut falls between two lines, and its position is where the second begins: the first piece the Gauge homes to the line after the cut, a word and, where the line begins inside it (a hyphen the browser drew, a break inside a word), a character. The breaking space that ended the line before stays with it, on the page before; nothing of a line is ever split between two positions.
@@ -158,4 +159,22 @@ export function wholeAfter(doc, from) {
   else after = pos;
   for (let $a = doc.resolve(after); !$a.nodeAfter && $a.depth > 0; $a = doc.resolve(after)) after = $a.after();
   return { node, at, to: after >= doc.content.size ? null : enter(doc, after) };
+}
+
+/**
+ * Whether a cut moves the chain on (*the build cannot fail*, C2, asked as the driver's `cutAfter` asks it of an address): a later position, the document's end, or, at the page's own start, a shell entered or one that shrank, or a row piece that moved on or shrank.
+ * @param {number} from
+ * @param {{ shell?: Shell, pieces?: Piece[] }} start What the page began with.
+ * @param {{ to: number | null, next?: { shell?: Shell, pieces?: Piece[] } }} cut
+ */
+export function advances(from, start, cut) {
+  if (cut.to == null || cut.to > from) return true;
+  if (cut.to < from) return false;
+  const shrank = (/** @type {Shell | undefined} */ a, /** @type {Shell | undefined} */ b) => !!a && (!b || b.pos !== a.pos || a.remaining < b.remaining - 0.5);
+  if (shrank(cut.next?.shell, start.shell)) return true;
+  const before = new Map((start.pieces ?? []).map((p) => [p.pos, p]));
+  return (cut.next?.pieces ?? []).some((p) => {
+    const q = before.get(p.pos);
+    return !q || (p.from ?? -1) > (q.from ?? -1) || shrank(p.shell, q.shell);
+  });
 }

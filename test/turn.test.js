@@ -136,3 +136,16 @@ test('a page that cannot cut takes the node at its start whole, and the next pag
   assert.deepEqual(wholeAfter(two, 13), { node: two.child(2), at: 12, to: null }, 'the last textblock ends the document');
   assert.deepEqual(wholeAfter(two, 5), { node: two.child(1), at: 5, to: 13 }, 'a block that begins at the page start, not entered, is taken whole');
 });
+
+test('a cut moves the chain on when its position is later, or, at the page start, when a shell is entered or shrinks or a row piece moves', async () => {
+  const { advances } = await import('../src/turn.js');
+  assert.equal(advances(10, {}, { to: 20 }), true);
+  assert.equal(advances(10, {}, { to: null }), true, 'the document end');
+  assert.equal(advances(10, {}, { to: 10 }), false, 'nothing taken');
+  const shell = { pos: 9, remaining: 800, paint: 461 };
+  assert.equal(advances(10, {}, { to: 10, next: { shell } }), true, 'a painted shell entered at the page start');
+  assert.equal(advances(10, { shell }, { to: 10, next: { shell: { ...shell, remaining: 340 } } }), true, 'the shell shrank');
+  assert.equal(advances(10, { shell }, { to: 10, next: { shell } }), false, 'the same shell again');
+  assert.equal(advances(10, { pieces: [{ pos: 3, from: 4 }] }, { to: 10, next: { pieces: [{ pos: 3, from: 8 }] } }), true, 'a row item moved on');
+  assert.equal(advances(10, { pieces: [{ pos: 3, from: 4 }] }, { to: 10, next: { pieces: [{ pos: 3, from: 4 }] } }), false);
+});
