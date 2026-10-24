@@ -18,6 +18,8 @@
  *
  * The page resets the text mechanics the fragmented view's editing host sets (`white-space: break-spaces`, `overflow-wrap`, the ligatures and, from the editing host's own UA style, `line-break`) to what the document's body computes, because the trial in the measure context inherits from the body and the page's content inherits from the host. Measured 2026-10-24 with the reset left out: the cuts were the same, since the trial decides them, but the specimen's third page set its text on more lines than the trial had and its clip hid 21 of its 113 words, and the flow fixture differed from its first page.
  *
+ * The page presents what it renders (*a copy may be presented*, the engine's `presenters.js`): the renderer writes the author's element, where the engine's `copyOf` makes every copy of a source a presenter matches the presenter's element instead, so before a trial is measured every such element of the trial and of the law copy is replaced by what the presenter makes from the law copy's element, which is connected and so has the computed style the presenter reads, and the shown page's after it is given (`presentTree`). The presented element stands for its node in the slice's positions, the walk does not descend into it, and the trial's is paired with the law's and registered against it (`noteSource`), as the law is the trial's source. The intake the presenter needs, a facsimile's page sizes, is the factory's (`intake`, `takeFacsimile` in `containers.js`), awaited before the presenting. Measured 2026-10-25 on the facsimile fixture and the studio's demo: unpresented, an `<object type="application/pdf">` stood 150 px tall in the studio, Chromium's default, and 0 in BelType's page, whose head hides one outside a root.
+ *
  * The law copy is measured too (2026-10-24): with the trial read as its own source, the flow fixture's fourth page cut between the lines of its `break-inside: avoid` box, which the CLI moves whole, and every page after it differed (22 pages against the CLI's 26).
  *
  * @packageDocumentation
@@ -32,7 +34,8 @@ import { forcingIndexOf } from '@egildo/beltype-engine-cicero/src/driver.js';
 import { effectivePageName } from '@egildo/beltype-engine-cicero/src/capture.js';
 import { pathOf, normalizePath, extensionPx, divides } from '@egildo/beltype-engine-cicero/src/positions.js';
 import { joinedWords } from '@egildo/beltype-engine-cicero/src/fragments.js';
-import { blockChildrenOf, isFixedBox } from '@egildo/beltype-engine-cicero/src/word-space.js';
+import { blockChildrenOf, isFixedBox, noteSource } from '@egildo/beltype-engine-cicero/src/word-space.js';
+import { presentation } from '@egildo/beltype-engine-cicero/src/presenters.js';
 import '@egildo/beltype-engine-cicero/src/chase.js';
 import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition, wholeAfter, advances, inFlowStart } from './turn.js';
 import { Positions, nodeDom, nodeStart, continueAsShell, endAsShell, seatPieces, shellsOf, endsOf, pinTracks } from './shells.js';
@@ -74,12 +77,12 @@ const TEXT_MECHANICS = ['whiteSpace', 'overflowWrap', 'fontVariantLigatures', 'f
  * @typedef {{ to: number | null, end?: number, shell?: Shell, pieces?: Piece[], next?: Start }} Cut
  */
 
-/** The hidden holder every page's law copy stands in: in the document, so its elements have a computed style, and outside the measure context, so the neutralizing sheet does not reach them. */
-function lawHolder(/** @type {Document} */ doc) {
-  let holder = doc.getElementById('__prosemirror-beltype-law');
+/** The hidden holder every page's law copy stands in: in the document, so its elements have a computed style, and outside the measure context, so the neutralizing sheet does not reach them. The shown page's slice is presented in another of the same kind (`show`). */
+function lawHolder(/** @type {Document} */ doc, id = '__prosemirror-beltype-law') {
+  let holder = doc.getElementById(id);
   if (!holder) {
     holder = doc.createElement('div');
-    holder.id = '__prosemirror-beltype-law';
+    holder.id = id;
     holder.style.display = 'none';
     doc.body.appendChild(holder);
   }
@@ -93,9 +96,11 @@ export class CiceroPage {
    * @param {number} a.index The page's index in the chain, from 0.
    * @param {(ContainerHint & { forced?: boolean }) | undefined} [a.hint] What the fill before this page left for it.
    * @param {Document} [a.document]
+   * @param {() => Promise<void>} [a.intake] What the presenters need before a trial is presented, the factory's (`takeFacsimile`); nothing by default.
    */
-  constructor({ table, index, hint, document = globalThis.document }) {
+  constructor({ table, index, hint, document = globalThis.document, intake = async () => {} }) {
     this.table = table;
+    this.intake = intake;
     this.index = index;
     this.hint = hint ?? {};
     this.doc = document;
@@ -352,12 +357,30 @@ export class CiceroPage {
    * @param {boolean} truncateLead
    */
   async measure(ctx, t, truncateLead, doc, from, start) {
+    await this.present(t);
     const container = ctx.measure([...t.trial.fragment.childNodes]);
     t.container = container;
     await awaitFonts(this.doc);
     await awaitCloneImages(container);
     const report = takeReport(container, { contentHeight: this.conditions.contentH });
     return { report, pageStart: truncateLead ? report.contentTop + this.spentLead(t, report, doc, from, start) : 0 };
+  }
+
+  /**
+   * Present the trial and the law copy (*a copy may be presented*), once the intake is taken: each element of the trial a presenter matches is replaced by what the presenter makes from its law element, the law's by what it makes from itself, and the two presented elements are paired and the trial's registered against the law's. The law's top-level blocks are read again, since a presented element may be one.
+   * @param {Trial} t
+   */
+  async present(t) {
+    await this.intake();
+    const trial = presentTree(t.trial.fragment, t.trial.positions, (x) => t.lawOf.get(x) ?? x);
+    if (!trial.size) return;
+    const law = presentTree(t.lawRoot, t.law.positions);
+    for (const [x, made] of trial) {
+      const own = law.get(/** @type {Element} */ (t.lawOf.get(x)));
+      t.lawOf.delete(x);
+      if (own) { t.lawOf.set(made, own); noteSource(made, own); }
+    }
+    t.blocks = [...t.lawRoot.children].filter((el) => !isFixedBox(el));
   }
 
   /**
@@ -599,17 +622,21 @@ export class CiceroPage {
   }
 
   /**
-   * Show a rendered slice: given to the page through its content door, with what takes no room put away and, after a forced break, the adjoining margin kept.
+   * Show a rendered slice: presented (`presentTree`), given to the page through its content door, with what takes no room put away and, after a forced break, the adjoining margin kept.
+   *
+   * @remarks
+   * The slice is presented in a hidden holder of its own before it is given, since the presenter reads the element's computed style and so needs it connected, and an element presented in the page itself is never laid out where the page was off screen: measured 2026-10-25, the facsimile fixture's landscape page, filled while the page's `content-visibility: auto` skipped its contents, kept no box at all once it was on screen, and a copy of it put in its place had its 533 × 400.
    * @param {RenderedSlice} rendered
    * @param {boolean} [forced]
    */
   show(rendered, forced = false) {
     this.rendered = rendered;
-    const nodes = [...rendered.fragment.childNodes];
-    this.dom.setContent(...nodes);
-    for (const node of nodes) {
-      if (node.nodeType !== 1) continue;
-      for (const el of [/** @type {Element} */ (node), ...(/** @type {Element} */ (node)).querySelectorAll('*')]) {
+    const staging = lawHolder(this.doc, '__prosemirror-beltype-staging');
+    staging.replaceChildren(rendered.fragment);
+    presentTree(staging, rendered.positions);
+    this.dom.setContent(...staging.childNodes);
+    for (const node of /** @type {Element[]} */ (this.given())) {
+      for (const el of [node, ...node.querySelectorAll('*')]) {
         if (forced) removeWord(el, ADJOIN);
         if (isFixedBox(el)) addWord(el, AWAY);
       }
@@ -652,6 +679,28 @@ export class CiceroPage {
 function shellHint(to, next) {
   if (!next || (!next.shell && !next.pieces?.length)) return {};
   return { at: to, ...(next.shell ? { shell: next.shell } : {}), ...(next.pieces?.length ? { row: { items: next.pieces } } : {}) };
+}
+
+/**
+ * Present what a rendered tree holds, as the engine's `copyOf` presents a copy: every element a registered presenter matches is replaced by the presenter's element, which stands for the same node in `positions` and carries the words the element earned (the presenter copies its attributes, `data-beltype` among them), and the walk does not descend into it. A door the engine could open instead is filed in docs/results.md ("The page presents what it renders").
+ * @param {ParentNode} root
+ * @param {{ get(node: Node): any, set(node: Node, span: any): unknown }} positions
+ * @param {(el: Element) => Element} [sourceFor] The connected element the presenter is asked about and makes from, since it reads the computed style; the element itself by default.
+ * @returns {Map<Element, Element>} Each element replaced, to what replaced it.
+ */
+function presentTree(root, positions, sourceFor = (el) => el) {
+  /** @type {Map<Element, Element>} */
+  const swaps = new Map();
+  for (const el of [...root.querySelectorAll('*')]) {
+    if (!root.contains(el)) continue; // inside an element presented already
+    const made = presentation(sourceFor(el));
+    if (!made) continue;
+    el.replaceWith(made);
+    const span = positions.get(el);
+    if (span) positions.set(made, span);
+    swaps.set(el, made);
+  }
+  return swaps;
 }
 
 /**
