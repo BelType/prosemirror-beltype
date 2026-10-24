@@ -1,0 +1,10 @@
+/* The dressing fixture's sheet: the flow fixture's small page, and one divided box for each of the five rules of the engine's continuation dressing, so a resumed piece that wore no dressing would show its box's beginning twice (a label, a marker, a drop cap, a first line) and a cut-off piece its end twice (an attribution). */
+@page { size: 110mm 150mm; margin: 14mm 12mm; }
+p { orphans: 2; widows: 2; }
+blockquote.open { margin: 0 0 1em 1.2em; }
+blockquote.open::before { content: "Quoted"; display: block; font-weight: bold; letter-spacing: 0.1em; }
+ol.steps li::marker { content: "No. " counter(list-item) "  "; font-weight: bold; }
+p.cap::first-letter { float: left; font-size: 3.4em; line-height: 0.9; margin: 0.05em 0.08em 0 0; }
+p.lead::first-line { font-variant: small-caps; font-size: 1.15em; }
+aside.close { margin: 1em 0 1em 1.2em; font-style: italic; }
+aside.close::after { content: "— the compositor"; display: block; text-align: right; font-style: normal; }
