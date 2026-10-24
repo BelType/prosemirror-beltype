@@ -1,0 +1,5 @@
+/* The end-gap fixture's sheet: the flow fixture's small page and two boxes whose block-end gap crosses the page's edge (a deep bottom padding, a declared height), so the cut falls in the gap and the box's remainder continues on the next page as a blank shell. */
+@page { size: 110mm 150mm; margin: 14mm 12mm; }
+p { orphans: 2; widows: 2; }
+.padded { padding-bottom: 70mm; background: #eee; border-bottom: 2px solid #999; }
+.tall { height: 190mm; background: #f3f0ea; }

@@ -1,0 +1,7 @@
+/* The multicol fixture's sheet: the flow fixture's small page and the studio showcase's glossary, a `dl` set in two columns (`.two`, as the showcase's components.css sets it), which the engine holds as a monolith (`notYetDivided`) and slices at the page's edge. */
+@page { size: 110mm 150mm; margin: 14mm 12mm; }
+p { orphans: 2; widows: 2; }
+.two { column-count: 2; column-gap: 6mm; margin: 10.5pt 0; font-size: 9pt; line-height: 14pt; }
+.two dt { font-weight: 600; break-after: avoid; }
+.two dd { margin: 0 0 7pt; }
+.two code { font-size: inherit; }
