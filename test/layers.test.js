@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const src = fileURLToPath(new URL('../src/', import.meta.url));
 const ALLOWED = /^(prosemirror-(fragview|model|state|transform)|@egildo\/beltype-engine-cicero(\/.*)?|\.\/.*)$/;
 
-test('every import under src/ is the view, the engine or a sibling', () => {
+test('every import under src/ is ProseMirror, the view, the engine or a sibling', () => {
   for (const file of readdirSync(src).filter((f) => f.endsWith('.js'))) {
     const text = readFileSync(src + file, 'utf8');
     for (const m of text.matchAll(/^import .* from '([^']+)'/gm)) assert.match(m[1], ALLOWED, `${file} imports ${m[1]}`);

@@ -12,7 +12,7 @@ The fragmented view renders a ProseMirror state into a chain of fragmentainers, 
 | :--- | :--- | :--- |
 | `@egildo/beltype-engine-cicero` | a document and its sheets; no view | `src/` and `seam/` never name `prosemirror` (a BelType test, a door of the record) |
 | `prosemirror-fragview` | ProseMirror; no engine | no import reaches an engine; the naming sweep is to do until the words registry is a parameter |
-| `prosemirror-beltype` | both | every import under `src/` is the view, the engine or a sibling (`test/layers.test.js`) |
+| `prosemirror-beltype` | both | every import under `src/` is ProseMirror, the view, the engine or a sibling (`test/layers.test.js`) |
 
 The engine is unpublished (private in BelType's monorepo), so this package reaches it by a `file:` link to `../../../../Users/egildo/Privata/dev/beltype/packages/engine-cicero` for now (four levels up from `/Volumes/dev/Codeberg/prosemirror-beltype`; three, as first written, lands in `/Volumes`), as fragview reaches the studio. A published `@egildo/beltype-engine-cicero` replaces the link the day it exists; the import specifiers are already its.
 

@@ -53,7 +53,15 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen**: the quiet press, "A  B" typed in a paragraph: the model holds two spaces, the page draws one (the four characters measure 24 px). The old path draws one too (24 px, `white-space-collapse: collapse` on the page), so it is no regression of the switch; the view alone would have shown two.
 - **Layer**: the Cicero page, `src/cicero-page.js` (the page resets the view's `white-space: break-spaces` to the body's, which the trial needs).
 - **Fix**: a decision, as phase 1 says: a typed space beside a space as a non-breaking one, or the editing mechanics in the measure context too.
-- **State**: OPEN (known, phase 1's "not done").
+- **Measured 2026-10-25 before the fix**, by `scripts/spaces.mjs` in the studio with real keystrokes: on both paths a typed space is U+0020 in the model and in the drawn text node, in all three places, so the browser promotes nothing (both paths cancel `beforeinput` and draw from the model). `A  B` measures 24.44 px, the second space 0 px; a space at the paragraph's end or start draws 0 px.
+- **State**: CLOSED 2026-10-25, 596df51 and fceba92 on `round/a-space-beside-a-space`, by a decision: the document is HTML and whitespace collapses in the editor as in print, so a space that would collapse is promoted to U+00A0, which model, CLI round and page all draw. `collapsedSpaces()` (`src/spaces.js`) does it after every transaction, installed in the studio's state under the switch (studio da9c7e9): `A  B` is `A`, U+0020, U+00A0, `B` and measures 29.2 px with both spaces 5.47 px, the edges' spaces draw 3.17 and 8.42 px, and one undo takes a space and its promotion (docs/results.md, "A space beside a space").
+
+### The title page refills every frame
+
+- **Seen**: the quiet press under the view, by `scripts/spaces.mjs` (2026-10-25): with nothing done after the chain settled, page 1 announced `moved` 90 times and the view dispatched 180 refill transactions in 1.5 s, one `moved` a frame, for as long as the page stands. Each refill's transaction redraws the model's selection in the DOM, so a click on page 2 was overwritten before the browser's `selectionchange` was read and the model's head stayed on page 1: 3 clicks of 3 lost, where the old path lost none. The round placed the caret at the click's own `posAtCoords` to measure.
+- **Layer**: the Cicero page, `src/cicero-page.js` (the `ResizeObserver` in the constructor and the heights `fill` records). The page records each given node's `getBoundingClientRect().height`, a border box, and the observer compares it with `contentRect.height`, a content box. The title page's `section.titlepage` has a 151.18 px `padding-top`: 522.81 px against 371.64, a difference on every observation, so every fill ends in a `moved` and a refill. The `heights` map is never cleared either, and holds one detached section per refill.
+- **Fix**: compare like with like, the observer's `borderBoxSize[0].blockSize` against the recorded border box (or record the content box), and clear `heights` with the observer's `disconnect()` at the start of `fill`. Not built: the round was not to touch `cicero-page.js`.
+- **State**: OPEN.
 
 ### Resumed pieces wear no dressing sheet
 
@@ -120,6 +128,13 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Layer**: the view, `src/fragmented-view.js`, `onCopy`.
 - **Fix**: honour `someProp('clipboardSerializer')` and write `data-pm-slice` with the slice's `openStart` and `openEnd`, as `prosemirror-view`'s clipboard does.
 - **State**: OPEN (minor).
+
+### A refill redraws the model's selection over a click not yet read
+
+- **Seen**: with the title page refilling every frame (the Cicero page's entry above), a click's selection, put in the DOM by the browser at `mouseup`, is replaced by the model's in the next refill's `updateState` (`update`, `selectionToDOM`) before `selectionchange` fires, so `readSelection` never sees the click. Traced 2026-10-25 by wrapping `Selection.prototype.setBaseAndExtent`: every call came from `selectionToDOM` under a refill transaction (meta `fragments$`, no selection set).
+- **Layer**: the view, `src/fragmented-view.js` (`update`).
+- **Fix**: read the DOM's selection before drawing the model's when a transaction set no selection (or skip `selectionToDOM` for a transaction that changed neither the document nor the selection and left the selection's fragments in place). Not needed once the page stops refilling, but any refill during a click would lose it the same way.
+- **State**: OPEN.
 
 ## The engine (BelType)
 
