@@ -2,7 +2,7 @@
  * `collapsedSpaces()`: a plugin that keeps the model from holding a space the page does not draw. The document is HTML, and HTML collapses whitespace: a space beside a space, and a space at a line's start or end, draw nothing, on the Cicero page as in BelType's CLI round (the page lays its text out as the trial in the measure context does, under the body's `white-space`, docs/results.md, *a space beside a space*). So a space that would collapse is promoted to U+00A0, a non-breaking space, a glyph print draws, and model, CLI round and page agree on a visible character. CKEditor 5 and TinyMCE do the same where the host collapses whitespace, and Chromium's contenteditable does it on its own under `white-space: normal`; here it is deliberate and the same in every browser. The name says what the plugin looks for, a space the layout collapses, rather than what it writes.
  *
  * @remarks
- * The rule is about the document after every transaction, not about typing, and it looks only where the transaction changed something: the inserted text and the one character on each side of every change. There, left to right, a U+0020 becomes U+00A0 when the character before it is a collapsible space (U+0020, a tab, a line feed) or a line's start, when the character after it is a line's end, or when it was inserted and the character after it is a collapsible space the transaction did not insert (so a space typed before a space promotes itself, not its neighbour). A run of spaces inserted at once alternates, space, U+00A0, space, U+00A0, so a line can still break inside it, as CKEditor does with a paste. A line's start and end are a textblock's and a `<br>`'s.
+ * The rule is about the document after every transaction, not about typing, and it looks only where the transaction changed something: the inserted text and the one character on each side of every change, and at each only on the side the change touched, so a run of whitespace a provider wrote is never rewritten. There, left to right, a U+0020 becomes U+00A0 when the character before it is a collapsible space (U+0020, a tab, a line feed) or a line's start, when the character after it is a line's end, or when it was inserted and the character after it is a collapsible space the transaction did not insert (so a space typed before a space promotes itself, not its neighbour). A run of spaces inserted at once alternates, space, U+00A0, space, U+00A0, so a line can still break inside it, as CKEditor does with a paste. A line's start and end are a textblock's and a `<br>`'s.
  *
  * A deletion that brings two spaces together is promoted the same way, since the rule reads the document after the step. The inverse is narrower: a U+00A0 becomes U+0020 again only when the change put ink on both its sides and, before the transaction, it stood beside a space or at a line's edge, where it was standing in for a space that collapsed (a space typed at a paragraph's end, then a word). A U+00A0 an author or a provider wrote between two words is never demoted, and one the transaction inserted is kept as it came.
  *
@@ -78,7 +78,9 @@ export function collapsedSpaces() {
       const back = new Mapping(maps).invert();
       const { doc } = state;
       const inserted = (/** @type {number} */ pos) => ranges.some(([a, b]) => pos >= a && pos < b);
-      const near = (/** @type {number} */ pos) => ranges.some(([a, b]) => pos >= a - 1 && pos <= b);
+      // A character whose previous character the change may have made (an inserted one, or the one after the change), and one whose next it may have made (an inserted one, or the one before).
+      const opens = (/** @type {number} */ pos) => ranges.some(([a, b]) => pos >= a && pos <= b);
+      const closes = (/** @type {number} */ pos) => ranges.some(([a, b]) => pos >= a - 1 && pos < b);
       /** @type {Map<number, import('prosemirror-model').Node>} */
       const blocks = new Map();
       for (const [a, b] of ranges) {
@@ -93,13 +95,14 @@ export function collapsedSpaces() {
         const chars = charsOf(block, pos + 1);
         for (let k = 0; k < chars.length; k++) {
           const c = chars[k];
-          if (!near(c.pos)) continue;
+          const open = opens(c.pos), close = closes(c.pos);
+          if (!open && !close) continue;
           const before = k ? chars[k - 1].ch : EDGE;
           const after = chars[k + 1] ?? null;
           const next = after ? after.ch : EDGE;
           let ch = null;
           if (c.ch === SPACE) {
-            if (collapsible(before) || next === EDGE || (inserted(c.pos) && after && COLLAPSIBLE.has(/** @type {string} */ (next)) && !inserted(after.pos))) ch = NBSP;
+            if ((open && collapsible(before)) || (close && next === EDGE) || (inserted(c.pos) && after && COLLAPSIBLE.has(/** @type {string} */ (next)) && !inserted(after.pos))) ch = NBSP;
           } else if (c.ch === NBSP && !inserted(c.pos) && ink(before) && ink(next) && besideSpace(oldState.doc, back.map(c.pos, 1))) ch = SPACE;
           if (ch == null) continue;
           c.ch = ch;

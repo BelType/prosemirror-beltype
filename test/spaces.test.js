@@ -91,3 +91,18 @@ test('a transaction not added to history is left as it came', () => {
   const state = make(p.create(null, schema.text('A B')), 3);
   assert.equal(text(state.apply(state.tr.insertText(' ').setMeta('addToHistory', false))), 'A  B');
 });
+
+test('a split before a space begins the new paragraph with a U+00A0, and the join gives the space back', () => {
+  const state = make(p.create(null, schema.text('end. Next')), 5);
+  const split = state.apply(state.tr.split(5));
+  assert.equal(text(split), `end.|${NB}Next`);
+  const after = make(p.create(null, schema.text('end. Next')), 6);
+  const ended = after.apply(after.tr.split(6));
+  assert.equal(text(ended), `end.${NB}|Next`);
+  assert.equal(text(ended.apply(ended.tr.join(7))), 'end. Next');
+});
+
+test('a run a provider wrote is never rewritten: a space typed after it is promoted alone, and a trailing space stays', () => {
+  assert.equal(text(type(make(p.create(null, schema.text('a\n  b')), 5), ' ')), `a\n  ${NB}b`);
+  assert.equal(text(type(make(p.create(null, schema.text('word ')), 5), 'x')), 'wordx ');
+});
