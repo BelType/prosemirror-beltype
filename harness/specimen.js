@@ -121,23 +121,30 @@ export async function mount({ settleMs = 300, timeoutMs = 120000 } = {}) {
       const fill = page.fill.bind(page);
       page.fill = async (...args) => {
         const t0 = performance.now();
-        const answer = await fill(...args);
-        fills.push({ index, ms: performance.now() - t0, ...page.account });
-        return answer;
+        try {
+          const answer = await fill(...args);
+          fills.push({ index, ms: performance.now() - t0, ...page.account });
+          return answer;
+        } catch (error) {
+          fills.push({ index, ms: performance.now() - t0, error: String(error?.message ?? error) });
+          throw error;
+        }
       };
       return page;
     },
   });
   // Settled: nothing in flight and nothing dirty, for `settleMs` in a row.
   let quiet = 0;
+  let settled = true;
   while (quiet < settleMs) {
-    if (performance.now() - started > timeoutMs) throw new Error('the chain did not settle');
+    // A chain that stops (a fill that threw leaves its entry dirty) is read as it stands, and says so.
+    if (performance.now() - started > timeoutMs || fills.some((f) => f.error)) { settled = false; break; }
     await new Promise((r) => setTimeout(r, 50));
     quiet = view.filling.size === 0 && !view.entries.some((e) => e.dirty) ? quiet + 50 : 0;
   }
-  const ms = performance.now() - started - settleMs;
+  const ms = performance.now() - started - (settled ? settleMs : 0);
   const pages = view.fragments.map((f) => /** @type {any} */ (f.container)?.dom).filter(Boolean);
-  return { ms, entries: view.entries.map(({ from, to }) => ({ from, to })), fills, pages: readPages(pages), docSize: doc.content.size };
+  return { ms, settled, entries: view.entries.map(({ from, to }) => ({ from, to })), fills, pages: readPages(pages), docSize: doc.content.size };
 }
 
 Object.assign(window, { __prosemirrorBeltype: { wordsOf, readPages, rootPages, mount } });
