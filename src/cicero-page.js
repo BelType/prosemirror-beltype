@@ -30,7 +30,7 @@ import { pathOf, normalizePath, extensionPx } from '@egildo/beltype-engine-cicer
 import { joinedWords } from '@egildo/beltype-engine-cicero/src/fragments.js';
 import { blockChildrenOf, isFixedBox } from '@egildo/beltype-engine-cicero/src/word-space.js';
 import '@egildo/beltype-engine-cicero/src/chase.js';
-import { firstSpan, parityAt, hintAfter, hintAfterBlank, enter, wordPoint, placeAt } from './turn.js';
+import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition } from './turn.js';
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
 /** @import { FillResult, RenderedSlice, SliceRenderer, ContainerHint } from 'prosemirror-fragview/src/fragmentainer.js' */
@@ -114,7 +114,7 @@ export class CiceroPage {
    * @param {string} name
    */
   conditionsFor(name) {
-    const geometry = this.table.pageFor({ name, first: this.index === 0, parity: parityAt(this.index), blank: this.blank });
+    const geometry = this.table.pageFor(conditionOf(this.index, name, this.blank));
     this.dom.applyConditions(geometry);
     this.dom.dress(geometry.pageStyle ?? null);
     return { ...geometry, name };
@@ -347,7 +347,7 @@ export class CiceroPage {
   }
 
   /**
-   * A verdict of the Stonehand's as a position, which is `to`.
+   * A verdict of the Stonehand's as a position, which is `to` (`verdictPosition`), over the trial as the measure context laid it out.
    * @param {PMNode} doc
    * @param {Trial} t
    * @param {any} v The verdict.
@@ -355,22 +355,13 @@ export class CiceroPage {
    */
   positionOf(doc, t, v, report) {
     const container = /** @type {Element} */ (t.container);
-    const at = (/** @type {Node} */ node, /** @type {number} */ offset) => posAt(container, t.trial.positions, node, offset);
-    const before = (/** @type {Element} */ el) => at(/** @type {Node} */ (el.parentNode), indexIn(el));
-    const after = (/** @type {Element} */ el) => at(/** @type {Node} */ (el.parentNode), indexIn(el) + 1);
-    const inRun = (/** @type {any} */ box, /** @type {number} */ line) => {
-      const point = wordPoint(joinedWords(box.el), placeAt(report.wordsOf(box), line));
-      return point ? at(point.node, point.offset) : after(box.el);
-    };
-    let pos;
-    if (v.kind === 'A') pos = v.box.anonymous ? inRun(v.box, 0) : enterAt(doc, before(v.box.el));
-    else if (v.kind === 'B') pos = inRun(v.box, v.k + 1);
-    else if (v.kind === 'C' && v.edge === 'start') pos = enterAt(doc, before(v.child.el));
-    else {
-      console.warn(`prosemirror-beltype: a ${v.kind}${v.edge ? ` (${v.edge})` : ''} verdict continues a box as a shell, which no position says; page ${this.index + 1} ends at the box's ${v.kind === 'C' ? 'end' : 'start'} instead`);
-      const p = v.kind === 'C' ? after(v.box.el) : before(v.box.el);
-      pos = enterAt(doc, p);
-    }
+    const { pos, shell } = verdictPosition(v, {
+      pieces: (box) => report.wordsOf(box),
+      words: (box) => joinedWords(box.el),
+      posAt: (node, offset) => posAt(container, t.trial.positions, node, offset),
+      enter: (p) => enter(doc, p)
+    });
+    if (shell) console.warn(`prosemirror-beltype: a ${v.kind}${v.edge ? ` (${v.edge} gap)` : ''} verdict continues a box as a shell, which no position says; page ${this.index + 1} ends at the box's ${v.kind === 'C' ? 'end' : 'start'} instead`);
     return pos;
   }
 
@@ -419,16 +410,6 @@ export class CiceroPage {
     this.dom.setContent();
   }
 }
-
-/** @param {Element} el */
-const indexIn = (el) => Array.prototype.indexOf.call(/** @type {Node} */ (el.parentNode).childNodes, el);
-
-/**
- * `enter` over a position that may be null (a box with no mapped position, which a verdict never names).
- * @param {PMNode} doc
- * @param {number | null} pos
- */
-const enterAt = (doc, pos) => (pos == null ? null : enter(doc, pos));
 
 /**
  * The text standing in `el` before its descendant `child`.

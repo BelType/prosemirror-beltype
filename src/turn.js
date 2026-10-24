@@ -29,6 +29,14 @@ export const firstSpan = (last) => (last > 0 ? last * 2 : FIRST_SPAN);
 export const parityAt = (index) => (index % 2 === 0 ? 'right' : 'left');
 
 /**
+ * The condition the geometry table is asked for page `index` (`readGeometryTable(doc).pageFor`): its name, `:first` for the first page, its side, and `:blank` for a page nothing flows onto.
+ * @param {number} index
+ * @param {string} name
+ * @param {boolean} [blank]
+ */
+export const conditionOf = (index, name, blank = false) => ({ name, first: index === 0, parity: parityAt(index), blank });
+
+/**
  * The hint a page leaves for the one after it.
  *
  * @remarks
@@ -98,4 +106,33 @@ export function wordPoint(words, { word, char }) {
 export function placeAt(pieces, line) {
   const p = pieces.find((x) => x.line >= line);
   return p ? { word: p.index, char: p.char } : { word: pieces.length ? pieces[pieces.length - 1].index + 1 : 0, char: 0 };
+}
+
+/**
+ * A verdict of the Stonehand's as a position, which is `to`, with the four questions it asks of the DOM and the document injected: a box boundary is the box's position entered down its first-child chain, a Class B cut the position of the first character the line after the cut shows, a start-edge Class C the boundary before the child after the gap. An end-gap Class C, an edge cut and a cut through a row continue a box as a shell of so many pixels, which no position says: each answers the boundary after (an end gap) or before the box, and `shell` is set so the caller can say so.
+ *
+ * @remarks
+ * A Class B cut falls between two lines, and its position is where the second begins: the first piece the Gauge homes to the line after the cut, a word and, where the line begins inside it (a hyphen the browser drew, a break inside a word), a character. The breaking space that ended the line before stays with it, on the page before; nothing of a line is ever split between two positions.
+ *
+ * @param {any} v The verdict, `{ kind, box, k, edge, child }` as `adjudicate` returns it.
+ * @param {object} dom
+ * @param {(box: any) => { line: number, index: number, char: number }[]} dom.pieces The Gauge's words of a box, `report.wordsOf(box)`.
+ * @param {(box: any) => { parts: { node: any, start: number, end: number, engine?: boolean }[] }[]} dom.words The box's joined words, `joinedWords(box.el)`.
+ * @param {(node: any, offset: number) => number | null} dom.posAt The position a DOM point of the trial stands for.
+ * @param {(pos: number) => number} dom.enter `enter` over the document.
+ * @returns {{ pos: number | null, shell: boolean }}
+ */
+export function verdictPosition(v, { pieces, words, posAt, enter: into }) {
+  const index = (/** @type {any} */ el) => Array.prototype.indexOf.call(el.parentNode.childNodes, el);
+  const before = (/** @type {any} */ el) => posAt(el.parentNode, index(el));
+  const after = (/** @type {any} */ el) => posAt(el.parentNode, index(el) + 1);
+  const entered = (/** @type {number | null} */ pos) => (pos == null ? null : into(pos));
+  const inRun = (/** @type {any} */ box, /** @type {number} */ line) => {
+    const point = wordPoint(words(box), placeAt(pieces(box), line));
+    return point ? posAt(point.node, point.offset) : after(box.el);
+  };
+  if (v.kind === 'A') return { pos: v.box.anonymous ? inRun(v.box, 0) : entered(before(v.box.el)), shell: false };
+  if (v.kind === 'B') return { pos: inRun(v.box, v.k + 1), shell: false };
+  if (v.kind === 'C' && v.edge === 'start') return { pos: entered(before(v.child.el)), shell: false };
+  return { pos: entered(v.kind === 'C' ? after(v.box.el) : before(v.box.el)), shell: true };
 }

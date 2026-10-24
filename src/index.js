@@ -6,4 +6,4 @@
 
 export { CiceroPage } from './cicero-page.js';
 export { ciceroContainers } from './containers.js';
-export { FIRST_SPAN, firstSpan, parityAt, hintAfter, hintAfterBlank, enter, wordPoint, placeAt } from './turn.js';
+export { FIRST_SPAN, firstSpan, parityAt, conditionOf, hintAfter, hintAfterBlank, enter, wordPoint, placeAt, verdictPosition } from './turn.js';
