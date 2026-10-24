@@ -1,0 +1,7 @@
+/* The row fixture's sheet: the flow fixture's small page, a table (no header: with a `thead` the CLI round refuses this document, docs/results.md) whose second row is taller than the room left on the page, so the engine cuts through the row, each cell at a place of its own, a flex row of two columns of unequal length, and the same two again with the first column and the first cell the long ones, so an item before the last resumes at a place inside it. */
+@page { size: 110mm 150mm; margin: 14mm 12mm; }
+p { orphans: 2; widows: 2; }
+table { border-collapse: collapse; width: 100%; font-size: 9pt; line-height: 12pt; }
+td, th { border: 1px solid #999; padding: 3pt; vertical-align: top; }
+.columns { display: flex; gap: 6mm; font-size: 9pt; line-height: 12pt; }
+.columns > div { flex: 1; }

@@ -11,6 +11,7 @@
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
 /** @import { ContainerHint } from 'prosemirror-fragview/src/fragmentainer.js' */
+/** @import { Shell, Piece } from './shells.js' */
 
 /** The span of positions a first fill renders past `from` for its trial, as `OverflowBox` renders. */
 export const FIRST_SPAN = 2048;
@@ -109,7 +110,7 @@ export function placeAt(pieces, line) {
 }
 
 /**
- * A verdict of the Stonehand's as a position, which is `to`, with the four questions it asks of the DOM and the document injected: a box boundary is the box's position entered down its first-child chain, a Class B cut the position of the first character the line after the cut shows, a start-edge Class C the boundary before the child after the gap. An end-gap Class C, an edge cut and a cut through a row continue a box as a shell of so many pixels, which no position says: each answers the boundary after (an end gap) or before the box, and `shell` is set so the caller can say so.
+ * A verdict of the Stonehand's as a position, which is `to`, with the four questions it asks of the DOM and the document injected: a box boundary is the box's position entered down its first-child chain, a Class B cut the position of the first character the line after the cut shows, a start-edge Class C the boundary before the child after the gap. An end-gap Class C, an edge cut and a cut through a row continue a box as a shell of so many pixels, which no position says: the page builds those itself (`CiceroPage.cutOf`, `shells.js`) and never asks this; asked anyway, each answers the boundary after (an end gap) or before the box, with `shell` set.
  *
  * @remarks
  * A Class B cut falls between two lines, and its position is where the second begins: the first piece the Gauge homes to the line after the cut, a word and, where the line begins inside it (a hyphen the browser drew, a break inside a word), a character. The breaking space that ended the line before stays with it, on the page before; nothing of a line is ever split between two positions.
@@ -135,4 +136,45 @@ export function verdictPosition(v, { pieces, words, posAt, enter: into }) {
   if (v.kind === 'B') return { pos: inRun(v.box, v.k + 1), shell: false };
   if (v.kind === 'C' && v.edge === 'start') return { pos: entered(before(v.child.el)), shell: false };
   return { pos: entered(v.kind === 'C' ? after(v.box.el) : before(v.box.el)), shell: true };
+}
+
+/**
+ * Where a page that cannot cut ends: after the node at `from`, taken whole (*the build cannot fail*, C2: the driver answers a page whose only box is taller than the page by letting it overflow in place). The node is the atom at `from` when there is one, else the textblock `from` stands in, to its end, else the node that begins at `from`; whitespace leaves the page does not draw are passed over first. `to` is the position the next page begins at, past every parent that closes there and entered as a cut is (`enter`), or null at the document's end.
+ * @param {PMNode} doc
+ * @param {number} from
+ * @returns {{ node: PMNode | null, at: number, to: number | null }} `at` is the position before `node`.
+ */
+export function wholeAfter(doc, from) {
+  let pos = from;
+  for (let $p = doc.resolve(pos); $p.nodeAfter?.type.spec.unshown; $p = doc.resolve(pos)) pos += /** @type {PMNode} */ ($p.nodeAfter).nodeSize;
+  const $p = doc.resolve(pos);
+  const atom = $p.nodeAfter?.isAtom && !$p.nodeAfter.isText ? $p.nodeAfter : null;
+  /** @type {PMNode | null} */
+  let node = atom;
+  let after;
+  let at = pos;
+  if (atom) after = pos + atom.nodeSize;
+  else if ($p.parent.inlineContent && $p.depth > 0) { node = $p.parent; at = $p.before(); after = $p.after(); }
+  else if ($p.nodeAfter) { node = $p.nodeAfter; after = pos + $p.nodeAfter.nodeSize; }
+  else after = pos;
+  for (let $a = doc.resolve(after); !$a.nodeAfter && $a.depth > 0; $a = doc.resolve(after)) after = $a.after();
+  return { node, at, to: after >= doc.content.size ? null : enter(doc, after) };
+}
+
+/**
+ * Whether a cut moves the chain on (*the build cannot fail*, C2, asked as the driver's `cutAfter` asks it of an address): a later position, the document's end, or, at the page's own start, a shell entered or one that shrank, or a row piece that moved on or shrank.
+ * @param {number} from
+ * @param {{ shell?: Shell, pieces?: Piece[] }} start What the page began with.
+ * @param {{ to: number | null, next?: { shell?: Shell, pieces?: Piece[] } }} cut
+ */
+export function advances(from, start, cut) {
+  if (cut.to == null || cut.to > from) return true;
+  if (cut.to < from) return false;
+  const shrank = (/** @type {Shell | undefined} */ a, /** @type {Shell | undefined} */ b) => !!a && (!b || b.pos !== a.pos || a.remaining < b.remaining - 0.5);
+  if (shrank(cut.next?.shell, start.shell)) return true;
+  const before = new Map((start.pieces ?? []).map((p) => [p.pos, p]));
+  return (cut.next?.pieces ?? []).some((p) => {
+    const q = before.get(p.pos);
+    return !q || (p.from ?? -1) > (q.from ?? -1) || shrank(p.shell, q.shell);
+  });
 }

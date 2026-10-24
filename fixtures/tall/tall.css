@@ -1,0 +1,7 @@
+/* The tall fixture's sheet: the flow fixture's small page, a block of code taller than the page, and a plate (an image, a monolith) taller than the page, which the engine slices at the page's edge and continues painted on the pages after it. */
+@page { size: 110mm 150mm; margin: 14mm 12mm; }
+p { orphans: 2; widows: 2; }
+pre { font-size: 9pt; line-height: 12pt; margin: 1em 0; }
+figure { margin: 1em 0; }
+figure img { display: block; width: 100%; }
+figcaption { font-size: 9pt; }

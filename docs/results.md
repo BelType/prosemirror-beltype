@@ -33,7 +33,7 @@ Where the fill departs from the driver's loop. None of these changed a cut in th
 - **The bound on the feed** is the view's span, doubled until the Cast-off's own check holds, not the Cast-off's word estimate. The check is the engine's, so a trial that reaches the Stonehand holds the box the walk stops at, as a bounded feed must.
 - **The spent lead of a resumed box** (`spentLeadOf`: a grid's track, a table's repeated header) is not read; the lead is `contentTop` alone.
 - **A parallel flow carried across a cut** (a float, an absolutely positioned box, a row item) has no place in a position: the driver mints a resume tree for it, and a position names one place. Not reached by either document.
-- **A shell**: an end-gap Class C, an edge cut through a monolith and a cut through a row continue a box of so many pixels on the next page. `verdictPosition` answers the boundary after (an end gap) or before the box and the page warns on the console. Not reached by either document.
+- **A shell**: an end-gap Class C, an edge cut through a monolith and a cut through a row continue a box of so many pixels on the next page. `verdictPosition` answers the boundary after (an end gap) or before the box and the page warns on the console. Not reached by either document. (Built since: "The page always advances, and the shells", below.)
 - **The repeated table header** (`fragments.js`' `liftRepeatedHeader`, decided by the driver's `decideRepeats`) and the repeated footer's reservation have no counterpart: the renderer writes a `thead` before the cut as a shallow sibling, put away. This is the showcase's first difference (below).
 - **The root's parity demand** on the document's first page (`rootParityDemand`) is not read.
 - **No reads.** No folio, no `counter(pages)`, no named strings, no running element in a margin, and the author's counters are not delivered at a page's start (`setCounters`). In the measurement's page the CLI's delivery sheet is adopted on the document and keyed by attribute, so the view's content shows the CLI's `target-counter()` values: phase 1 is without reads on the view's side only.
@@ -134,8 +134,100 @@ None blocked the phase. Each is a place where this package wrote a few lines the
 ### Not done
 
 - Reads, all of phase 2: the folio (`setCounters` with `page N`), `counter(pages)`, `target-counter()` from the view's own chain, strings, running elements, the author's counters at a page's start, `settleReads` around the view.
-- The shells (an end-gap Class C, an edge cut, a cut through a row), the carried parallel flows, the spent lead of a resumed grid, the repeated header and the footer's reservation, the root's parity demand, the composed mode.
+- The shells (an end-gap Class C, an edge cut, a cut through a row; built since, below), the carried parallel flows, the spent lead of a resumed grid, the repeated header and the footer's reservation, the root's parity demand, the composed mode.
 - **The trial in the page itself**, the plan's second option, was not measured: `takeReport` reads its container's children in the container's own coordinates, while the page's content stands in its light DOM under a shadow grid whose flow is offset by the margins, and the page neutralizes neither the break properties nor the transforms. The measure context is the engine's conditions exactly, which is what the cuts agreeing shows.
 - `moved` is built and not measured: neither document has a late image or a late face.
 - Editing on the pages was not tried. The page's content is editable through the view's root, but the page resets `white-space` for layout, so a typed double space collapses on the page, where `prosemirror-view` would show it; the resolution (a typed space as a non-breaking one, or the mechanics in the measure context too) is a decision for the phase that edits.
 - The window policy `near` with pages, an invalidation after a `@page` edit, and a document longer than 26 pages.
+
+## The page always advances, and the shells
+
+Written 2026-10-24, on the branch `round/the-page-always-advances`, for the first two entries of docs/found.md ("The chain stops at a page whose cut does not advance", "A block the engine divides, held as an atom, moves whole and overflows clipped"). Run it again with `npm test` (12 tests, in node), `npm run specimen`, and `node scripts/specimen.mjs <absolute path>` on each fixture under `fixtures/` and on the studio's showcase (`beltype-studio-experiment/demos/showcase/index.html`). The script now reads a chain that stops as it stands and says which page stopped it, so a measurement before a fix still has both sides.
+
+### What was built
+
+| Module | Lines | What it is |
+| :--- | ---: | :--- |
+| `src/cicero-page.js` | 664 | `fill` never throws; `cutOf` turns a verdict into the page's end (`to`, the slice's own end, the box it ends with, the row's pieces, and what the page after begins with); `rowCut`; `page` builds the page's slice; the trial is bounded at a block boundary and never inside a box the driver's bound never cuts inside (`boundAt`, `sealedEnd`); `spentLead`. |
+| `src/shells.js` | 265 | New. A composite position map (`Positions`), an element's node position and a node's element in a rendered slice (`nodeStart`, `nodeDom`), the shells made by the engine's own `mutateToContinuation` and `mutateToFirstFragment` (`continueAsShell`, `endAsShell`), a row's pieces seated (`seatPieces`), and the trial's tracks pinned on the page (`pinTracks`). |
+| `src/turn.js` | 180 | `wholeAfter` (where a page that cannot cut ends) and `advances` (whether a cut moves the chain on), both pinned in node. |
+| `fixtures/tall/` | 1 129 words | A code block taller than the page (BelType's addendum gives `pre` `overflow-x: auto`, `core/assets/beltype-ua.css`, so the engine holds it as a scroll container, a monolith, and slices it) and a plate, an SVG image 1 408 px tall, on the flow fixture's 110 × 150 mm page. |
+| `fixtures/end-gap/` | 317 words | A box whose 70 mm bottom padding crosses the edge, and a box of declared height 190 mm holding one paragraph. |
+| `fixtures/row/` | 1 358 words | A table whose second row is taller than the room left, a flex row of two columns, and the same two again with the first column and the first cell the long ones. No `thead`: with one, the CLI round refuses the document (below). |
+| `fixtures/multicol/` | 632 words | The studio showcase's glossary, a `dl` of 26 terms set in two columns (`.two`), which the engine holds as a monolith (`notYetDivided`). |
+
+### What `fill` does at an uncuttable run
+
+A verdict that maps to no position (a cut inside a leaf, which a schema's atom has none of), or to the page's own start with no shell entered or shrunk and no row piece moved (`advances`, the driver's `cutAfter` read on positions), is an uncuttable run at the page's start. The page takes the node there whole (`wholeAfter`: the atom at `from`, else the textblock `from` stands in to its end, else the block that begins at `from`, unshown whitespace leaves passed over first), renders it as it is, sets the flow to the node's measured height (at least the content height) so the overflow is clipped by the page box as the engine's own page clips an overflowing box, answers `to` after the node (past every parent that closes there, entered), and says it once on the console: `prosemirror-beltype: page N cannot be cut after F (a K verdict mapped to T); the <type> there is taken whole and overflows the page, clipped`. Nothing in `fill` throws. With the shells built, none of the fixtures nor the showcase under the generic schema reaches this branch; under step 1 alone the showcase settled at 92 pages, the glossary a page per term, where it had stopped at page 58.
+
+### The shells, each side, and where `to` lands
+
+| The verdict | The page before shows | `to` | The page after shows | `next` carries |
+| :--- | :--- | :--- | :--- | :--- |
+| The page edge's cut through a box (`E`, painted) | its slice to the end of the box, so the box is whole and the rest of its parents is left out, the box cut at its end (`mutateToFirstFragment`, `split start`), its flow clipped at the cut | the box's own position, entered: the engine's reading of a painted cut (`posOfCut`, the box's start) | its slice from `to`, where the box opens whole; the renderer's `adjoin` is taken off the box and its chain, and `mutateToContinuation` wraps it in the engine's slice wrapper as tall as it has left, the part already shown pulled above the clip; the wrapper is given the box's span, marked as standing for no node, so `pointAt` reaches inside | `at` (the position it was left for) and `shell: { pos, remaining, paint }` |
+| An end-gap Class C (blank) | as above: the box whole, cut at its end | the position after the box, entered: the engine's reading of a blank cut (`posOfCut`, the box's end), so the box's positions stay with the page that shows its content | its slice from `to`, in which the renderer wrote the box as a shallow sibling (`away`); the word is taken off and `mutateToContinuation` makes it the blank shell, no children and the height it has left | `at` and `shell: { pos, remaining, paint: null }` |
+| A cut through a row (`R`) | each item from where it began on this page to its own place, the last through the page's own slice and every other rendered on its own and swapped in for the item's element; an item with nothing left is shown whole, one the cut left whole is emptied and keeps its column (`mutateToFirstFragment`'s rule for an item with no place), one with only its stretch left is cut at its end | the last item's place, as the driver makes the last item's place the main path: a position inside it, or after it (entered) where it has nothing left, or before it where it resumes whole | the row resumed in its slice, every earlier item a shallow sibling there; each is replaced by its own piece, rendered from its place to its end, or made a blank shell (of no height where it had nothing left: it keeps its column), and the slice is rendered at least to the row's end when its own flow shows nothing more | `at` and `row.items: [{ pos, from?, shell? }]`, one per item but the last, and `shell` where the last item continues as one |
+
+A row item's own verdict is read as the page's is (`cutOf` on the item's verdict), so a shell inside an item is a piece whose render carries the shell. A row inside a row item is not built: the page takes the node at its start whole (not met by any document measured). A painted shell a page both resumes and ends with is left to its slice, as the engine leaves a painted start (`fragmentOf`). A blank shell whose box ends the document is not continued: the view drops an entry whose `from` is the document's end (not met).
+
+The hint reaches a page once, when the view builds it (`build`), and a container refilled from another `from` keeps the hint it was built with; so a page reads `shell` and `row` only when `at` is its own `from`, and a stale one is ignored rather than applied to the wrong slice. A door owed in the view (below).
+
+### Closures of the driver's, written again
+
+Besides `placeAt`, `nameAt` and `fits` (phase 1), the shells needed three more, each the smallest copy that answers and each named as a door:
+
+- **The bound never cuts inside a box the driver's bound never cuts inside** (`driver.js`' `boundAt` rule over `stonehand.js`' `neverCutInside`, which is exported): the trial's end is moved past the textblock it falls in, then past the outermost box the law copy says it cuts off and `neverCutInside` names. Without it a monolith's or a table's trial is the box truncated, and a shell's remainder is measured on a box that is not the box. Opening: export the rule as a function of a box chain, beside `neverCutInside`.
+- **The spent lead** (`spentLeadOf`, a closure in `paginateOnce`): the gap above the boxes a page resumes at that is not their containers' own border and padding. Measured on the row fixture: without it the page that opens on the table's second row starts its flow at 0 where the CLI's starts at 0.5 px (the collapsed border above the row), the Stonehand ranks a start-edge Class C at 0.5 px first, and 2 pages of 8 agree; with it, 7. The driver's branch for a repeated table header is not written. Opening: export `gapAbove(box, report, styleOf)`.
+- **The pinned tracks** (`fragments.js`' `pinTracks` and `pinTable`, internal): a divided table on the page holds fewer rows than the trial that decided it, and its automatic layout widens or narrows its columns. Measured on the row fixture: without it page 3 agrees on its cut and shows 155 words where the CLI shows 158 (its last visible word `or` for `cut`). Written by tag, since the page's slice is not in the document when it is pinned. Opening: export `pinTracks(root, tracks, { tracksAt })` taking a lookup in place of the source map.
+
+### The measurement
+
+Every document agrees with the CLI round on its page count and on the first and last word of every page, and every page's word count is the same on both sides but one (below). No warning from the view on any of them.
+
+| Document | CLI | View | Same | First difference | What the view's fills were |
+| :--- | ---: | ---: | ---: | :--- | :--- |
+| `test/specimen.md` (`npm run specimen`) | 9 | 9 | 9 | none | as phase 1 |
+| `fixtures/flow` | 26 | 26 | 26 | none | as phase 1 |
+| `fixtures/tall` | 10 | 10 | 10 | none | the code block sliced twice (E, E) then cut between its lines (B); the plate sliced three times (E, E, E), three pages of no words on both sides |
+| `fixtures/end-gap` | 6 | 6 | 6 | none | C (the padded box), A, C (the tall box), a page that holds the 441 px blank shell and nothing else on both sides |
+| `fixtures/row` | 13 | 13 | 13 | none | seven R cuts: three where every earlier item ends as a blank shell, four where the first item resumes at a position inside it (`row.items: [{ pos: 5311, from: 5830 }]` and on, in the flex row and in the table), one of them a page whose own flow shows nothing new (page 10, 77 words, all of the first column) |
+| `fixtures/multicol` | 6 | 6 | 6 | none | the glossary sliced twice (E, E), each shell's remainder within 0.01 px of the CLI's on the second |
+| the studio showcase, generic schema | 76 | 74 | 51 | page 25 | it settles; phase 1 stopped at page 58 |
+
+**Before the round**, the same script: the tall fixture stopped at page 3 (`did not advance from 565`), the multicol at page 3, the row fixture at page 3; the end-gap fixture ran on and differed from page 3 (5 pages against 6), its two shells answered with the boundary after the box.
+
+**The one word count that differs**, the multicol fixture's page 3 (the glossary's first slice): 174 words under the CLI, 170 under the view, the first and last the same. The CLI's own first slice measures the `dl` 9.59 px shorter than its second slice does (remaining 802.09 after 461.10, then 350.59 after 922.20, so 1 263 px and then 1 273), and the view's measures it 1 273 px both times; the balance of its two columns moves, and two words of a line at the clip (`read`, `generated`) are inked above it on the CLI's page and below it on the view's. A difference in the CLI round between two feeds of one box, recorded and not chased.
+
+**The showcase** under the generic schema (the studio's own `demos/showcase/index.html`, served by the CLI, parsed with `schema-generic.js`): 74 pages against 76, 51 the same. The differences are three clusters, none a shell:
+
+- Pages 25 and 26: `string(family)` in the flow is empty under the view (reads are phase 2's), as found.md's entry says.
+- Pages 50 to 58, the flows family: the CLI's page 49 carries a float across its cut (`carried: [[8, 3]]`) and the view has no place for a carried parallel flow (phase 1's "not done"). Inside the cluster the glossary is sliced once by both, the view's shell `{ remaining: 346.996, paint: 642.520 }` and the CLI's `{ remaining: 346.996, paint: 642.520 }`, and the two pages after it begin on the same word.
+- Page 63 on: the CLI's continuation of the divided `pre.code` opens with blank lines as tall as the piece before it (a fault the studio's showcase already records in its own text: "the second piece opens with an empty tinted band about as tall as the first piece before the code resumes"), and the view's slice of the same block begins at its next line; the CLI's page 63 holds 114 words, the view's 207, and every page after is one or two pages early. A case for BelType's battery, filed there; the view is not bent to it.
+
+**Time**, for scale: the view's chains filled the specimen in 15 ms, the flow fixture in 30 ms, the row fixture in 18 ms and the showcase in 394 ms over 74 fills; the CLI's last `run()` calls took 16, 34, 28 and 345 ms.
+
+### What each fix was worth
+
+Each was found by a measurement that failed and was taken out of it by the fix; the counts are the measurement before and after.
+
+- **`adjoin` off a painted box.** The renderer writes `adjoin` on the chain that opens at a slice's start, and the words sheet's `margin-top: 0 !important` beat the shell's inline negative margin: the code block's second slice was drawn from its top again, its remainder never shrank, and the page fell back to taking it whole. Tall fixture 6 pages of 10 the same (9 under the view), multicol 3 of 6 (36 under the view, the glossary a page per term); after, 10 and 6.
+- **A shell counted among a holder's node elements.** A blank shell is a shallow sibling with its `away` taken off, and a painted one's box stands inside a wrapper; the descent that finds a node's element (`nodeDom`) skipped both, so it named the next sibling: the end-gap fixture's page after the padded box took the shell's 266 px as a spent lead. End-gap 2 of 5; after, 6 of 6.
+- **The box a place names, as the driver's address names it.** The spent lead read from the line stack a position stands in found a gap inside a multicol's first column (9.59 px); the driver's bare path names the outermost box that opens there. Multicol page 3's lead 9.59 px; after, 0.
+- **The spent lead and the pinned tracks**, above: row fixture 2 of 8, then 7 of 8, then 8 of 8.
+- **A page whose own flow shows nothing past its start is rendered to the row's end.** The row fixture's page 10 resumes only its first column: its own slice from `to` to `to` was empty, so the row was not in it and the piece had nowhere to go. 0 words against 77; after, 77.
+
+### Found, and where each is filed
+
+- **The CLI round refuses a table with a `thead` whose row is cut** (BelType, the engine): the row fixture with a header row added, `BelType/Cicero refused to paginate this document — showing it unpaginated instead. entry position runs backward (I1: flow is forward)`, two pages cut. A case for the battery; the case document is the row fixture with `<thead><tr><th>Term</th><th>Gloss</th></tr></thead>` before its `tbody`.
+- **The continuation of a divided `pre` opens with blank lines** (BelType, the engine): the showcase's page 63, above.
+- **The hint reaches a page once** (the view, `fragmented-view.js`' `build`): a container refilled from a new `from` keeps the hint it was built with. A forced break's `forced`, a blank page and now a shell and a row's pieces all ride it. Opening: hand `fill` the hint of the entry before, or build a new container when the hint changed.
+- **A position names one page, and a row cut draws an earlier item's remainder on the page after the one that owns its positions** (this package and the view): the chain gives `[from, to)` to a page, and an earlier item's remainder is below the last item's place in the document and above it on the page. A caret placed there is drawn where the item was cut, on the page before. Not met by editing yet.
+- **A node's position is inferred from the renderer's spans** (the view, `slice-renderer.js`): the spans are clamped to the slice, so `nodeStart` reads a resumed node's position off its end, or, for a node divided at both ends, off the depth of the slice's first position. Opening: the renderer could record each element's unclamped node position beside its span.
+
+### Not done
+
+- Reads, all of phase 2, as before; the showcase's first difference is still page 25.
+- The carried parallel flows (a float, an absolutely positioned box crossing a cut): the showcase's flows family.
+- A row inside a row item, a blank shell at the document's end, the repeated table header and the footer's reservation, the root's parity demand, the composed mode.
+- `pinExtents` (§5.3's extension for a divided row item, a `min-height` or a cell's `height` to the foot): visual only, no word moves; not written.
+- Editing over a shell or a row cut was not tried.
