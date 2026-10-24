@@ -1,0 +1,8 @@
+/* The flow fixture's sheet: a small page, so the Stonehand cuts often, and the rules a cut reads (orphans and widows, an avoided break, a box kept whole, a forced break that owes a side, a named page of another width). */
+@page { size: 110mm 150mm; margin: 14mm 12mm; }
+@page wide { size: 150mm 110mm; margin: 12mm 14mm; }
+p { orphans: 3; widows: 3; }
+h2, h3 { break-after: avoid; }
+.keep { break-inside: avoid; border-left: 3px solid #999; padding-left: 8px; }
+section:has(> h2.verso) { break-before: verso; }
+section:has(> h2.wide) { page: wide; }
