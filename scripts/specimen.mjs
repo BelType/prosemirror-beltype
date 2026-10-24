@@ -83,6 +83,9 @@ try {
   }
   console.log(`\nPage sizes, CLI: ${reference.map((p) => p.size.join('×')).join(', ')}`);
   console.log(`Page sizes, view: ${view.pages.map((p) => p.size.join('×')).join(', ')}`);
+  const objects = (pages) => pages.map((p, i) => (p.objects ?? []).map((o) => `page ${i + 1} ${o.is} ${o.size.join('×')}`)).flat().join(', ') || 'none';
+  console.log(`\nObjects, CLI: ${objects(reference)}`);
+  console.log(`Objects, view: ${objects(view.pages)}`);
   console.log(`\nFirst difference: ${first == null ? 'none' : `page ${first + 1}`}`);
   if (!view.settled) console.log(`\n**The view's chain did not settle**: ${view.fills.filter((f) => f.error).map((f) => `page ${f.index + 1}: ${f.error}`).join('; ') || 'timed out'}`);
   console.log(`\nFills:\n${view.fills.map((f) => `  ${f.index + 1}: ${Math.round(f.ms)} ms ${JSON.stringify({ from: f.from, to: f.to, kind: f.kind, cls: f.cls, y: f.y && Math.round(f.y * 100) / 100, pageStart: f.pageStart, usedPx: f.usedPx && Math.round(f.usedPx * 100) / 100, extPx: f.extPx && Math.round(f.extPx * 100) / 100, next: f.next })}`).join('\n')}`);
