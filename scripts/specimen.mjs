@@ -70,7 +70,7 @@ try {
   const n = Math.max(reference.length, view.pages.length);
   const cell = (s) => (s == null ? '·' : `\`${s}\``);
   console.log(`\n## ${target}, ${reference.length} pages under the CLI, ${view.pages.length} under the view\n`);
-  console.log(`CLI round ${Math.round(cliMs)} ms; the view's chain ${Math.round(view.ms)} ms over ${view.fills.length} fills; doc size ${view.docSize}.\n`);
+  console.log(`The CLI's last \`run()\` call ${Math.round(cliMs)} ms (its bootstrap cuts the first screen, then the rest); the view's chain ${Math.round(view.ms)} ms over ${view.fills.length} fills; doc size ${view.docSize}.\n`);
   console.log('| Page | CLI first | CLI last | words | view first | view last | words | entry | fill | same |');
   console.log('| ---: | :-- | :-- | ---: | :-- | :-- | ---: | :-- | :-- | :-- |');
   let first = null;

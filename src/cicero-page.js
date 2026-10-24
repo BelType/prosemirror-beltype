@@ -135,7 +135,7 @@ export class CiceroPage {
     if (this.blank) {
       // A page nothing flows onto (§3.1's second break): the cursor does not move, and the demand is spent.
       this.show(render(doc, from, from));
-      this.account = { blank: true };
+      this.account = { from, to: from, name: this.conditions.name, kind: 'blank', cls: null, next: hintAfterBlank(this.hint) };
       return { to: from, next: hintAfterBlank(this.hint) };
     }
     const forced = !!this.hint.forced;
