@@ -70,7 +70,10 @@ export function readPages(pages) {
   return pages.map((page) => {
     page.scrollIntoView({ block: 'center' });
     const words = wordsOf(page);
-    return { first: words[0] ?? null, last: words.at(-1) ?? null, count: words.length, size: [Math.round(page.getBoundingClientRect().width), Math.round(page.getBoundingClientRect().height)] };
+    // The `<object>`s a page shows, presented or not, each as its box's size and what it is: the facsimile's measure, read the same on both sides.
+    const slot = /** @type {HTMLSlotElement} */ (/** @type {ShadowRoot} */ (page.shadowRoot).querySelector('.flow slot'));
+    const objects = slot.assignedElements({ flatten: true }).flatMap((el) => [...(el.matches('object') ? [el] : []), ...el.querySelectorAll('object')]).map((o) => ({ is: o.getAttribute('is') ?? o.getAttribute('type'), size: [Math.round(o.getBoundingClientRect().width), Math.round(o.getBoundingClientRect().height)] }));
+    return { first: words[0] ?? null, last: words.at(-1) ?? null, count: words.length, size: [Math.round(page.getBoundingClientRect().width), Math.round(page.getBoundingClientRect().height)], ...(objects.length ? { objects } : {}) };
   });
 }
 

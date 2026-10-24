@@ -39,7 +39,7 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen**: the facsimile demo (`?demo=facsimile&view=fragmented`): 5 pages against 6, first difference page 2. The three `<object type="application/pdf">` stand 150 to 152 px tall, Chromium's default for an object, where the root presents each as `<object is="beltype-facsimile">` drawn by pdf.js at the PDF page's size; the full-page landscape attachment is cut to a strip.
 - **Layer**: the Cicero page, `src/cicero-page.js` (`show`): the root's presenters (`presenters.js`) run on the root's pieces, and nothing presents the content given through `setContent`.
 - **Fix**: present the given content as the root presents its pieces, through the engine's presenter registry, before the trial is measured (the trial must measure the presented size too).
-- **State**: OPEN.
+- **State**: CLOSED 2026-10-25, 162760b (the page presents what it renders) and 61bf7ba (the fixture), on `round/the-page-presents-what-it-renders`. The factory takes the facsimile's intake when a slice first holds a PDF `<object>`, and the page presents the trial, the law copy and the shown slice through the engine's registry, so the demo is 6 pages against 6, every page the same, the two in-flow pages 229 × 304 and the landscape page 533 × 400 on both paths, and the facsimile fixture 5 against the CLI's 5 (docs/results.md, "The page presents what it renders").
 
 ### No folios, running heads, page totals, cross-references or strings
 

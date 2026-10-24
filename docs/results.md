@@ -283,3 +283,66 @@ None filed: neither cause is in the engine, and the predicate answers the view's
 - Placing a running element in its margin box (`setMarginBox`, the running assignments): the reads' work, phase 2.
 - A running element before a forced break in mid-document stays with the page before the break, since the grab's event names the in-flow block after it; the driver logs its assignment at that block. It decides nothing about a cut and matters only to the reads.
 - The root's parity demand (a `break-before: left` on the first in-flow box shifting every side) is still not read; the fixture's `break-before: right` on page 1 demands what page 1 already is.
+
+## The page presents what it renders
+
+Written 2026-10-25, on the branch `round/the-page-presents-what-it-renders`, for docs/found.md's "A facsimile is drawn at the browser's 150 px object height". Run it again with `npm test` (13 tests, in node), `node scripts/specimen.mjs <absolute path>` on each fixture under `fixtures/`, and, with the studio's dev server started on a free port, the studio's `node scripts/fragview-pages.mjs --demo facsimile --url <server> --out <file>`.
+
+### What was built
+
+| Module | Lines | What it is |
+| :--- | ---: | :--- |
+| `src/containers.js` | 62 | `takeFacsimile(doc)`: when the document holds a PDF `<object>`, the engine's `seam/facsimile.js` is imported and `install(doc, present)` awaited once, with this package's `present`; every later call runs `install` with no presenter, which reads the sizes of the pages the document then embeds. The factory hands every page `intake`, which calls it. |
+| `src/cicero-page.js` | 716 | `present(t)`, at the start of `measure`: the intake awaited, then every element of the trial a presenter matches replaced by what it makes from the paired law element, the law copy's by what it makes from itself, the two paired in `lawOf` and the trial's registered against the law's (`noteSource`), and the law's top-level blocks read again. `show` presents the slice in a hidden holder of its own (`__prosemirror-beltype-staging`) before it is given. `presentTree` is the walk. |
+| `vite.config.js` | 39 | pdf.js answered beside the facsimile module from the engine's asset table (`vendorAssets()`), as the studio's configuration answers it, so the harness's copy of the module can read a size. |
+| `harness/specimen.js`, `scripts/specimen.mjs` | 153, 101 | Each page's `<object>` boxes, read through the content slot on both sides, printed under the page sizes. |
+| `fixtures/facsimile/` | 161 words | The flow fixture's small page with a portrait PDF page in the flow (`portrait.pdf`, page 1 of 2, 300 × 400 pt, at 50 mm wide) and a landscape page of its own (`landscape.pdf`, 400 × 300 pt, on a named page of that size with no margin, `width: 100%; height: 100%`), each with a fallback `<img alt>`. The two files are the studio's demo attachments, copied. |
+
+### The readiness, and why per slice
+
+The brief offered two shapes: the factory awaits the intake before it returns, or the first fill awaits a readiness promise the factory holds. Neither holds as stated, because the factory cannot know when it is made whether the document holds a PDF: the studio's `prepare` takes the provider's drawing out of the body before `mount` makes the factory, so `document.querySelector('object[type="application/pdf"]')` finds nothing then, and the first PDF `<object>` the document holds again is a page's own law copy. So the intake is asked per slice, in the second shape: the factory hands each page an `intake` function and the page awaits it before it presents a trial, when its law copy is connected and in the document. A document without a PDF pays one `querySelector` per trial and never loads the module. Every caller is unchanged: the harness and the studio call `ciceroContainers(document)` as before, synchronously, and the studio needs no change.
+
+### How the presenting runs, and where the pairing needed care
+
+The engine presents a copy as it makes it (`copyOf`, `shellOf`, `mapCloneToSource`, each pairing a `cloneNode` copy with its source index by index); here the renderer makes the tree, so the walk runs over a tree already made (`presentTree`): every element whose source a presenter matches is replaced, the presented element takes the replaced element's span in the slice's positions (so `nodeStart`, `nodeDom`, `pointAt` and `posAt` find the node there), and the walk does not descend into it. It carries the words the element earned because the presenter copies its attributes, `data-beltype` among them.
+
+- **The source a presenter reads must be connected.** `make` gives the element the page's `aspect-ratio` only where the source's computed `aspect-ratio` is `auto`, and a detached element computes none. The trial is detached when it is presented, so its elements are made from their law elements, which stand in the hidden law holder; the law's are made from themselves, after the trial's.
+- **The pairing is kept by the swap, not by a second walk.** `lawOf` is built element by element before the presenting; a trial element and its law element are each replaced by a presented element with the same shape, and the trial's replaced entry is moved to the pair of presented elements. The trial's presented element is registered against the law's (`noteSource`), since the law copy is the trial's source; the law's and the shown page's are registered against nothing, because the element each replaces is detached and a detached source answers no computed style (`isFixedBox` would read every position as static).
+- **The law copy is presented too.** In BelType's page the head's rule hides an unpresented PDF `<object>` outside a root, which the law holder is, so an unpresented law answered `display: none` to the name, the grab and the Stonehand, and the named page its `page: insert` asked for was lost. Presented, it answers the box the trial lays out. The cost is the engine's own: an author rule keyed on `type` or `data` reaches neither the presented trial nor the law, where the engine's law reads such a rule off the original. No fixture has one.
+- **The shown slice is presented before it is given, in a hidden holder.** Presented in the page after `setContent`, the fixture's landscape page kept no box at all, 0 × 0 with `checkVisibility()` false, on screen and off: the page was filled while its `content-visibility: auto` skipped its contents, and a copy of the same element put in its place had its 533 × 400 at once. Presented in a hidden holder of its own and then given, it is 533 × 400 like the CLI's. The holder is written and emptied in one synchronous stretch, so two fills in flight cannot meet in it.
+
+### Two instances of the engine
+
+In the harness the page's copy of the engine (served by BelType's dev server) has loaded `seam/facsimile.js`, defined `beltype-facsimile` and registered its presenter in its own registry before the view is mounted, and this package's copy (served by Vite) has a registry, a size cache and a module of its own. `install` guards `customElements.define`, so the second call does not throw and the class that draws is the page's, its own pdf.js and drawing cache; the registry `presentation` reads and the size cache `make` reads are this package's, filled by `takeFacsimile`. pdf.js had to be answered beside the module on Vite's side too, or the size read 404s and `make` gives no ratio. In the studio there is one instance (both resolve the engine to the same `/@fs/` path), and the studio's own intake never runs under the switch (`prepare` replaces the run), so the factory's is the only one.
+
+### The hidden rule
+
+The engine's head (`seam/index.js`, `PDF_OBJECT_RULES`) holds `object[type="application/pdf"]:not(beltype-root *) { display: none; }` and a zero-specificity `display: inline-block` for both the source and `object[is="beltype-facsimile"]`. Under the view there is no root, so the first rule matches every unpresented `<object>` the view renders. Before the round, in BelType's page, the view's objects were 0 × 0 and the fixture was 2 pages against the CLI's 5, the named landscape page gone; in the studio the rule is in the head but the author's `object.flow { display: block }` and `object.insert { display: block }` prevail (computed `display: block`), and the objects stood at their fallback's height, 229 × 39 and 533 × 19 in this run (found.md recorded 150 to 152 px). A presented element carries no `type`, so the first rule never reaches it and the second is a default the author's rule overrides: after the round every presented element is `display: block` at the author's width and the page's ratio, in both hosts.
+
+### The measurement
+
+| Document | CLI | View | Same | First difference | Objects, CLI and view |
+| :--- | ---: | ---: | ---: | :--- | :--- |
+| `test/specimen.md` | 9 | 9 | 9 | none | none |
+| `fixtures/flow` | 26 | 26 | 26 | none | none |
+| `fixtures/tall` | 10 | 10 | 10 | none | none |
+| `fixtures/end-gap` | 6 | 6 | 6 | none | none |
+| `fixtures/row` | 13 | 13 | 13 | none | none |
+| `fixtures/multicol` | 6 | 6 | 6 | none | none |
+| `fixtures/running` | 13 | 13 | 13 | none | none |
+| `fixtures/facsimile` | 5 | 5 | 5 | none | page 2 189 × 252, page 4 533 × 400, on both sides |
+
+The facsimile fixture page by page: page 1 `The` to `leading`, 72 words; page 2 `stonehand` to `flow`, 33 words, the portrait page in its figure; page 3 `typeface` to `versal.`, 11 words, ended by the named switch; page 4 the landscape page alone, 533 × 399, named `insert`; page 5 `Impression` to `ink.`, 45 words. Before the round the same fixture was 2 pages against 5, first difference page 2, the objects 0 × 0. No warning from the view on any fixture; the multicol fixture's `info` that a multicol is not divided yet is the engine's, as before.
+
+The studio's facsimile demo through its witness, a dev server of the studio's own on a free port: 6 pages on the old path and 6 under the view, 6 the same (first and last word, count, size), first difference none, against 5 and 6 with the first difference on page 2 before the round (found.md). The objects, read by hand on both paths: 229 × 304, 533 × 400 and 229 × 304, the same.
+
+### Doors
+
+- **A tree already made, presented.** `word-space.js` presents only as it copies: `copyOf`, `shellOf`, `dressWords` and `mapCloneToSource` walk a `cloneNode` copy beside its source, index by index. A host whose renderer makes the tree has no export to call, so `presentTree` is written here. The smallest opening: `presentTree(root, sourceFor)` beside `copyOf`, replacing every element of a made tree whose source a presenter matches and registering it, with the caller's position bookkeeping left to the caller (it would return the swaps).
+- **The sizes without the registration.** `facsimile.js` reads sizes only inside `install`, which registers a presenter each time it is called, so this package calls it once with `present` and after that with a presenter that does nothing. The smallest opening: export the read (`readSizes(doc)`, the loop `install` runs), and let `install` call it.
+
+### Not done
+
+- **Late truth.** A size learned after a measure (a file that was not there at intake) is announced by `facsimile.js` as a `beltype:change` for the box, found through `window.__beltypeCicero.sourceOf`, which the view does not answer for its pages; here such a box has no ratio until a later fill, and the page's `moved` fires only if its height changes when the canvas is drawn. Not reached by the fixture or the demo.
+- **A PDF `<object>` with no fallback `alt`.** `install` refuses it by name, as the one-round host refuses the run, and the refusal is thrown from `fill`, the one thing the page throws (*the build cannot fail* says otherwise of the cut); the view leaves the entry dirty.
+- **The shared holders.** The law holder is one per document and a fill awaits between rendering its law copy and reading it, so two fills in flight can evict each other's law; that was so before the round, and the presenting adds one await (the intake) only where the document holds a PDF.
