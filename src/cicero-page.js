@@ -14,7 +14,9 @@
  *
  * Where this departs from the driver's loop, each is a finding recorded in docs/results.md: the Cast-off's word estimate is the view's span; the spent lead of a resumed grid (`spentLeadOf`) is not read; a parallel flow carried across a cut (a float, a row item) has no place in a position; the root's parity demand on the first page is not read; and the page takes no reads (no folio, no `counter(pages)`, no strings, no running elements in the margins, no author counters delivered at the page's start: `setCounters` is phase 2's).
  *
- * The page resets the text mechanics the fragmented view's editing host sets (`white-space: break-spaces` and three more) to what the document's body computes, because the trial in the measure context inherits from the body and the page's content inherits from the host: measured on the specimen, `break-spaces` turns every newline in the source's text into a forced line break.
+ * The page resets the text mechanics the fragmented view's editing host sets (`white-space: break-spaces`, `overflow-wrap`, the ligatures and, from the editing host's own UA style, `line-break`) to what the document's body computes, because the trial in the measure context inherits from the body and the page's content inherits from the host. Measured 2026-10-24 with the reset left out: the cuts were the same, since the trial decides them, but the specimen's third page set its text on more lines than the trial had and its clip hid 21 of its 113 words, and the flow fixture differed from its first page.
+ *
+ * The law copy is measured too (2026-10-24): with the trial read as its own source, the flow fixture's `break-inside: avoid` box was cut through on its fourth page and every page after it differed (22 pages against the CLI's 26).
  *
  * @packageDocumentation
  */
