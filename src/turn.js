@@ -136,3 +136,26 @@ export function verdictPosition(v, { pieces, words, posAt, enter: into }) {
   if (v.kind === 'C' && v.edge === 'start') return { pos: entered(before(v.child.el)), shell: false };
   return { pos: entered(v.kind === 'C' ? after(v.box.el) : before(v.box.el)), shell: true };
 }
+
+/**
+ * Where a page that cannot cut ends: after the node at `from`, taken whole (*the build cannot fail*, C2: the driver answers a page whose only box is taller than the page by letting it overflow in place). The node is the atom at `from` when there is one, else the textblock `from` stands in, to its end, else the node that begins at `from`; whitespace leaves the page does not draw are passed over first. `to` is the position the next page begins at, past every parent that closes there and entered as a cut is (`enter`), or null at the document's end.
+ * @param {PMNode} doc
+ * @param {number} from
+ * @returns {{ node: PMNode | null, at: number, to: number | null }} `at` is the position before `node`.
+ */
+export function wholeAfter(doc, from) {
+  let pos = from;
+  for (let $p = doc.resolve(pos); $p.nodeAfter?.type.spec.unshown; $p = doc.resolve(pos)) pos += /** @type {PMNode} */ ($p.nodeAfter).nodeSize;
+  const $p = doc.resolve(pos);
+  const atom = $p.nodeAfter?.isAtom && !$p.nodeAfter.isText ? $p.nodeAfter : null;
+  /** @type {PMNode | null} */
+  let node = atom;
+  let after;
+  let at = pos;
+  if (atom) after = pos + atom.nodeSize;
+  else if ($p.parent.inlineContent && $p.depth > 0) { node = $p.parent; at = $p.before(); after = $p.after(); }
+  else if ($p.nodeAfter) { node = $p.nodeAfter; after = pos + $p.nodeAfter.nodeSize; }
+  else after = pos;
+  for (let $a = doc.resolve(after); !$a.nodeAfter && $a.depth > 0; $a = doc.resolve(after)) after = $a.after();
+  return { node, at, to: after >= doc.content.size ? null : enter(doc, after) };
+}

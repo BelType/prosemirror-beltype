@@ -32,7 +32,8 @@ import { pathOf, normalizePath, extensionPx } from '@egildo/beltype-engine-cicer
 import { joinedWords } from '@egildo/beltype-engine-cicero/src/fragments.js';
 import { blockChildrenOf, isFixedBox } from '@egildo/beltype-engine-cicero/src/word-space.js';
 import '@egildo/beltype-engine-cicero/src/chase.js';
-import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition } from './turn.js';
+import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition, wholeAfter } from './turn.js';
+import { nodeDom } from './shells.js';
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
 /** @import { FillResult, RenderedSlice, SliceRenderer, ContainerHint } from 'prosemirror-fragview/src/fragmentainer.js' */
@@ -192,6 +193,7 @@ export class CiceroPage {
     let verdict = null;
     let usedPx = report.flowBottom - pageStart;
     let cost = 0;
+    let whole = null;
     if (!fits) {
       verdict = adjudicate({ report, sourceOf, pageStart, contentHeight: contentH });
       // No verdict: one uncuttable run taller than the page overflows in place (C2), and the page ends where it would have.
@@ -200,13 +202,22 @@ export class CiceroPage {
         nextName = to == null ? '' : this.nameAt(t, to);
         usedPx = verdict.y - pageStart;
         cost = verdict.cost ?? 0;
+        // A verdict that maps to the page's own start, or to no position (a cut inside a leaf), is an uncuttable run at the page's start: the driver lets it overflow in place (*the build cannot fail*, C2), and so does the page.
+        if (to == null || to <= from) {
+          whole = wholeAfter(doc, from);
+          console.warn(`prosemirror-beltype: page ${this.index + 1} cannot be cut after ${from} (a ${verdict.kind} verdict mapped to ${to ?? 'no position'}); the ${whole.node?.type.name ?? 'content'} there is taken whole and overflows the page, clipped`);
+          to = whole.to;
+          nextName = to == null ? '' : this.nameAt(t, to);
+          const el = whole.node && t.container ? nodeDom(t.container, t.trial.positions, doc, whole.at) : null;
+          usedPx = Math.max(contentH, ((el && report.boxOf(el)?.rect.bottom) || report.flowBottom) - pageStart);
+          cost = 0;
+        }
       }
     }
-    if (to != null && to <= from) throw new Error(`prosemirror-beltype: page ${this.index + 1} did not advance from ${from} (the verdict mapped to ${to})`);
 
     const startCut = this.addressAt(t, from);
     const endCut = to == null ? null : this.addressAt(t, to);
-    const extPx = endCut ? extensionPx({ blank: false, start: { b: startCut.b, cut: startCut.cut }, end: { b: endCut.b, cut: endCut.cut }, closes: { contentH } }, { usedPx, cost }) : 0;
+    const extPx = endCut && !whole ? extensionPx({ blank: false, start: { b: startCut.b, cut: startCut.cut }, end: { b: endCut.b, cut: endCut.cut }, closes: { contentH } }, { usedPx, cost }) : 0;
     ctx.dispose();
     t.lawRoot.replaceChildren();
 

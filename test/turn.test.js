@@ -125,3 +125,14 @@ test('a verdict that continues a box as a shell answers the boundary after or be
   assert.deepEqual(verdictPosition({ kind: 'C', edge: 'end', box: { el: p } }, dom()), { pos: 28, shell: true });
   assert.deepEqual(verdictPosition({ kind: 'E', box: { el: p } }, dom()), { pos: 9, shell: true });
 });
+
+test('a page that cannot cut takes the node at its start whole, and the next page begins after it', async () => {
+  const { wholeAfter } = await import('../src/turn.js');
+  const two = schema.node('doc', null, [paragraph.create(null, schema.text('one')), section.create(null, [paragraph.create(null, schema.text('two'))]), paragraph.create(null, schema.text('three'))]);
+  // <p>one</p> 0–5, <section> 5–12 holding <p>two</p> 6–11, <p>three</p> 12–19.
+  assert.deepEqual(wholeAfter(two, 1), { node: two.child(0), at: 0, to: 7 }, 'the textblock to its end, the next page entered into the section');
+  assert.deepEqual(wholeAfter(two, 3), { node: two.child(0), at: 0, to: 7 }, 'from inside the textblock, the rest of it');
+  assert.deepEqual(wholeAfter(two, 7), { node: two.child(1).child(0), at: 6, to: 13 }, 'a section that closes after its last textblock closes on this page');
+  assert.deepEqual(wholeAfter(two, 13), { node: two.child(2), at: 12, to: null }, 'the last textblock ends the document');
+  assert.deepEqual(wholeAfter(two, 5), { node: two.child(1), at: 5, to: 13 }, 'a block that begins at the page start, not entered, is taken whole');
+});
