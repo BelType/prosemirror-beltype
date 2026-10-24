@@ -13,7 +13,8 @@
     "README.md"
   ],
   "scripts": {
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "specimen": "node scripts/specimen.mjs"
   },
   "peerDependencies": {
     "prosemirror-fragview": "*",
@@ -26,5 +27,15 @@
     "url": "https://codeberg.org/egildo/prosemirror-beltype.git"
   },
   "author": "Egildo Tagliareni",
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "@egildo/beltype-engine-cicero": "file:../../../../Users/egildo/Privata/dev/beltype/packages/engine-cicero",
+    "beltype-studio-experiment": "file:../../../../Users/egildo/Privata/dev/beltype-studio-experiment",
+    "playwright": "1.63.0",
+    "prosemirror-fragview": "file:../prosemirror-fragview",
+    "prosemirror-model": "1.25.12",
+    "prosemirror-state": "1.4.4",
+    "prosemirror-transform": "1.12.2",
+    "vite": "8.3.4"
+  }
 }
