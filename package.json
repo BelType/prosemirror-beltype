@@ -33,6 +33,7 @@
     "beltype-studio-experiment": "file:../../../../Users/egildo/Privata/dev/beltype-studio-experiment",
     "playwright": "1.63.0",
     "prosemirror-fragview": "file:../prosemirror-fragview",
+    "prosemirror-history": "1.5.1",
     "prosemirror-model": "1.25.12",
     "prosemirror-state": "1.4.4",
     "prosemirror-transform": "1.12.2",
