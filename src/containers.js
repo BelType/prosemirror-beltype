@@ -6,12 +6,15 @@
  *
  * The factory takes the one-round host's intake duty for a facsimile (`seam/client.js`, `takeFacsimile`): when a page's slice first puts a PDF `<object>` in the document, the engine's `seam/facsimile.js` is loaded and its `install` awaited before the slice is measured, which reads every embedded page's size and registers the presenter in this package's registry (`takeFacsimile` below). The check is made per slice and not when the factory is made, because a host may make the factory over a document that holds no PDF yet: the studio's `prepare` takes the provider's drawing out of the body before the view is mounted, and the page's own law copy is the first PDF `<object>` the document holds again. A document without one pays nothing, and pdf.js is not fetched.
  *
+ * The Cicero page's host wears the engine's dressing, and not the view's continuation sheet (`continuationSheet` in prosemirror-fragview): the engine's rules are keyed on the engine's words at every depth and `!important`, and what a divided box shows at its edges is the engine's to say, so the factory ensures the words sheet (`ensureDressing`, which the measure context also seats) and the continuation dressing (`ensureContinuationDressing`, the five rules that withhold a resumed piece's `::before`, `::marker`, `::first-letter` and `::first-line` and a cut-off piece's `::after`) as it checks the render conditions. No root runs under the view, so nothing else adopts them (docs/found.md, "Resumed pieces wear no dressing sheet", closed 2026-10-25).
+ *
  * No reads in this phase: a page carries no folio, no `counter(pages)`, no named strings and no running element in its margins, and the author's counters are not delivered at its start (`setCounters` with `page N` is phase 2's, docs/plan.md). The table is read from the document's sheets as the host left them; a host that rewrote its sheets for Cicero (`rewriteDocumentSheets`) has done so before the factory is made.
  *
  * @packageDocumentation
  */
 
 import { readGeometryTable, registerGcpmProperties } from '@egildo/beltype-engine-cicero/src/capture.js';
+import { ensureContinuationDressing, ensureDressing } from '@egildo/beltype-engine-cicero/src/dressing.js';
 import { assertRenderConditions } from '@egildo/beltype-engine-cicero/src/measure.js';
 import { present } from '@egildo/beltype-engine-cicero/src/presenters.js';
 import { CiceroPage } from './cicero-page.js';
@@ -27,6 +30,8 @@ import { CiceroPage } from './cicero-page.js';
  */
 export function ciceroContainers(document = globalThis.document, { table, relaxDpr = true } = {}) {
   assertRenderConditions(document, { relaxDpr });
+  ensureDressing(document);
+  ensureContinuationDressing(document);
   registerGcpmProperties(/** @type {any} */ (document.defaultView));
   const geometry = table ?? readGeometryTable(document);
   const intake = () => takeFacsimile(document);
