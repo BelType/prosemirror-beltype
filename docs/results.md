@@ -346,3 +346,76 @@ The studio's facsimile demo through its witness, a dev server of the studio's ow
 - **Late truth.** A size learned after a measure (a file that was not there at intake) is announced by `facsimile.js` as a `beltype:change` for the box, found through `window.__beltypeCicero.sourceOf`, which the view does not answer for its pages; here such a box has no ratio until a later fill, and the page's `moved` fires only if its height changes when the canvas is drawn. Not reached by the fixture or the demo.
 - **A PDF `<object>` with no fallback `alt`.** `install` refuses it by name, as the one-round host refuses the run, and the refusal is thrown from `fill`, the one thing the page throws (*the build cannot fail* says otherwise of the cut); the view leaves the entry dirty.
 - **The shared holders.** The law holder is one per document and a fill awaits between rendering its law copy and reading it, so two fills in flight can evict each other's law; that was so before the round, and the presenting adds one await (the intake) only where the document holds a PDF.
+
+## The host wears the dressing
+
+Written 2026-10-25, on the branch `round/the-host-wears-the-dressing`, for docs/found.md's "Resumed pieces wear no dressing sheet", after BelType opened the door the same day (`ensureContinuationDressing` in `engine-cicero/src/dressing.js`, its CHANGELOG's *The continuation dressing is a door*). Run it again with `npm test` (13 tests, in node), `node scripts/specimen.mjs <absolute path>` and `node scripts/specimen.mjs <absolute path> --bare` on each fixture under `fixtures/` and on `./test/specimen.md`, and, with the studio's dev server started on a free port, the studio's `node scripts/fragview-pages.mjs --demo <demo> --url <its url> --out <a file outside the studio>` on `report`, `quiet-press`, `showcase`, `manuale` and `facsimile`.
+
+### What was built
+
+| Module | Lines | What it is |
+| :--- | ---: | :--- |
+| `src/containers.js` | 67 | The factory calls `ensureDressing(document)` and `ensureContinuationDressing(document)` after `assertRenderConditions`. Its header says why the Cicero page's host wears the engine's dressing and not the view's `continuationSheet`: the engine's rules are keyed on the engine's words at every depth and `!important`, and what a divided box shows at its edges is the engine's to say. `ensureDressing` is also called by `createMeasureContext` on the same document before any slice is shown; the factory names it so the page's dressing is one place. |
+| `harness/specimen.js`, `scripts/specimen.mjs` | 192, 108 | `--bare`: after the CLI's pages are read and before the view is mounted, every sheet the document has adopted is listed and taken off, so the view is measured in a document no root has dressed. Each side's divided pieces are read at their edges from the computed style of their pseudo-elements (`dressingOf`), and the adopted sheets are listed after the view settles. BelType's dev server is given 60 s to answer, since its cold start took 12.8 s in this round and the old 10 s wait failed twice. |
+| `fixtures/dressing/` | 1 052 words | The flow fixture's 110 × 150 mm page with one divided box for each rule: a blockquote whose `::before` is a block label (`"Quoted"`), an ordered list with an author `::marker` (`"No. " counter(list-item)`) and items long enough to be cut through, a paragraph with a floated drop cap (`p.cap::first-letter`, 3.4em), a paragraph whose `::first-line` is small caps at 1.15em, and an aside whose `::after` is a block attribution. |
+
+### What `--bare` takes off
+
+In BelType's page the author's sheets are a `<link>` and `<style>`s in the head, and the words sheet's rules ride in the engine's provision `<style>` there too, so `ensureDressing` adopts nothing and clearing `adoptedStyleSheets` leaves the words, the margins and the indents in place. What the CLI's root had adopted, listed before the clearing, is three sheets on every fixture: the continuation dressing (5 rules), the root's fixed-box sheet (`[data-beltype~="fixed"] { position: absolute !important; }`) and its breaks sheet (`beltype-root, beltype-root * { break-before: auto !important; … }`); the specimen has a fourth, the reads' delivery sheet (9 rules, its `target-counter()` values), which the view does not deliver yet (phase 2). After the view settles, the document wears one adopted sheet, the continuation dressing the factory ensured. None of the three root sheets is the view's to need: fixed boxes are put away on the view's pages, and the breaks sheet is keyed on `beltype-root`.
+
+### Measurement B, the defect, before and after
+
+`node scripts/specimen.mjs <dressing.md> --bare`, each resumed piece's edges on the view's pages; on the CLI's pages every value is the "after" column, with or without `--bare`, since the CLI's are read before the clearing.
+
+| Page | Piece | Read | Before (main, f805bc8) | After (1c26f19) |
+| ---: | :--- | :--- | :--- | :--- |
+| 3 | resumed `blockquote.open` | `::before` content | `"Quoted"` | `none` |
+| 5 | resumed `li` | `::marker` content | `"No. " counter(list-item) "  "` | `none` |
+| 6 | resumed `li` | `::marker` content | `"No. " counter(list-item) "  "` | `none` |
+| 7 | resumed `p.cap` | `::first-letter` float, size | `left`, 49.8667px | `none`, 14.6667px (the paragraph's) |
+| 9 | resumed `p.lead` | `::first-line` size, caps | 16.8667px, `small-caps` | 14.6667px, `normal` (the paragraph's) |
+| 10 | cut-off `aside.close` | `::after` content | `"— the compositor"` | `none` |
+
+Every construct is divided, read off the pieces' words in the measurement: the blockquote between pages 2 and 3, the list through an item between pages 4 and 5 and through the next between 5 and 6, the drop-cap paragraph between 6 and 7, the small-caps paragraph between 8 and 9, the aside between 10 and 11.
+
+**No cut moved before the fix**, here: under `--bare` on main the view gave the CLI's 11 pages, every page the same, and only two fills measured differently from the run with the root's sheets worn. Page 3's label took 24.2 px at the top of the trial: the fill read the page's start at 24.20 px and its foot at 485.38 px against 461.18, the same cut, so the shown page ran the label's height past its flow. Page 9's small-caps first line measured the page at 405.52 px against 401.91, the same cut. After the fix every fill under `--bare` is the run with the root's sheets worn, position for position and pixel for pixel.
+
+### Measurement A, parity
+
+| Document | CLI | View | Same | First difference | Under `--bare` |
+| :--- | ---: | ---: | ---: | :--- | :--- |
+| `test/specimen.md` | 9 | 9 | 9 | none | 9, 9 the same, none |
+| `fixtures/flow` | 26 | 26 | 26 | none | 26, 26 the same, none |
+| `fixtures/tall` | 10 | 10 | 10 | none | 10, 10 the same, none |
+| `fixtures/end-gap` | 6 | 6 | 6 | none | 6, 6 the same, none |
+| `fixtures/row` | 13 | 13 | 13 | none | 13, 13 the same, none |
+| `fixtures/multicol` | 6 | 6 | 6 | none | 6, 6 the same, none |
+| `fixtures/running` | 13 | 13 | 13 | none | 13, 13 the same, none |
+| `fixtures/facsimile` | 5 | 5 | 5 | none, objects page 2 189 × 252 and page 4 533 × 400 on both sides | 5, 5 the same, none, the same objects |
+| `fixtures/dressing` | 11 | 11 | 11 | none | 11, 11 the same, none |
+
+The dressing fixture page by page, the same on both sides and in both modes: page 1 `The` to `preface.`, 63 words; 2 `Appendix` to `small.`, 91; 3 `Superior` to `paragraph`, 86; 4 `spread` to `errata`, 95; 5 `preface` to `margin`, 108; 6 `numeral` to `on`, 96; 7 `capitals.` to `glossary`, 108; 8 `platen` to `the`, 121; 9 `errata.` to `imposition.`, 95; 10 `Of` to `ascender`, 117; 11 `proof` to `colophon.`, 72; every page 416 × 566. No warning from the view on any fixture; the multicol fixture's `info` that a multicol is not divided yet is the engine's, as before.
+
+### The studio, through its witness
+
+A dev server of the studio's own on a free port, the old path against the view, the studio unchanged:
+
+| Demo | Old path | View | Same | First difference | As last recorded |
+| :--- | ---: | ---: | ---: | :--- | :--- |
+| report | 11 | 11 | 11 | none | yes |
+| quiet-press | 30 | 30 | 30 | none | yes (the studio's `notes/fragview-results.md`) |
+| showcase | 76 | 74 | 45 | page 13 | yes |
+| manuale | 7 | 7 | 6 | page 5, the repeated table header | yes |
+| facsimile | 6 | 6 | 6 | none | yes |
+
+The view's document in the studio now wears the continuation dressing too, and none of these demos moved, as found.md predicted: none of their resumed pieces has generated content, an author marker or a first-letter or first-line rule.
+
+### Doors
+
+None filed: the engine's door was opened before the round, and the factory is its first caller outside the root.
+
+### Not done
+
+- **A host that empties the adopted sheets after the factory is made** (a `document.open()`, as BelType's kept print frame does) loses the continuation dressing until a new factory is made: the factory calls the door once. Neither the harness nor the studio does so; the studio's sheets are all appended. Calling the door per fill would cost a lookup and an `includes` per page.
+- **`ensureDressing` answers its remembered record**, so a host without the provision whose adopted words sheet was taken off does not get it back (BelType's NEEDED-FIXES, *two of Cicero's sheets are remembered, not asked for*). Not met: BelType's page and the studio both carry the provision (the studio splices the engine's head fragment in its `vite.config.js`).
+- **A node test of the factory**: it would need a stub document answering `assertRenderConditions`, `registerGcpmProperties` and `readGeometryTable` to prove two calls; `--bare` is the check.
