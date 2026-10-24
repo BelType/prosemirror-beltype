@@ -77,6 +77,43 @@ export function readPages(pages) {
   });
 }
 
+/** A piece that did not begin its box, and one the cut passes through: the engine's `RESUMED` and `CUT_OFF`, spelled here so the harness reads the words without the engine. */
+const RESUMED = '[data-beltype~="split"]:not([data-beltype~="start"])';
+const CUT_OFF = '[data-beltype~="split"]:not([data-beltype~="end"])';
+
+/**
+ * What each divided piece's edges show, read from the computed style of its pseudo-elements: on a resumed piece `::before` and `::marker` content, `::first-letter` float and size and `::first-line` size and caps beside the element's own size, and on a cut-off piece `::after` content. Only the pieces whose box an author rule dresses at that edge are kept, so the list is the continuation dressing's work and nothing else.
+ * @param {Element[]} pages
+ */
+export function dressingOf(pages) {
+  /** @type {any[]} */
+  const out = [];
+  pages.forEach((page, i) => {
+    const slot = /** @type {HTMLSlotElement} */ (/** @type {ShadowRoot} */ (page.shadowRoot).querySelector('.flow slot'));
+    const els = slot.assignedElements({ flatten: true }).flatMap((el) => [el, ...el.querySelectorAll('*')]);
+    for (const el of els) {
+      const name = `${el.localName}${el.className && typeof el.className === 'string' ? `.${el.className.trim().split(/\s+/)[0]}` : ''}`;
+      const own = getComputedStyle(el);
+      if (el.matches(RESUMED)) {
+        const before = getComputedStyle(el, '::before').content;
+        const marker = own.display === 'list-item' ? getComputedStyle(el, '::marker').content : null;
+        const letter = getComputedStyle(el, '::first-letter');
+        const line = getComputedStyle(el, '::first-line');
+        const piece = { page: i + 1, edge: 'resumed', el: name, before, marker, firstLetter: `${letter.float} ${letter.fontSize}`, firstLine: `${line.fontSize} ${line.fontVariantCaps}`, own: `${own.fontSize} ${own.fontVariantCaps}` };
+        if (before !== 'none' && before !== 'normal' || (marker && marker !== 'none') || letter.float !== 'none' || letter.fontSize !== own.fontSize || line.fontSize !== own.fontSize || line.fontVariantCaps !== own.fontVariantCaps || el.matches('blockquote, li, p.cap, p.lead')) out.push(piece);
+      }
+      if (el.matches(CUT_OFF)) {
+        const after = getComputedStyle(el, '::after').content;
+        if ((after !== 'none' && after !== 'normal') || el.matches('aside')) out.push({ page: i + 1, edge: 'cut-off', el: name, after });
+      }
+    }
+  });
+  return out;
+}
+
+/** The sheets the document has adopted, each as its rule count and the start of its first rule. */
+export const adoptedSheets = () => [...document.adoptedStyleSheets].map((s) => `${s.cssRules.length} rules: ${(s.cssRules[0]?.cssText ?? '').replace(/\s+/g, ' ').slice(0, 90)}`);
+
 /** The engine's pages, as the root presents them. */
 export const rootPages = () => [.../** @type {ShadowRoot} */ (/** @type {Element} */ (document.querySelector('beltype-root')).shadowRoot).querySelectorAll('beltype-page')];
 
@@ -99,10 +136,12 @@ async function servedDoc() {
 }
 
 /**
- * Mount the view beside the root, the root hidden, and wait for the chain to fill whole.
- * @param {{ settleMs?: number, timeoutMs?: number }} [options]
+ * Mount the view beside the root, the root hidden, and wait for the chain to fill whole. `bare` first takes every sheet the document has adopted off it, the CLI's root's among them, so the view is measured in a document no root has dressed, as it is in a host that runs none.
+ * @param {{ settleMs?: number, timeoutMs?: number, bare?: boolean }} [options]
  */
-export async function mount({ settleMs = 300, timeoutMs = 120000 } = {}) {
+export async function mount({ settleMs = 300, timeoutMs = 120000, bare = false } = {}) {
+  const removed = bare ? adoptedSheets() : [];
+  if (bare) document.adoptedStyleSheets = [];
   /** @type {any[]} */
   const fills = [];
   const doc = await servedDoc();
@@ -147,7 +186,7 @@ export async function mount({ settleMs = 300, timeoutMs = 120000 } = {}) {
   }
   const ms = performance.now() - started - (settled ? settleMs : 0);
   const pages = view.fragments.map((f) => /** @type {any} */ (f.container)?.dom).filter(Boolean);
-  return { ms, settled, entries: view.entries.map(({ from, to }) => ({ from, to })), fills, pages: readPages(pages), docSize: doc.content.size };
+  return { ms, settled, entries: view.entries.map(({ from, to }) => ({ from, to })), fills, pages: readPages(pages), dressing: dressingOf(pages), removed, adopted: adoptedSheets(), docSize: doc.content.size };
 }
 
-Object.assign(window, { __prosemirrorBeltype: { wordsOf, readPages, rootPages, mount } });
+Object.assign(window, { __prosemirrorBeltype: { wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount } });
