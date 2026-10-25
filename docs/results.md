@@ -954,3 +954,141 @@ A second dev server of the studio, for the "before", resolved `prosemirror-belty
 - **A part per box below the top level**: the engine's question (filed).
 - **`--reach 0` as a reading**: measured only; the round does not read the reach otherwise than the engine does.
 - **A browser test of the placement**: pinned in node over a hand-made DOM, and measured by the harness's equalities.
+
+## The reach of a whole box
+
+Written 2026-10-25, on the branch `round/the-reach-of-a-whole-box`, for docs/found.md's three engine entries of the round before (the reach per box, the index part of a moved block, the running elements' walk), which BelType closed in its merge 8c6d8777 (its CHANGELOG of 2026-10-25, *the reach is read for a unit of replacement*). Run it again with `npm test` (45 tests); `node scripts/specimen.mjs <absolute path>` and the same with `--bare` on each fixture under `fixtures/` and on `./test/specimen.md`; `--edits 'retitle:Strings=>Strings, retitled;retitle:Folios=>Folia;retitle:Folia=>Folios, retitled;key:3;delete:2;paste;enter;start;end'` on `fixtures/chrome/chrome.md`, `--edits 'key:2;delete:2;paste;enter;start;end'` on the specimen and `fixtures/running/running.md`, `--edits 'key:3;delete:3;paste;enter;start;end'` on the studio's `demos/showcase/index.html`, each normal and `--bare`, for the edit equalities; `--keys 3:5` on the showcase, with and without `--no-ledger`, for the cost; the studio's `node scripts/fragview-pages.mjs --demo <demo> --url <its url> --out <a file outside the studio>` on its six demos, and a copy of its `scripts/fragview-keys.mjs` that takes `--url` and `--view-only` for the real keys. The "before" is main at 8b75207, run from a copy of it (`git archive 8b75207`, its `node_modules` a link to this checkout's, its Vite cache a directory of its own), so no branch was checked out; both sides reach the engine at 8c6d8777, so the before is the engine's new door unused.
+
+### The door adopted
+
+`Originals.of` settles the memo once per state with the unit this host replaces, a whole top-level box: `memo.settle(topLevelReach(document, boxes, memo.boxes), boxes)`, `boxes` the holder's element children in order (running elements and fixed boxes among them, as the engine's header asks) and `memo.boxes` the boxes the memo was settled with last, which the engine keeps. The engine reads off the two lists what an edit inserted, removed, moved or replaced, so this package's own scan for structural pseudo-classes and `place()`'s `shaped` flag, which forgot every part where an edit changed the holder's shape and a sheet held `:nth-child` or its kin, are dropped: the engine answers the structural forms per change, the first forms 1 and the last and only forms 2. `runningBoxes(stand, keep)` takes the memo's door, so a running element is found again only in a top-level box the edit replaced. `forget` still clears the memo, which empties `memo.boxes`, so the next state is read whole and no structural answer is stale. The console line stays where the reach is 2, in the engine's `settledMemo` wording; no document measured here reaches 2 now, so it is no longer printed anywhere. `--reach N` stays, a measurement: it puts N in place of the engine's reading, and the reading's arguments are ignored.
+
+### The reach each document answers, and what the memo keeps
+
+`topLevelReach` over the holder's children, as the harness prints it (`reachOf`, also as after a change of shape, the first box new) and as the studio's view reads it (the originals' timings), against `sheetReach`, the reading for `patchBox`'s unit, which the round before used:
+
+| Document | `sheetReach` | `topLevelReach` | After a change of shape |
+| :--- | ---: | ---: | :--- |
+| every fixture under `fixtures/` | 0, the flow fixture 2 | 0 | 0 |
+| `test/specimen.md` | 2 | 0 | 0 |
+| the showcase, in BelType's page | 2 | 0 | 0; 1 once a top-level box is a `p` (below) |
+| the studio's quiet press | 2 | 1 | 1 |
+| the studio's report, manuale, facsimile, bolletta and showcase | 2 | 0 | 0 |
+
+The quiet press reads 1 through one rule of its own sheet, `:is(header, h2, h3, figure, blockquote, ul, ol, table, section) > p:first-child, :is(h2, h3, figure, blockquote, ul, ol, table, header) + p`: the engine reads a `+` whose left side can be a top-level box, and takes the pseudo-classes out of that side before matching it, so `:is(h2, …)` is read as `*` and matches each of the quiet press's eight top-level boxes (`section.titlepage`, `nav.contents` and six `article.chapter`), none of them an `h2` and none followed by a top-level `p`. Conservative, as the engine's header says; filed in docs/found.md. On the showcase in the harness, the edits that put a top-level paragraph in (a paste, an Enter at the end of the leading running element) make the showcase read 1 from then on, through `p + p` and its kin in its sheets: two top-level paragraphs now stand beside each other, so that reading is the true one.
+
+What the memo keeps (`memo.tally`, per walk, kept and read, both the originals' walks and the loop's, so a box asked twice in one state is counted twice):
+
+| Edit | Reach | Nodes rendered, kept | `running` | `index` | `ops` | `sites` | `ops:marked` |
+| :--- | ---: | :--- | :--- | :--- | :--- | :--- | :--- |
+| the showcase in the harness, a key on page 3 | 0 | 1, 13 | 13, 1 | 25, 1 | 12, 1 | 178, 1 | 12, 1 |
+| the studio's showcase, a key a third in | 0 | 1, 28 | 13, 1 | 25, 1 | 12, 1 | 178, 1 | 12, 1 |
+| the studio's report, a key a third in | 0 | 1, 19 | 8, 1 | 15, 1 | 7, 1 | 80, 1 | 7, 1 |
+| the studio's manuale, a key a third in | 0 | 1, 11 | 4, 1 | 7, 1 | 3, 1 | 59, 1 | 3, 1 |
+| the studio's facsimile, a key a third in | 0 | 1, 6 | 2, 1 | 2, 1 | 2, 1 | none | none |
+| the studio's bolletta, a key a third in | 0 | 1, 10 | 4, 1 | 9, 1 | 4, 1 | 4, 1 | none |
+| the studio's bolletta, Enter there (a top-level paragraph split) | 0 | 2, 10 | 4, 2 | 10, 2 | 4, 2 | 4, 2 | none |
+| the studio's quiet press, a key a third in (the fifth of eight boxes) | 1 | 1, 17 | 4, 4 | 12, 4 | 4, 4 | 4, 4 | none |
+| the chrome fixture, two paragraphs pasted at the top level | 0 | 2, 2 | 2, 2 | 4, 2 | 1, 2 | 24, 2 | none |
+| the chrome fixture, Enter at the end of its running element (a new top-level paragraph) | 0 | 2, 3 | 3, 2 | 7, 1 | 3, 1 | 31, 2 | none |
+| the showcase, two paragraphs pasted after its first top-level box | 1 | 2, 14 | 1, 15 | 15, 15 | 0, 15 | 190, 15 | 0, 15 |
+| the showcase, a key at the very end | 1 | 1, 16 | 16, 1 | 31, 1 | 15, 1 | 217, 1 | 15, 1 |
+| the showcase, a key at the very start | 1 | 1, 16 | 0, 17 | 16, 16 | 0, 16 | 201, 17 | 0, 16 |
+
+At 0 a keystroke reads one top-level box again and keeps every other; a paste at the top level reads only the boxes it put in, and a moved box keeps its index part (the round before read 3 index parts on the chrome fixture's paste, of which 2 new; now 2, both new, the engine's rider). At 1 the memo keeps the boxes before the earliest change and reads the ones from it on: the showcase's paste keeps its first box and reads the 15 after it, a key at its end keeps 16 boxes and reads 1, a key at its start (inside its first top-level box, the running element) reads everything. On the studio's showcase the memo now keeps the parts of 13 of its 14 top-level boxes per keystroke, where it kept none.
+
+### Before and after, per keystroke
+
+The showcase in the harness, BelType's own page, five characters typed on page 3, each awaited until the chain is quiet and the loop settled; before (8b75207) and after (94609a3) interleaved, three runs each, with the Ledger. Milliseconds, the range over 15 keystrokes:
+
+| | Before | After |
+| :--- | :--- | :--- |
+| The chain quiet after the dispatch | 22.3 to 30.4 (30.4, 23.5, 24.7, 26.2, 22.7; 26.7, 23.9, 23.3, 23.3, 22.3; 26.9, 23.9, 23.6, 23.0, 22.9) | 7.6 to 12.5 (12.2, 7.8, 9.3, 8.6, 8.9; 12.5, 8.7, 10.2, 7.6, 9.7; 9.5, 8.1, 9.8, 9.9, 9.1) |
+| The view's update | 18.1 to 24.0 | 4.7 to 6.7 |
+| The clean pages' chrome read again | 1.9 to 2.9 | 1.8 to 2.9 |
+| The originals' rendering | 0.2 to 0.4 | 0.1 to 0.3 |
+| The originals' reading | 8.1 to 11.9 | 1.0 to 1.4 |
+| of it, the reach | 0 to 0.2 (`sheetReach`) | 0.3 to 0.5 (`topLevelReach`) |
+| of it, the intake's blocks and running elements | 1.3 to 3.8 | 0.2 to 0.4 |
+| of it, the position index | 2.6 to 3.6 | 0.1 to 0.3 |
+| of it, the counter log | 3.7 to 4.2 | 0.1 to 0.3 |
+| The loop's start (`cicero:reads`) | 7.0 to 8.7 | 0.7 to 1.0 |
+| The settle, in 1 run | 17.8 to 20.5 | 10.9 to 12.5 |
+| The view's chain on load | 813, 781, 779 | 796, 796, 765 |
+
+The round before recorded after 20.4 to 25.6 ms quiet, the reading 8.3 to 9.6 and the loop's start 7.1 to 8.9, and under `--reach 0`, its measurement of what this door would give, quiet 6.4 to 11.5 and the loop's start 0.7 to 1.0: the engine's reading gives the ceiling that measurement drew, and the reading falls further (1.0 to 1.4 ms against 1.9 to 2.4) because the running elements now keep their part. What is left of the view's update is the clean pages' chrome read again (`Chain.rechrome`, 1.8 to 2.9 ms) and the page's own fill.
+
+Without the Ledger (`--no-ledger`, no loop), interleaved, three runs each: quiet 11.9 to 16.2 ms before (the update 8.8 to 11.1, the reading 8.0 to 10.0) and 5.1 to 8.6 ms after (the update 2.0 to 2.8, the reading 1.0 to 1.6); the chain on load 677, 687 and 686 ms before, 686, 680 and 719 after.
+
+**In the studio, through the view.** The copy of `fragview-keys.mjs` (a real key pressed, keydown to the first frame after the chain settled), against two dev servers of the studio on free ports, one resolving this branch and one main's copy through a configuration of its own (the studio's merged with an alias), each with a Vite cache directory of its own; 10 presses of each pair at each spot, medians (min–max), before and after interleaved per demo. The time to the transaction that left the chain settled, before the frame is waited for, is beside it:
+
+| Studio, the view | Before | After | Settled, before | Settled, after |
+| :--- | :--- | :--- | :--- | :--- |
+| showcase, a character a third in | 35.5 (32.9–42.2) | 31.5 (25.7–32.1) | 33.5 | 19.3 |
+| showcase, Backspace a third in | 35.5 (33.7–41.7) | 32 (25.1–32.8) | 33.8 | 19.1 |
+| showcase, Enter a third in | 32.6 (30.4–38.1) | 32.1 (27.5–32.2) | 30.8 | 18.7 |
+| showcase, the join a third in | 33.8 (33–34.4) | 32.1 (24.9–32.9) | 31.7 | 18.9 |
+| showcase, a character two thirds in | 47.5 (44.8–50.7) | 35.3 (34.4–36.3) | 45.7 | 33.5 |
+| showcase, Backspace two thirds in | 46.7 (44.1–50.8) | 35.4 (34.5–36.3) | 45.1 | 33.8 |
+| showcase, Enter two thirds in (4 pages refilled) | 102.7 (94.4–108.1) | 90.5 (86–97.5) | 100 | 87.7 |
+| showcase, the join two thirds in (4 pages refilled) | 110 (104.5–116.4) | 98.4 (90.7–109.7) | 107 | 95.7 |
+| quiet press, a character a third in | 32.8 (20.5–33.6) | 32 (18.8–33.5) | 14.3 | 13.9 |
+| quiet press, Enter a third in (4 pages refilled) | 31.6 (28.8–32.6) | 30.7 (29.4–33.7) | 29.8 | 28.3 |
+
+A character a third into the showcase is now settled in 19.3 ms and shown at the second frame, so it is bound by the frame as the quiet press is on both sides; two thirds in it is shown at the third. The round before recorded a character a third in at 36.9 ms after its round and two thirds in at 48.3; the interleaved runs above are the comparison. The quiet press keeps less (reach 1, above) and was bound by the frame already.
+
+### The edit equalities
+
+Each edit by a transaction on the view, with the memo in use; the chain and the loop awaited; every page's words, margin boxes and flow read, each page's chrome state, the originals' reading and the delivered reads; then `invalidate()`, which renders the originals whole and clears the memo, and the same read off the view's fresh fill; the two compared. At 94609a3, read with 24b383c's comparison (below):
+
+| Document | Edits | Pages equal | Page states, originals' reading, delivered reads |
+| :--- | :--- | :--- | :--- |
+| `fixtures/chrome`, normal and `--bare` | `Strings` retitled; `Folios` to `Folia`; `Folia` to `Folios, retitled` (a 17th page); a key on page 3; the first paragraph of page 2 deleted; two paragraphs pasted at the top level; Enter at the end of the running element; a character at the very start; one at the very end | 16, 16, 17, 17, 16, 16, 16, 16, 16 of as many | the same, every edit |
+| `test/specimen.md` (reach 0, was 2), normal and `--bare` | a key on page 2; a paragraph deleted; two pasted; Enter; the start; the end | 9 of 9 each | the same |
+| `fixtures/running`, normal and `--bare` | the same six | 13, 13, 15, 15, 15, 15 | the same |
+| the showcase (reach 0, 1 after the paste), normal and `--bare` | a key on page 3; a paragraph deleted; two pasted; Enter; the start; the end | 74 of 74 each | the same |
+| the showcase, after five keystrokes (`--keys`) | each of the 12 runs above, before and after, with and without the Ledger | 74 of 74 | the same |
+
+### Found on the way: the measurement read a page whose flow had been replaced
+
+The first pass of the equalities gave 5 inequalities of 54 edits, each one page whose flow's generated content read empty on one side: on the chrome fixture `Folia` to `Folios, retitled` (page 2, the fresh fill) and, under `--bare`, the key on page 3 (page 2, the fresh fill); on the specimen Enter and the start (page 1, the edited side, its contents' `3`, `5`, `7` and `9` empty) and, under `--bare`, the end (page 1, the fresh fill). Each page's words, margin boxes, state, the originals' reading and the delivered reads were equal, and each coincided with the line `(the snapshot misses …)`: the elements the comparison had tagged were not in the DOM snapshot after three tries. Asked of the document, none of them was there any longer: the page's slotted flow had been replaced between the tagging and the snapshot, so the snapshot could not find them, now and then (the specimen's paste, Enter, start and end in five more runs: one clean, four with a miss). The comparison now tags the pages again and takes a new snapshot when a tag is missing, three times at most, and says each miss with how many of the missing elements the document still holds; with it every edit above is equal, and every miss in the reruns was answered at the second attempt. Not this round's code: the round before met the same miss after `invalidate()` and scrolled each page into view for it.
+
+### Parity
+
+`node scripts/specimen.mjs` at 94609a3; every row is the same under `--bare`, and every row is the round before's:
+
+| Document | CLI | View | Same | First difference | Margin boxes | State | Reads the same | Runs, CLI / view |
+| :--- | ---: | ---: | ---: | :--- | :--- | :--- | :--- | :--- |
+| `test/specimen.md` | 9 | 9 | 9 | none | 9 of 9 | none differs | 15 of 15 | 1 / 1 |
+| `fixtures/flow` | 26 | 26 | 26 | none | 26 of 26 | none differs | none declared | no loop |
+| `fixtures/tall` | 10 | 10 | 10 | none | 10 of 10 | none differs | none declared | no loop |
+| `fixtures/end-gap` | 6 | 6 | 6 | none | 6 of 6 | none differs | none declared | no loop |
+| `fixtures/row` | 13 | 13 | 13 | none | 13 of 13 | none differs | none declared | no loop |
+| `fixtures/multicol` | 6 | 6 | 6 | none | 6 of 6 | none differs | none declared | no loop |
+| `fixtures/running` | 13 | 13 | 13 | none | 13 of 13 | none differs | none declared | no loop |
+| `fixtures/facsimile` | 5 | 5 | 5 | none | 5 of 5 | none differs | none declared | no loop |
+| `fixtures/dressing` | 11 | 11 | 11 | none | 11 of 11 | none differs | none declared | no loop |
+| `fixtures/chrome` | 16 | 16 | 16 | none | 16 of 16 | none differs | 1 of 1 (`p. 15`) | 2 / 2 |
+| the showcase | 76 | 74 | 53 | page 50 | 65 of 76, first page 18 | first page 50 | 23 of 28 | 2 / 2 |
+
+The view's console no longer has the originals' line on the specimen, the flow fixture and the showcase, since none of them reaches 2.
+
+### The studio, through its witness
+
+The studio was not edited. `fragview-pages.mjs --url` against the dev server resolving this branch:
+
+| Demo | Old path | View | Same | First difference | As last recorded |
+| :--- | ---: | ---: | ---: | :--- | :--- |
+| showcase | 76 | 74 | 43 | page 13 | yes |
+| showcase, `schema=studio` | 76 | 76 | 52 | page 29 | yes |
+| quiet-press | 30 | 30 | 30 | none | yes |
+| report | 11 | 11 | 11 | none | yes |
+| manuale | 7 | 7 | 6 | page 5 | yes |
+| facsimile | 6 | 6 | 6 | none | yes |
+| bolletta | 3 | 3 | 2 | page 3 | yes |
+
+### Not done
+
+- **A tighter reading of the quiet press's rule**: the engine's (filed).
+- **A part per box below the top level**: the engine's question, still open.
+- **The clean pages' chrome read again on every state** (`Chain.rechrome`, 1.8 to 2.9 ms on the showcase), now the largest piece of a keystroke's update outside the fill; not filed as a fault, named here as what is left.
