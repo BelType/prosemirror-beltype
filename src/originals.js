@@ -4,7 +4,7 @@
  * @remarks
  * Counters, named strings and running elements are CSS, so the state at a cut is a question about computed style: `counter-reset` on `body`, `string-set` on a heading, `position: running()` on a mark. The driver answers it at intake over the whole source with the source in its real ancestor chain (`driver.js`, `paginateOnce`, the document ops, string assignments and running assignments), and so does this object, over a rendering it keeps in a hidden holder that is a child of `body`, the holder's element children less fixed boxes and running elements the top-level blocks (`topLevelBlocks` and `runningBoxes`, asked of a stand-in document whose `body` is the holder), the engine's position index over them (`indexBlocks`), and `documentOpsOf` with the computed style, `html` and `body` as the ancestors (so a `body { counter-reset }` is in force on page one, the driver's own reading) and the running elements at the positions the driver logs them at (`runningPosition`, two lines written again here). From the log, `stringAssignmentsOf` and `runningAssignmentsOf`, once per state; a page asks `counterStateAt` at its first word and `namedStringsForPage` over its interval (`stateOfPage`).
  *
- * THE ORIGINALS KEEP THEIR PARTS (phase 2's third round, docs/results.md). The first state is rendered whole, `render(doc, 0, null)`. A later one is rendered per top-level node: ProseMirror's nodes are persistent, so a node a transaction did not touch is the same object in the new document, and the new document's children are matched to the last state's by identity (`matchNodes`: the common prefix and suffix, then a map for the middle). A kept node keeps its element and the slice it was rendered in; a changed or new node is rendered alone over its range, its own element put in the holder at its place; a removed node's element is taken out; every element put in or moved is reported to the engine's memo (`ForcingMemo.replaced`), and an element whose node is kept is never touched, so its object survives the edit. That is the one condition on which the engine's `keep` door works: the memo keeps each run-level walk's part per top-level box by the box's element (*a resumed run keeps its reads*). So the memo is settled once per state against the sheets' reach (`sheetReach`; at 2 it keeps nothing and the console says so once, as the engine's `settledMemo` does), and the walks over the state (`indexBlocks`, `documentOpsOf`, `findPageSites` here, and the reads loop's in `Chain.settle`) take its `keep`, which the state carries. Where the edit inserted, removed or moved a top-level box and a sheet holds a structural pseudo-class (`:nth-child`, `:first-child` and their kin), every part is forgotten: the engine's reach does not count them, since `patchBox` keeps a parent's child count, which an edit here does not. THE REBASE: a kept slice's position map holds the absolute positions of the document it was rendered from, in which its node started at `at`; the node starts at `base` now, so a model position is asked of the slice at `pos − base + at` (`rebased`), and a recorded start is answered at `start + base − at`. `forget` drops the rendering and the memo where the view's conditions moved (the chain hears the view's `invalidate()` as every page released), and the next state is rendered whole.
+ * THE ORIGINALS KEEP THEIR PARTS (phase 2's third round, docs/results.md). The first state is rendered whole, `render(doc, 0, null)`. A later one is rendered per top-level node: ProseMirror's nodes are persistent, so a node a transaction did not touch is the same object in the new document, and the new document's children are matched to the last state's by identity (`matchNodes`: the common prefix and suffix, then a map for the middle). A kept node keeps its element and the slice it was rendered in; a changed or new node is rendered alone over its range, its own element put in the holder at its place; a removed node's element is taken out; every element put in or moved is reported to the engine's memo (`ForcingMemo.replaced`), and an element whose node is kept is never touched, so its object survives the edit. That is the one condition on which the engine's `keep` door works: the memo keeps each run-level walk's part per top-level box by the box's element (*a resumed run keeps its reads*). So the memo is settled once per state for this host's unit of replacement, a whole top-level box (docs/results.md, "The reach of a whole box"): `memo.settle(topLevelReach(document, boxes, memo.boxes), boxes)`, `boxes` the holder's element children in order and `memo.boxes` the ones it was settled with last, from which the engine works out what an insertion, a removal or a move changed (at 0 it keeps every part but the replaced and moved boxes', at 1 the parts of the boxes before the earliest change, at 2 nothing, and the console says so once, as the engine's `settledMemo` does); the walks over the state (`runningBoxes`, `indexBlocks`, `documentOpsOf`, `findPageSites` here, and the reads loop's in `Chain.settle`) take its `keep`, which the state carries. THE REBASE: a kept slice's position map holds the absolute positions of the document it was rendered from, in which its node started at `at`; the node starts at `base` now, so a model position is asked of the slice at `pos − base + at` (`rebased`), and a recorded start is answered at `start + base − at`. `forget` drops the rendering and the memo where the view's conditions moved (the chain hears the view's `invalidate()` as every page released), and the next state is rendered whole.
  *
  * The name is the engine's: `paginate`'s `originals` is every top-level box the intake took, and the reads loop asks them here (`Chain.settle`: the blocks, and the holder's children as the intake's boxes). Egildo names it finally; the working name says what it holds.
  *
@@ -23,7 +23,7 @@ import { indexBlocks } from '@egildo/beltype-engine-cicero/src/positions.js';
 import { documentOpsOf, counterStateAt, stringAssignmentsOf, runningAssignmentsOf, namedStringsForPage } from '@egildo/beltype-engine-cicero/src/document-state.js';
 import { findPageSites } from '@egildo/beltype-engine-cicero/src/reads.js';
 import { ForcingMemo } from '@egildo/beltype-engine-cicero/src/forcing-memo.js';
-import { sheetReach } from '@egildo/beltype-engine-cicero/src/capture.js';
+import { topLevelReach } from '@egildo/beltype-engine-cicero/src/capture.js';
 import { BREAKING_SPACE, isInlineBox, isFixedBox, isLineBreak } from '@egildo/beltype-engine-cicero/src/word-space.js';
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
@@ -177,22 +177,6 @@ export function matchNodes(before, after) {
  */
 export const rebased = (pos, { base, at }) => pos - base + at;
 
-/** Selectors whose answer for a box moves when a box is inserted, removed or moved beside it: the engine's `sheetReach` reads them as 0, since `patchBox` replaces a box and keeps its parent's child count, which an edit here does not. */
-const STRUCTURAL = /:(nth-|first-child|last-child|only-child|first-of-type|last-of-type|only-of-type)/;
-
-/**
- * Whether a sheet the document wears holds a structural pseudo-class (`STRUCTURAL`), or cannot be read.
- * @param {Document} d
- */
-function structuralSheets(d) {
-  const inRules = (/** @type {CSSRuleList} */ rules) => {
-    for (const rule of /** @type {Iterable<any>} */ (rules)) if (STRUCTURAL.test(rule.selectorText ?? '') || (rule.cssRules && inRules(rule.cssRules)) || (rule.styleSheet && inSheet(rule.styleSheet))) return true;
-    return false;
-  };
-  const inSheet = (/** @type {CSSStyleSheet} */ sheet) => { try { return inRules(sheet.cssRules); } catch { return true; } };
-  return [...d.styleSheets, ...(d.adoptedStyleSheets ?? [])].some(inSheet);
-}
-
 /**
  * One top-level node of a state and its element in the rendering: `positions` is the slice it was rendered in, at the absolute positions of the document it was rendered from, in which it started at `at`; it starts at `base` in this one. `el` is null for a node the page does not draw (`unshown`); `rank` is its element's index among the holder's children.
  * @typedef {object} Entry
@@ -233,8 +217,8 @@ export class Originals {
     this.pages = new Set();
     /** The engine's memo of the walks' parts per top-level box, kept across states (*a resumed run keeps its reads*). */
     this.memo = new ForcingMemo();
-    /** The sheets' reach the memo is settled under, the engine's reading (`sheetReach`); a measurement may put another in its place. @type {(d: Document) => 0 | 1 | 2} */
-    this.reachOf = sheetReach;
+    /** The sheets' reach the memo is settled under, the engine's reading for a whole top-level box (`topLevelReach`); a measurement may put another in its place. @type {(d: Document, boxes: Element[], before: Element[]) => 0 | 1 | 2} */
+    this.reachOf = topLevelReach;
     /** Each rendering's cost, for the measurement: the milliseconds, the elements, the nodes rendered and kept, the sheets' reach and what the memo kept per walk. @type {any[]} */
     this.timings = [];
   }
@@ -259,12 +243,12 @@ export class Originals {
     const win = /** @type {Window & typeof globalThis} */ (d.defaultView);
     const memo = this.memo;
     const t0 = performance.now();
-    const { holder, entries, rendered, shaped } = this.place(doc, render);
+    const { holder, entries, rendered } = this.place(doc, render);
     const t1 = performance.now();
-    // An insertion, a removal or a move changes a structural pseudo-class's answer for the boxes beside it, which the engine's reach does not count: forget every part where the sheets hold one.
-    if (shaped && structuralSheets(d)) memo.clear();
-    const reach = this.reachOf(d);
-    const keep = memo.settle(reach) ? memo.keep : null;
+    // The top-level boxes as they stand, against the ones the memo was settled with last: the engine reads what an insertion, a removal or a move changed off the two lists.
+    const tops = [...holder.children];
+    const reach = this.reachOf(d, tops, memo.boxes);
+    const keep = memo.settle(reach, tops) ? memo.keep : null;
     if (!keep && !memo.said) {
       memo.said = true;
       console.info('prosemirror-beltype: a stylesheet uses :has(), an @container rule or a selector the engine cannot read, so the originals\' walks are read afresh on every state rather than kept per top-level node (the engine\'s `settledMemo` says the same of its runs). The pages are the same; an edit costs more.');
@@ -273,7 +257,7 @@ export class Originals {
     // The driver's intake, asked of a stand-in whose body is the holder: the blocks are its element children less fixed boxes and running elements, the running elements are found at any depth with where the flow resumed after each.
     const stand = /** @type {any} */ ({ body: holder, defaultView: win });
     const blocks = topLevelBlocks(stand);
-    const boxes = runningBoxes(stand);
+    const boxes = runningBoxes(stand, keep);
     const t2 = performance.now();
     const index = indexBlocks(blocks, undefined, undefined, keep);
     const t3 = performance.now();
@@ -296,10 +280,10 @@ export class Originals {
   }
 
   /**
-   * The state's top-level nodes put in the holder: on the first call, or the first after `forget`, the whole document rendered once and each element found by the start its node was rendered at; afterwards the nodes matched to the last state's by identity (`matchNodes`), a kept node keeping its element and its slice, a changed or new node rendered alone over its range, a removed node's element taken out, and every element new or moved reported to the memo (`ForcingMemo.replaced`). `shaped` says whether an element was inserted, removed or moved among the holder's children.
+   * The state's top-level nodes put in the holder: on the first call, or the first after `forget`, the whole document rendered once and each element found by the start its node was rendered at; afterwards the nodes matched to the last state's by identity (`matchNodes`), a kept node keeping its element and its slice, a changed or new node rendered alone over its range, a removed node's element taken out, and every element new or moved reported to the memo (`ForcingMemo.replaced`).
    * @param {PMNode} doc
    * @param {SliceRenderer} render
-   * @returns {{ holder: Element, entries: Entry[], rendered: number, shaped: boolean }}
+   * @returns {{ holder: Element, entries: Entry[], rendered: number }}
    */
   place(doc, render) {
     const d = this.document;
@@ -319,7 +303,6 @@ export class Originals {
     const prev = this.state?.entries ?? null;
     const memo = this.memo;
     let rendered = 0;
-    let shaped = false;
     /** @type {Entry[]} */
     let entries;
     if (!prev) {
@@ -361,13 +344,10 @@ export class Originals {
         }
         next = el;
       }
-      const ranks = (/** @type {Entry[]} */ list) => { let r = 0; return list.map((e) => (e.el ? r++ : -1)); };
-      const before = ranks(prev), after = ranks(entries);
-      shaped = before.filter((r) => r >= 0).length !== after.filter((r) => r >= 0).length || from.some((i, j) => i >= 0 && before[i] !== after[j]);
     }
     let r = 0;
     for (const e of entries) e.rank = e.el ? r++ : -1;
-    return { holder, entries, rendered, shaped };
+    return { holder, entries, rendered };
   }
 
   /**
