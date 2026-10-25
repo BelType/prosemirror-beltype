@@ -6,6 +6,8 @@
  *
  * The document is the served HTML fetched again and parsed, never the root's light DOM, which the intake has reordered (blocks, then fixed boxes, then running elements). Its body's children, less the scripts, the styles and the engine's own scaffolding, are seated in a hidden holder so the studio's structured marks can read their computed style (`boxReason`), parsed with the generic schema, and taken out.
  *
+ * The CLI's root clears the author's margin boxes' `content` from the CSSOM when it presents (`neutralizeMarginBoxes`), so the geometry table the view's factory reads afterwards would have no margin boxes: the measurement records each `content` the root removed (an init script in `scripts/specimen.mjs` wraps `removeProperty`) and `mount` writes them back before the factory reads the table. The chrome is read the same way on both sides (`tagChrome`): every generated margin box and every flow element with generated content is tagged, the script reads the text the browser laid out for their `::before` and `::after` through a CDP DOM snapshot (a counter's text is in no DOM), and a margin box's slotted running element is read here as text.
+ *
  * A page's words are read by one function for both hosts: the text nodes its content slot holds, flattened, in order, each word kept where an inked rect of it lies inside the page box above the flow's clip, so a straddler's tail the engine clips at the cut is not read as the page's. A word that runs across two text nodes with nothing between them is one word.
  *
  * @packageDocumentation
@@ -15,6 +17,7 @@ import { EditorState } from 'prosemirror-state';
 import { FragmentedView } from 'prosemirror-fragview';
 import * as g from 'beltype-studio-experiment/src/schema-generic.js';
 import { ciceroContainers } from '../src/index.js';
+import { findSites } from '@egildo/beltype-engine-cicero/src/reads.js';
 
 /** The Gauge's word: a maximal run of what a breaking space does not divide. */
 const WORD = /[\S  ﻿]+/g;
@@ -114,6 +117,68 @@ export function dressingOf(pages) {
 /** The sheets the document has adopted, each as its rule count and the start of its first rule. */
 export const adoptedSheets = () => [...document.adoptedStyleSheets].map((s) => `${s.cssRules.length} rules: ${(s.cssRules[0]?.cssText ?? '').replace(/\s+/g, ' ').slice(0, 90)}`);
 
+/** Put back the margin boxes' `content` the CLI's root took out of the CSSOM, as the init script recorded it. @returns {number} How many were put back. */
+export function restoreMarginContent() {
+  const removed = /** @type {any} */ (window).__marginContent ?? [];
+  for (const [style, value, priority] of removed) style.setProperty('content', value, priority);
+  return removed.length;
+}
+
+/**
+ * Tag every page's chrome for the script's DOM snapshot, and read what the DOM holds: each generated margin box (`data-generated`) as `<side>:<page>:<box>` with the text of what is slotted into it (a running element), and each flow element whose `::before` or `::after` generates content as `<side>:<page>:f<k>`, with whether it is a `target-counter()` read (`findSites`, a rule whose `content` reads a `--beltype-read-` property). Every page is made `content-visibility: visible` while it is read, since a page the browser skips has no layout to read.
+ * @param {Element[]} pages
+ * @param {string} side
+ */
+export function tagChrome(pages, side) {
+  const reads = new Set((findSites(document) ?? []).map((s) => s.el));
+  return pages.map((page, i) => {
+    /** @type {HTMLElement} */ (page).style.contentVisibility = 'visible';
+    const shadow = /** @type {ShadowRoot} */ (page.shadowRoot);
+    const boxes = [...shadow.querySelectorAll('.margin-cell[data-generated]')].map((cell) => {
+      const probe = `${side}:${i}:${cell.getAttribute('data-box')}`;
+      cell.setAttribute('data-probe', probe);
+      const nodes = [...cell.querySelectorAll('slot')].flatMap((s) => s.assignedNodes({ flatten: true }));
+      // A slotted element that lays out no box is not seen, whatever its text: said, so a clone the cell does not render is not read as placed.
+      const unseen = nodes.some((n) => n.nodeType === 1 && !/** @type {Element} */ (n).getClientRects().length);
+      const slotted = nodes.map((n) => n.textContent ?? '').join('').replace(/\s+/g, ' ').trim() + (unseen ? ' (no box)' : '');
+      return { box: cell.getAttribute('data-box'), probe, slotted };
+    });
+    const slot = /** @type {HTMLSlotElement} */ (shadow.querySelector('.flow slot'));
+    // Only what the page shows, as `wordsOf` reads words: an element whose box lies wholly below the flow's clip (a caption in a slice of a figure the page cuts) is in the page's DOM and not on its paper.
+    const box = page.getBoundingClientRect();
+    const flowEl = /** @type {HTMLElement} */ (shadow.querySelector('.flow'));
+    const foot = getComputedStyle(flowEl).overflowY === 'clip' ? Math.min(box.bottom, flowEl.getBoundingClientRect().bottom) : box.bottom;
+    const flow = [];
+    let k = 0;
+    for (const el of slot.assignedElements({ flatten: true }).flatMap((e) => [e, ...e.querySelectorAll('*')])) {
+      const gen = ['::before', '::after'].some((p) => !['none', 'normal'].includes(getComputedStyle(el, p).content));
+      if (!gen || getComputedStyle(el).display === 'none') continue;
+      const r = el.getBoundingClientRect();
+      if (r.top >= foot - 0.5 || r.bottom <= box.top + 0.5) continue;
+      const probe = `${side}:${i}:f${k++}`;
+      el.setAttribute('data-probe', probe);
+      flow.push({ probe, read: reads.has(el), el: `${el.localName}${typeof el.className === 'string' && el.className ? `.${el.className.trim().split(/\s+/)[0]}` : ''}` });
+    }
+    return { boxes, flow };
+  });
+}
+
+/** Take the tags off, and give every page its own `content-visibility` back. @param {Element[]} pages */
+export function untagChrome(pages) {
+  for (const page of pages) {
+    /** @type {HTMLElement} */ (page).style.contentVisibility = '';
+    for (const el of /** @type {ShadowRoot} */ (page.shadowRoot).querySelectorAll('[data-probe]')) el.removeAttribute('data-probe');
+  }
+  for (const el of document.querySelectorAll('[data-probe]')) el.removeAttribute('data-probe');
+}
+
+/** The CLI's Ledger, each page's interval end (`pos`) and the state its chrome is drawn from. */
+export const cliLedger = () => (/** @type {any} */ (window).__beltypeCicero.ledger ?? []).map((/** @type {any} */ e) => ({ pos: e.pos ?? null, blank: !!e.blank, counters: e.closes?.counters ?? {}, strings: e.closes?.strings ?? {}, running: e.closes?.running ?? {} }));
+
+/** The view's pages, after `mount`. @type {Element[]} */
+let viewPages = [];
+export const viewPagesOf = () => viewPages;
+
 /** The engine's pages, as the root presents them. */
 export const rootPages = () => [.../** @type {ShadowRoot} */ (/** @type {Element} */ (document.querySelector('beltype-root')).shadowRoot).querySelectorAll('beltype-page')];
 
@@ -153,6 +218,7 @@ export async function mount({ settleMs = 300, timeoutMs = 120000, bare = false }
   const style = document.createElement('style');
   style.textContent = '#prosemirror-beltype-view .fragview { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 16px 0; outline: none; } #prosemirror-beltype-view beltype-page { box-shadow: 0 1px 4px rgba(0,0,0,.2); flex: none; }';
   document.head.appendChild(style);
+  const restored = restoreMarginContent();
   const factory = ciceroContainers(document);
   const started = performance.now();
   const view = new FragmentedView(host, {
@@ -186,7 +252,8 @@ export async function mount({ settleMs = 300, timeoutMs = 120000, bare = false }
   }
   const ms = performance.now() - started - (settled ? settleMs : 0);
   const pages = view.fragments.map((f) => /** @type {any} */ (f.container)?.dom).filter(Boolean);
-  return { ms, settled, entries: view.entries.map(({ from, to }) => ({ from, to })), fills, pages: readPages(pages), dressing: dressingOf(pages), removed, adopted: adoptedSheets(), docSize: doc.content.size };
+  viewPages = pages;
+  return { restored, total: factory.originals.total, originals: factory.originals.timings, ms, settled, entries: view.entries.map(({ from, to }) => ({ from, to })), fills, pages: readPages(pages), dressing: dressingOf(pages), removed, adopted: adoptedSheets(), docSize: doc.content.size };
 }
 
-Object.assign(window, { __prosemirrorBeltype: { wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount } });
+Object.assign(window, { __prosemirrorBeltype: { wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount, tagChrome, untagChrome, cliLedger, viewPagesOf } });
