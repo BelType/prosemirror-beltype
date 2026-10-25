@@ -15,7 +15,7 @@
  *
  * The page never throws (*the build cannot fail*, C2). A verdict that maps to no position (a cut inside a leaf, which a schema's atom has none of) or to the page's own start with nothing entered or shrunk (`advances`) is an uncuttable run at the page's start: the node there is taken whole (`wholeAfter`), rendered as it is, its overflow clipped by the page as the engine's own page clips it, and the console says so once, with the page and the node's type.
  *
- * Where this departs from the driver's loop, each is a finding recorded in docs/results.md: the Cast-off's word estimate is the view's span; a parallel flow carried across a cut (a float, an absolutely positioned box) has no place in a position; a nested row cut inside a row item is taken whole; the root's parity demand on the first page is not read; and the page settles no reads: no `target-counter()` (phase 2's third round), no reads loop around the chain (its second), so a page an edit leaves unfilled keeps the chrome it was drawn with, and a flow site reading `counter(pages)` is measured at its reservation until the chain is complete.
+ * Where this departs from the driver's loop, each is a finding recorded in docs/results.md: the Cast-off's word estimate is the view's span; a parallel flow carried across a cut (a float, an absolutely positioned box) has no place in a position; a nested row cut inside a row item is taken whole; and the root's parity demand on the first page is not read. The page settles no reads of its own: the engine's reads loop runs around the whole chain (`Chain`, `chain.js`), which delivers `target-counter()` and `target-text()`, checks the flow sites that read a page fact against the chain's own facts, and redraws or dirties a page an edit left unfilled; the page tells it when a fill begins and ends, and takes at every fill the hint the page before it left last, since the view hands a container its hint only when it builds it.
  *
  * The page resets the text mechanics the fragmented view's editing host sets (`white-space: break-spaces`, `overflow-wrap`, the ligatures and, from the editing host's own UA style, `line-break`) to what the document's body computes, because the trial in the measure context inherits from the body and the page's content inherits from the host. Measured 2026-10-24 with the reset left out: the cuts were the same, since the trial decides them, but the specimen's third page set its text on more lines than the trial had and its clip hid 21 of its 113 words, and the flow fixture differed from its first page.
  *
@@ -103,10 +103,14 @@ export class CiceroPage {
    * @param {Document} [a.document]
    * @param {() => Promise<void>} [a.intake] What the presenters need before a trial is presented, the factory's (`takeFacsimile`); nothing by default.
    * @param {Originals | null} [a.originals] The chain's rendering of the whole state, the factory's (`originals.js`), which the page's chrome is read from; without it the page draws no chrome, as in phase 1.
+   * @param {import('./chain.js').Chain | null} [a.chain] The factory's chain object, told when a fill begins and ends (`chain.js`); none in a test.
+   * @param {number | null} [a.key] The key of the chain entry the page was made for.
    */
-  constructor({ table, index, hint, document = globalThis.document, intake = async () => {}, originals = null }) {
+  constructor({ table, index, hint, document = globalThis.document, intake = async () => {}, originals = null, chain = null, key = null }) {
     this.table = table;
     this.originals = originals;
+    this.chain = chain;
+    this.key = key;
     this.intake = intake;
     this.index = index;
     this.hint = hint ?? {};
@@ -136,7 +140,7 @@ export class CiceroPage {
     this.heights = new Map();
     /** The last fill's own account, for a reader that compares it with the engine's. @type {Record<string, any> | null} */
     this.account = null;
-    /** What the page's chrome is drawn from, as the last fill read it off the originals: its counters, strings and running elements, the running elements' list, and the word interval. @type {{ counters: Record<string, number[]>, strings: Record<string, any>, running: Record<string, any>, boxes: { el: Element }[], start: number, end: number | null } | null} */
+    /** What the page's chrome is drawn from, as the last fill read it off the originals: its counters, strings and running elements, the running elements' list, and the word interval. @type {{ counters: Record<string, number[]>, strings: Record<string, any>, running: Record<string, any>, boxes: { el: Element }[], start: number, end: number | null, block?: number | null } | null} */
     this.chrome = null;
     /** What the chrome was last drawn with, so a redraw that would change nothing does nothing. */
     this.chromeKey = '';
@@ -187,6 +191,32 @@ export class CiceroPage {
    * @returns {Promise<FillResult>}
    */
   async fill(doc, from, render) {
+    this.chain?.began(this);
+    try {
+      const answer = await this.cutAndDraw(doc, from, render);
+      this.chain?.filled(this, doc, answer);
+      return answer;
+    } catch (error) {
+      this.chain?.failed(this, doc, error);
+      throw error;
+    }
+  }
+
+  /**
+   * `fill`'s work, which the chain object is told the beginning and the end of.
+   * @param {PMNode} doc
+   * @param {number} from
+   * @param {SliceRenderer} render
+   * @returns {Promise<FillResult>}
+   */
+  async cutAndDraw(doc, from, render) {
+    // The hint the page before left at its last fill, which the view hands a page only when it builds it: a page refilled in a ripple is otherwise cut under the hint of the layout before the edit (docs/found.md, "A refilled page keeps the hint it was built with").
+    const hint = this.chain?.hintFor(this);
+    if (hint !== undefined && JSON.stringify(hint) !== JSON.stringify(this.hint)) {
+      this.hint = hint;
+      this.blank = !!hint.blank;
+      this.conditions = this.conditionsFor(hint.name ?? '');
+    }
     const o = this.originals;
     if (!o) return this.cutOnce(doc, from, render);
     const t0 = performance.now();
@@ -196,19 +226,22 @@ export class CiceroPage {
     let facts = stateOfPage(state, start, guess);
     let answer;
     let end;
+    /** @type {{ pos: number, block: number } | null} */
+    let at = null;
     let recuts = -1;
     const t1 = performance.now();
     for (;;) {
       recuts++;
       this.publish = this.publishOf(facts.strings);
       answer = await this.cutOnce(doc, from, render);
-      end = answer.to == null ? null : o.wordAt(state, answer.to);
+      at = answer.to == null ? null : o.addressAt(state, answer.to);
+      end = at?.pos ?? null;
       const truth = stateOfPage(state, start, this.blank ? start : end);
       const moved = JSON.stringify(truth.strings) !== JSON.stringify(facts.strings);
       facts = truth;
       if (this.blank || !moved || recuts >= 2 || !o.sitesIn(state, from, answer.to)) break;
     }
-    this.chrome = { ...facts, boxes: state.boxes, start, end: this.blank ? start : end };
+    this.chrome = { ...facts, boxes: state.boxes, start, end: this.blank ? start : end, block: at?.block ?? null };
     const t2 = performance.now();
     o.settle(this, answer.to);
     const t3 = performance.now();
@@ -799,6 +832,7 @@ export class CiceroPage {
 
   release() {
     this.originals?.pages.delete(this);
+    this.chain?.released(this);
     this.observer.disconnect();
     this.rendered = null;
     this.dom.setContent();

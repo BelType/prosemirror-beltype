@@ -16,7 +16,7 @@
 import { EditorState } from 'prosemirror-state';
 import { FragmentedView } from 'prosemirror-fragview';
 import * as g from 'beltype-studio-experiment/src/schema-generic.js';
-import { ciceroContainers } from '../src/index.js';
+import { ciceroContainers, ledger, ledgerKey } from '../src/index.js';
 import { findSites } from '@egildo/beltype-engine-cicero/src/reads.js';
 
 /** The Gauge's word: a maximal run of what a breaking space does not divide. */
@@ -131,8 +131,10 @@ export function restoreMarginContent() {
  */
 export function tagChrome(pages, side) {
   const reads = new Set((findSites(document) ?? []).map((s) => s.el));
-  return pages.map((page, i) => {
+  const tags = pages.map((page, i) => {
     /** @type {HTMLElement} */ (page).style.contentVisibility = 'visible';
+    // Measured 2026-10-25: a page refilled after `invalidate()` and never scrolled to since had its slotted flow left out of the DOM snapshot, its tags and all; a page scrolled to is not.
+    page.scrollIntoView({ block: 'center' });
     const shadow = /** @type {ShadowRoot} */ (page.shadowRoot);
     const boxes = [...shadow.querySelectorAll('.margin-cell[data-generated]')].map((cell) => {
       const probe = `${side}:${i}:${cell.getAttribute('data-box')}`;
@@ -161,6 +163,9 @@ export function tagChrome(pages, side) {
     }
     return { boxes, flow };
   });
+  // ponytail: forced layout so the snapshot holds every page made visible above
+  void document.body.offsetHeight;
+  return tags;
 }
 
 /** Take the tags off, and give every page its own `content-visibility` back. @param {Element[]} pages */
@@ -200,11 +205,35 @@ async function servedDoc() {
   return doc;
 }
 
+/** The mounted view and its factory, for the edit and the cost after `mount`. @type {any} */
+let mounted = null;
+
 /**
- * Mount the view beside the root, the root hidden, and wait for the chain to fill whole. `bare` first takes every sheet the document has adopted off it, the CLI's root's among them, so the view is measured in a document no root has dressed, as it is in a host that runs none.
- * @param {{ settleMs?: number, timeoutMs?: number, bare?: boolean }} [options]
+ * Wait until the chain is quiet: nothing in flight and nothing dirty for `settleMs` in a row, and the reads loop's last settle ended.
+ * @param {any} view
+ * @param {any} factory
+ * @param {{ settleMs?: number, timeoutMs?: number, started?: number, failed?: () => boolean }} [o]
  */
-export async function mount({ settleMs = 300, timeoutMs = 120000, bare = false } = {}) {
+async function quiet(view, factory, { settleMs = 300, timeoutMs = 120000, started = performance.now(), failed = () => false } = {}) {
+  for (;;) {
+    let calm = 0;
+    while (calm < settleMs) {
+      // A chain that stops (a fill that threw leaves its entry dirty) is read as it stands, and says so.
+      if (performance.now() - started > timeoutMs || failed()) return false;
+      await new Promise((r) => setTimeout(r, 50));
+      calm = view.filling.size === 0 && !view.entries.some((/** @type {any} */ e) => e.dirty) ? calm + 50 : 0;
+    }
+    const settling = factory.chain.settling;
+    await settling;
+    if (settling === factory.chain.settling && view.filling.size === 0 && !view.entries.some((/** @type {any} */ e) => e.dirty)) return true;
+  }
+}
+
+/**
+ * Mount the view beside the root, the root hidden, and wait for the chain to fill whole and the reads loop to settle. `bare` first takes every sheet the document has adopted off it, the CLI's root's among them, so the view is measured in a document no root has dressed, as it is in a host that runs none. `noLedger` mounts the state without the Ledger plugin, as round 1 did: no reads loop, no chrome on an edit.
+ * @param {{ settleMs?: number, timeoutMs?: number, bare?: boolean, noLedger?: boolean }} [options]
+ */
+export async function mount({ settleMs = 300, timeoutMs = 120000, bare = false, noLedger = false } = {}) {
   const removed = bare ? adoptedSheets() : [];
   if (bare) document.adoptedStyleSheets = [];
   /** @type {any[]} */
@@ -221,39 +250,115 @@ export async function mount({ settleMs = 300, timeoutMs = 120000, bare = false }
   const restored = restoreMarginContent();
   const factory = ciceroContainers(document);
   const started = performance.now();
+  const containers = Object.assign((/** @type {number} */ index, /** @type {any} */ hint, /** @type {any} */ entries) => {
+    const page = factory(index, hint, entries);
+    const fill = page.fill.bind(page);
+    page.fill = async (/** @type {any[]} */ ...args) => {
+      const t0 = performance.now();
+      try {
+        const answer = await fill(...args);
+        fills.push({ index, ms: performance.now() - t0, ...page.account });
+        return answer;
+      } catch (error) {
+        fills.push({ index, ms: performance.now() - t0, error: String(/** @type {any} */ (error)?.message ?? error) });
+        throw error;
+      }
+    };
+    return page;
+  }, { chain: factory.chain, originals: factory.originals });
   const view = new FragmentedView(host, {
-    state: EditorState.create({ doc }),
+    state: EditorState.create({ doc, plugins: noLedger ? [] : [ledger()] }),
     words: { attribute: 'data-beltype' },
-    containers: (index, hint, entries) => {
-      const page = factory(index, hint, entries);
-      const fill = page.fill.bind(page);
-      page.fill = async (...args) => {
-        const t0 = performance.now();
-        try {
-          const answer = await fill(...args);
-          fills.push({ index, ms: performance.now() - t0, ...page.account });
-          return answer;
-        } catch (error) {
-          fills.push({ index, ms: performance.now() - t0, error: String(error?.message ?? error) });
-          throw error;
-        }
-      };
-      return page;
-    },
+    containers,
   });
-  // Settled: nothing in flight and nothing dirty, for `settleMs` in a row.
-  let quiet = 0;
-  let settled = true;
-  while (quiet < settleMs) {
-    // A chain that stops (a fill that threw leaves its entry dirty) is read as it stands, and says so.
-    if (performance.now() - started > timeoutMs || fills.some((f) => f.error)) { settled = false; break; }
-    await new Promise((r) => setTimeout(r, 50));
-    quiet = view.filling.size === 0 && !view.entries.some((e) => e.dirty) ? quiet + 50 : 0;
-  }
+  mounted = { view, factory, fills };
+  const settled = await quiet(view, factory, { settleMs, timeoutMs, started, failed: () => fills.some((f) => f.error) });
   const ms = performance.now() - started - (settled ? settleMs : 0);
-  const pages = view.fragments.map((f) => /** @type {any} */ (f.container)?.dom).filter(Boolean);
+  const pages = view.fragments.map((/** @type {any} */ f) => f.container?.dom).filter(Boolean);
   viewPages = pages;
-  return { restored, total: factory.originals.total, originals: factory.originals.timings, ms, settled, entries: view.entries.map(({ from, to }) => ({ from, to })), fills, pages: readPages(pages), dressing: dressingOf(pages), removed, adopted: adoptedSheets(), docSize: doc.content.size };
+  return { restored, total: factory.originals.total, originals: factory.originals.timings, ms, settled, entries: view.entries.map((/** @type {any} */ { from, to }) => ({ from, to })), fills, pages: readPages(pages), dressing: dressingOf(pages), removed, adopted: adoptedSheets(), docSize: doc.content.size, reads: readsOf(), counts: { ...factory.chain.counts } };
 }
 
-Object.assign(window, { __prosemirrorBeltype: { wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount, tagChrome, untagChrome, cliLedger, viewPagesOf } });
+/** What the reads loop did, settle by settle: each run's pages dirtied and cut, and the loop's own result. */
+export function readsOf() {
+  if (!mounted) return null;
+  const { view, factory } = mounted;
+  const ledgerState = ledgerKey.getState(view.state);
+  return {
+    settles: factory.chain.settles.map((/** @type {any} */ s) => ({ ms: Math.round(s.ms * 10) / 10, overtaken: s.overtaken, runs: s.runs.map((/** @type {any} */ r) => ({ ...r, ms: Math.round(r.ms * 10) / 10 })), result: s.result })),
+    ledger: ledgerState ? { rows: ledgerState.rows.size, delivered: ledgerState.delivered ? [...ledgerState.delivered].map(([k, m]) => [k, [...m]]) : null, facts: ledgerState.facts?.length ?? null, resumed: ledgerState.resumed, why: ledgerState.why, reads: ledgerState.reads } : null
+  };
+}
+
+/**
+ * Retitle a heading by a transaction on the view, and wait for the chain and the loop: the counts of pages redrawn without a refill, dirtied for a flow site, and fills, before and after.
+ * @param {string} from The heading's text.
+ * @param {string} to
+ */
+export async function retitle(from, to) {
+  const { view, factory, fills } = mounted;
+  /** @type {number | null} */
+  let at = null;
+  view.state.doc.descendants((/** @type {any} */ node, /** @type {number} */ pos) => {
+    if (at == null && node.isTextblock && node.textContent === from) at = pos + 1;
+    return at == null;
+  });
+  if (at == null) throw new Error(`no textblock reads "${from}"`);
+  const before = { ...factory.chain.counts, fills: fills.length };
+  const t0 = performance.now();
+  view.dispatch(view.state.tr.insertText(to, at, at + from.length));
+  const settled = await quiet(view, factory, { started: t0 });
+  const after = { ...factory.chain.counts, fills: fills.length };
+  const refilled = fills.slice(before.fills).map((/** @type {any} */ f) => f.index + 1);
+  const detail = fills.slice(before.fills).map((/** @type {any} */ f) => ({ page: f.index + 1, from: f.from, to: f.to, name: f.name, forced: f.forced, kind: f.kind, cls: f.cls, pageStart: f.pageStart && Math.round(f.pageStart * 100) / 100 }));
+  viewPages = view.fragments.map((/** @type {any} */ f) => f.container?.dom).filter(Boolean);
+  return { at, settled, ms: performance.now() - t0 - 300, redrawn: after.redrawn - before.redrawn, dirtied: after.dirtied - before.dirtied, refilled, detail, pages: readPages(view.fragments.map((/** @type {any} */ f) => f.container?.dom).filter(Boolean)), reads: readsOf() };
+}
+
+/** Invalidate the view and wait for its fresh fill of the same state. */
+export async function refillWhole() {
+  const { view, factory, fills } = mounted;
+  const before = fills.length;
+  const t0 = performance.now();
+  view.invalidate();
+  const settled = await quiet(view, factory, { started: t0 });
+  // Late truth after quiet: a page's observer announces `moved` a frame later, and the view refills it.
+  const quietAt = fills.length;
+  await new Promise((r) => setTimeout(r, 1000));
+  await quiet(view, factory);
+  const late = fills.slice(quietAt).map((/** @type {any} */ f) => f.index + 1);
+  const pages = view.fragments.map((/** @type {any} */ f) => f.container?.dom).filter(Boolean);
+  viewPages = pages;
+  const detail = fills.slice(before).map((/** @type {any} */ f) => ({ page: f.index + 1, from: f.from, to: f.to, name: f.name, forced: f.forced, kind: f.kind, cls: f.cls, pageStart: f.pageStart && Math.round(f.pageStart * 100) / 100 }));
+  return { settled, fills: fills.length - before, late, detail, pages: readPages(pages), reads: readsOf() };
+}
+
+/**
+ * Type `n` characters, one transaction each, at the end of the first word of the first paragraph on page `pageNo`, each awaited until the chain is quiet and the loop settled: the milliseconds from the dispatch to quiet, less the quiet window, and the loop's own.
+ * @param {number} pageNo
+ * @param {number} n
+ */
+export async function keystrokes(pageNo, n) {
+  const { view, factory } = mounted;
+  const entry = view.entries[pageNo - 1];
+  /** @type {number | null} */
+  let at = null;
+  view.state.doc.nodesBetween(entry.from, entry.to ?? view.state.doc.content.size, (/** @type {any} */ node, /** @type {number} */ pos) => {
+    if (at == null && node.isTextblock && pos >= entry.from && node.textContent.length > 8) at = pos + 1 + node.textContent.indexOf(' ');
+    return at == null;
+  });
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const settles = factory.chain.settles.length;
+    const t0 = performance.now();
+    view.dispatch(view.state.tr.insertText('x', /** @type {number} */ (at) + i));
+    const update = view.lastUpdateMs;
+    await quiet(view, factory, { started: t0, settleMs: 100 });
+    const s = factory.chain.settles[settles];
+    const r1 = (/** @type {number} */ x) => Math.round(x * 10) / 10;
+    out.push({ ms: Math.round((performance.now() - t0 - 100) * 10) / 10, update: Math.round(update * 10) / 10, rechrome: r1(factory.chain.timing.rechrome), settleSync: r1(factory.chain.timing.settle), reads: r1(performance.getEntriesByName('cicero:reads').at(-1)?.duration ?? 0), settle: s ? Math.round(s.ms * 10) / 10 : null, runs: s?.runs.length ?? null, originals: factory.originals.timings.at(-1) });
+  }
+  return out;
+}
+
+Object.assign(window, { __prosemirrorBeltype: { wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount, tagChrome, untagChrome, cliLedger, viewPagesOf, readsOf, retitle, refillWhole, keystrokes } });

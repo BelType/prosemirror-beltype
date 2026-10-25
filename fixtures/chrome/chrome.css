@@ -1,4 +1,4 @@
-/* The chrome fixture's sheet: a page that wears every kind of chrome the chain alone can answer. A folio with the total in the foot (`counter(page) " / " counter(pages)`); a chapter string set from `h2` and read in the head in its four readings (`first`, the default, in `@top-right` with `start`; `first-except` in `@top-center`; `last` at the inner foot); an author counter reset on `body` and incremented on `h2`, read in the foot and in the flow (`h2::before`); a running element, written twice, so the page that shows the second is the keywords' arithmetic over the pages; and two flow sites that read a page fact, `string(chapter)` and `counter(page)`, as the showcase's page 25 reads its family. Chapters that open a page (`.opens`) give `start` a value; the others open mid-page. */
+/* The chrome fixture's sheet: a page that wears every kind of chrome the chain alone can answer. A folio with the total in the foot (`counter(page) " / " counter(pages)`); a chapter string set from `h2` and read in the head in its four readings (`first`, the default, in `@top-right` with `start`; `first-except` in `@top-center`; `last` at the inner foot); an author counter reset on `body` and incremented on `h2`, read in the foot and in the flow (`h2::before`); a running element, written twice, so the page that shows the second is the keywords' arithmetic over the pages; two flow sites that read a page fact, `string(chapter)` and `counter(page)`, as the showcase's page 25 reads its family; and one cross-reference read forward, `target-counter()` of the last chapter's page, which the reads loop delivers (the round *the Ledger is state*). Chapters that open a page (`.opens`) give `start` a value; the others open mid-page. */
 @page { size: 110mm 150mm; margin: 16mm 12mm;
   @top-left { content: element(mark); font-size: 7pt; }
   @top-center { content: string(chapter, first-except); font-size: 7pt; font-style: italic; }
@@ -15,5 +15,6 @@ h2::before { content: counter(chapter, upper-roman) ". "; }
 .mark { position: running(mark); font-variant: small-caps; }
 .flow-string::before { content: "[" string(chapter) "]"; font-style: italic; }
 .folio-here::after { content: "(page " counter(page) ")"; }
+.xref::after { content: ", p. " target-counter(attr(href url), page); }
 p { orphans: 2; widows: 2; }
 section.opens { break-before: page; }

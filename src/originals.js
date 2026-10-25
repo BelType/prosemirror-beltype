@@ -4,13 +4,13 @@
  * @remarks
  * Counters, named strings and running elements are CSS, so the state at a cut is a question about computed style: `counter-reset` on `body`, `string-set` on a heading, `position: running()` on a mark. The driver answers it at intake over the whole source with the source in its real ancestor chain (`driver.js`, `paginateOnce`, the document ops, string assignments and running assignments), and so does this object, over a rendering it keeps: `render(doc, 0, null)` into a hidden holder that is a child of `body`, the holder's element children less fixed boxes and running elements the top-level blocks (`topLevelBlocks` and `runningBoxes`, asked of a stand-in document whose `body` is the holder), the engine's position index over them (`indexBlocks`), and `documentOpsOf` with the computed style, `html` and `body` as the ancestors (so a `body { counter-reset }` is in force on page one, the driver's own reading) and the running elements at the positions the driver logs them at (`runningPosition`, two lines written again here). From the log, `stringAssignmentsOf` and `runningAssignmentsOf`, once per state; a page asks `counterStateAt` at its first word and `namedStringsForPage` over its interval (`stateOfPage`).
  *
- * The name is the engine's: `paginate`'s `originals` is every top-level box the intake took, and the reads loop (phase 2's second round) will ask them here. Egildo names it finally; the working name says what it holds.
+ * The name is the engine's: `paginate`'s `originals` is every top-level box the intake took, and the reads loop asks them here (`Chain.settle`: the blocks, and the holder's children as the intake's boxes). Egildo names it finally; the working name says what it holds.
  *
  * THE POSITION MAPPING. A page knows its `from` and `to` as model positions; the engine's state is ordered by the flat word position of its index (`positions.js`). The renderer's map turns a model position into a DOM point of this rendering (`pointAt`), the point's top-level block is found by climbing to the holder, and the word position is the block's base plus the words of the block wholly before the point (`wordsBeforePoint`), tokenized as `indexBlock` tokenizes, fixed boxes and running elements skipped at any depth, a character inside a word counted as that word's (`wordsBeforeChar`'s rule). A point between blocks is the next block's base, and a point at or past the last block the index's total. So a Class A cut before a box is the words before the box, which is the driver's `posOfCut` of a bare path; a Class B cut mid-paragraph is the position of the first character the next line shows, the first word of that line, which is `wordsBefore(leaf) + word`; a cut whose line begins inside a word (a hyphen the browser drew) is that word, as the driver's `char` is consumed within its word. Measured against the CLI's `entry.pos` on every fixture (docs/results.md, "The page wears its chrome").
  *
  * THE PAGE TOTAL. `counter(pages)` is blank until the chain is complete, as the CLI's `run({ until })` leaves it blank until the document is: the view says the chain is complete when a fill answers `to: null` (an entry whose `to` is the document's end; the view drops every entry after it), and the view fills the first dirty entry first, so every page before it is filled. `totalAfter` is the arithmetic, and `settle` redraws every live page's chrome when the total moves, without refilling any.
  *
- * Not here: the reads loop (`settleReads`, phase 2's second round), `target-counter()` (round 3), a carried flow's remainders (`remaindersOf`; the view carries no parallel flow), and a page whose interval an edit moved without a refill keeps the chrome it was drawn with (docs/found.md).
+ * The holder is body's first child: the reads loop takes a target as the first element in tree order with its id (`reads.js`' header), and the pages' slices, the law copy and a root's light children keep the author's ids, so an original must precede every copy (measured 2026-10-25: with the holder after the view, the specimen's nine targets read as outside the flow and its 15 reads showed nothing). Not here: the reads loop and the chrome of a page an edit did not refill (`chain.js`), and a carried flow's remainders (`remaindersOf`; the view carries no parallel flow).
  *
  * @packageDocumentation
  */
@@ -69,24 +69,35 @@ export function wordsBeforePoint(block, point, { isInline = isInlineBox, isFixed
 }
 
 /**
- * The flat word position of a DOM point of the rendering: the base of the top-level block it stands in plus the words of that block before it; between blocks, or in a box that is no block (a running element, a fixed box at the top level), the base of the next block; past the last, the total.
+ * The flat word position of a DOM point of the rendering, and the top-level block it stands in: the base of that block plus the words of it before the point; between blocks, or in a box that is no block (a running element, a fixed box at the top level), the base of the next block and that block; past the last, the total and the block count (the engine's address of a cut: `cut.path[0]` and `pos`).
  * @param {any} holder
  * @param {Map<any, number>} blockIndex Each top-level block's index.
  * @param {{ bases: number[], total: number }} index
  * @param {{ node: any, offset: number }} point
  * @param {Parameters<typeof wordsBeforePoint>[2]} [reads]
+ * @returns {{ pos: number, block: number }}
  */
-export function wordPositionOf(holder, blockIndex, index, point, reads) {
+export function wordAddressOf(holder, blockIndex, index, point, reads) {
   const nextBlock = (/** @type {any} */ node) => {
-    for (let n = node; n; n = n.nextSibling) if (blockIndex.has(n)) return index.bases[/** @type {number} */ (blockIndex.get(n))];
-    return index.total;
+    for (let n = node; n; n = n.nextSibling) if (blockIndex.has(n)) { const b = /** @type {number} */ (blockIndex.get(n)); return { pos: index.bases[b], block: b }; }
+    return { pos: index.total, block: blockIndex.size };
   };
   if (point.node === holder) return nextBlock(holder.childNodes[point.offset] ?? null);
   let top = point.node;
   while (top.parentNode && top.parentNode !== holder) top = top.parentNode;
   const b = blockIndex.get(top);
-  return b == null ? nextBlock(top.nextSibling) : index.bases[b] + wordsBeforePoint(top, point, reads);
+  return b == null ? nextBlock(top.nextSibling) : { pos: index.bases[b] + wordsBeforePoint(top, point, reads), block: b };
 }
+
+/**
+ * The flat word position of a DOM point of the rendering (`wordAddressOf`'s `pos`).
+ * @param {any} holder
+ * @param {Map<any, number>} blockIndex
+ * @param {{ bases: number[], total: number }} index
+ * @param {{ node: any, offset: number }} point
+ * @param {Parameters<typeof wordsBeforePoint>[2]} [reads]
+ */
+export const wordPositionOf = (holder, blockIndex, index, point, reads) => wordAddressOf(holder, blockIndex, index, point, reads).pos;
 
 /**
  * A page's state, as the driver writes it on the page's `closes`: the document's counters at its first word (`counterStateAt`), the four readings of every named string over its interval (`namedStringsForPage`), and of every running element, `null` the empty value. `end` is the next page's first word, null on the last page; a blank page's interval is empty.
@@ -160,8 +171,9 @@ export class Originals {
       holder = d.createElement('div');
       holder.id = HOLDER;
       holder.style.display = 'none';
-      d.body.appendChild(holder);
     }
+    // The first of body's children, so `getElementById` finds an original before any copy: the reads loop takes a target as the first element in tree order with its id (`reads.js`' header), and the pages' slices, the law copy and a root's light children keep the author's ids.
+    if (d.body.firstChild !== holder) d.body.prepend(holder);
     const rendered = render(doc, 0, null);
     holder.replaceChildren(rendered.fragment);
     const t1 = performance.now();
@@ -189,10 +201,25 @@ export class Originals {
    * @param {number} pos
    */
   wordAt(state, pos) {
-    const holder = /** @type {Element} */ (this.document.getElementById(HOLDER));
+    return this.addressAt(state, pos).pos;
+  }
+
+  /**
+   * The engine's word position of a model position and the top-level block it stands in (`wordAddressOf`).
+   * @param {OriginalsState} state
+   * @param {number} pos
+   * @returns {{ pos: number, block: number }}
+   */
+  addressAt(state, pos) {
+    const holder = this.holder();
     const point = pointAt(holder, state.rendered.positions, pos);
-    if (!point) return pos <= 0 ? 0 : state.index.total;
-    return wordPositionOf(holder, state.blockIndex, state.index, point);
+    if (!point) return pos <= 0 ? { pos: 0, block: 0 } : { pos: state.index.total, block: state.blocks.length };
+    return wordAddressOf(holder, state.blockIndex, state.index, point);
+  }
+
+  /** The hidden holder the rendering stands in. */
+  holder() {
+    return /** @type {Element} */ (this.document.getElementById(HOLDER));
   }
 
   /**

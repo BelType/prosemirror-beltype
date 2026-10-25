@@ -10,7 +10,11 @@ const BELTYPE = '/Users/egildo/Privata/dev/beltype';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const headed = process.argv.includes('--headed');
 const bare = process.argv.includes('--bare');
-const target = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? './test/specimen.md';
+const noLedger = process.argv.includes('--no-ledger');
+const opt = (name) => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : null);
+const retitle = opt('--retitle');
+const keys = opt('--keys');
+const target = process.argv.slice(2).find((a, i, all) => !a.startsWith('--') && !['--retitle', '--keys'].includes(all[i - 1])) ?? './test/specimen.md';
 
 /** The ports no measurement may take: the engine repository's preview seats, and the ones Egildo keeps for other work. */
 const launch = JSON.parse(readFileSync(`${BELTYPE}/.claude/launch.json`, 'utf8'));
@@ -85,13 +89,19 @@ try {
         texts.set(k, (texts.get(k) ?? '') + t);
       }
       for (const [k, t] of texts) out.set(k, t);
+      for (const v of probe.values()) out.set(`${v}|seen`, '');
     }
     return out;
   };
   /** Each page's chrome on one side: its margin boxes' text and its flow's generated text. */
   const chromeOf = async (side, pagesExpr) => {
     const tags = await page.evaluate(([side, expr]) => window.__prosemirrorBeltype.tagChrome(eval(expr), side), [side, pagesExpr]);
-    const texts = await generated();
+    // A tagged element can be missing from a snapshot (measured 2026-10-25: the slotted flow of a page refilled after `invalidate()`, now and then): snapshot again, three times at most, until every tag is in it.
+    const tagged = tags.flatMap((t) => [...t.boxes.map((b) => b.probe), ...t.flow.map((f) => f.probe)]);
+    let texts = await generated();
+    for (let i = 0; i < 2 && tagged.some((p) => !texts.has(`${p}|seen`)); i++) texts = await generated();
+    const missing = tagged.filter((p) => !texts.has(`${p}|seen`));
+    if (missing.length) console.log(`(the snapshot misses ${missing.length} tagged element(s) on the ${side} side: ${missing.slice(0, 6).join(', ')})`);
     await page.evaluate((expr) => window.__prosemirrorBeltype.untagChrome(eval(expr)), pagesExpr);
     const text = (probe) => `${texts.get(`${probe}|::before`) ?? ''}`;
     const after = (probe) => `${texts.get(`${probe}|::after`) ?? ''}`;
@@ -114,13 +124,13 @@ try {
   const referenceDressing = await page.evaluate(() => window.__prosemirrorBeltype.dressingOf(window.__prosemirrorBeltype.rootPages()));
   const referenceChrome = await chromeOf('cli', 'window.__prosemirrorBeltype.rootPages()');
   const ledger = await page.evaluate(() => window.__prosemirrorBeltype.cliLedger());
-  const view = await page.evaluate((bare) => window.__prosemirrorBeltype.mount({ bare }), bare);
+  const view = await page.evaluate(([bare, noLedger]) => window.__prosemirrorBeltype.mount({ bare, noLedger }), [bare, noLedger]);
   const viewChrome = await chromeOf('view', 'window.__prosemirrorBeltype.viewPagesOf()');
   const lateTruth = await page.evaluate(() => window.__lateTruth);
 
   const n = Math.max(reference.length, view.pages.length);
   const cell = (s) => (s == null ? '·' : `\`${s}\``);
-  console.log(`\n## ${target}${bare ? ' (bare)' : ''}, ${reference.length} pages under the CLI, ${view.pages.length} under the view\n`);
+  console.log(`\n## ${target}${bare ? ' (bare)' : ''}${noLedger ? ' (no Ledger)' : ''}, ${reference.length} pages under the CLI, ${view.pages.length} under the view\n`);
   console.log(`The CLI's last \`run()\` call ${Math.round(cliMs)} ms (its bootstrap cuts the first screen, then the rest); the view's chain ${Math.round(view.ms)} ms over ${view.fills.length} fills; doc size ${view.docSize}.\n`);
   console.log('| Page | CLI first | CLI last | words | view first | view last | words | entry | fill | same |');
   console.log('| ---: | :-- | :-- | ---: | :-- | :-- | ---: | :-- | :-- | :-- |');
@@ -171,8 +181,9 @@ try {
     }
   }
   const flowSites = (side) => side.reduce((s, p) => s + (p?.flow.length ?? 0), 0);
-  const why = (d) => (d.known ? 'a target-counter() read, known' : d.moved ? 'the page holds other words' : '**unexplained**');
-  console.log(`\nFlow generated content: ${flowSites(referenceChrome)} sites under the CLI, ${flowSites(viewChrome)} under the view; ${flowDiffs.filter((d) => !d.known && !d.moved).length} differ unexplained, ${flowDiffs.filter((d) => d.known).length} are \`target-counter()\` reads (round 3's, known), ${flowDiffs.filter((d) => !d.known && d.moved).length} stand on a page that holds other words.`);
+  const why = (d) => (d.moved ? 'the page holds other words' : d.known ? '**a target-counter() read**' : '**unexplained**');
+  const readSites = (side) => side.reduce((s, p) => s + (p?.flow.filter((f) => f.read).length ?? 0), 0);
+  console.log(`\nFlow generated content: ${flowSites(referenceChrome)} sites under the CLI, ${flowSites(viewChrome)} under the view, of which ${readSites(referenceChrome)} and ${readSites(viewChrome)} are \`target-counter()\` or \`target-text()\` reads; ${flowDiffs.filter((d) => !d.moved).length} differ on a page that holds the same words (${flowDiffs.filter((d) => d.known && !d.moved).length} of them reads), ${flowDiffs.filter((d) => d.moved).length} stand on a page that holds other words (${flowDiffs.filter((d) => d.known && d.moved).length} of them reads).`);
   for (const d of flowDiffs) console.log(`  page ${d.page} ${d.el}: CLI \`${d.cli}\`, view \`${d.view}\` — ${why(d)}`);
   // The state: the CLI's entry for page i ends at its `pos`; the view's fill recorded its interval in the same word positions.
   console.log('\n| Page | CLI end | view start–end | counters | strings | running | recuts |');
@@ -195,6 +206,41 @@ try {
   console.log(`\nConsole, CLI (${consoles.cli.length}):\n${unique(consoles.cli).map((m) => `  ${m.slice(0, 300)}`).join('\n')}`);
   console.log(`\nConsole, view (${consoles.view.length}):\n${unique(consoles.view).map((m) => `  ${m.slice(0, 300)}`).join('\n')}`);
   console.log(`\nLate truth taken from the rim after the reference: ${JSON.stringify(lateTruth)}`);
+  console.log(`\n### The reads loop\n\nChain counts: ${JSON.stringify(view.counts)}`);
+  console.log(JSON.stringify(view.reads, null, 1));
+
+  if (retitle) {
+    // The chrome on an edit: a heading retitled by a transaction, every page's margin boxes and flow read; then the view invalidated and its fresh fill of the same state read; the two compared page for page.
+    const [from, to] = retitle.split('=>');
+    const edit = await page.evaluate(([from, to]) => window.__prosemirrorBeltype.retitle(from, to), [from, to]);
+    const edited = await chromeOf('view', 'window.__prosemirrorBeltype.viewPagesOf()');
+    const fresh = await page.evaluate(() => window.__prosemirrorBeltype.refillWhole());
+    const freshChrome = await chromeOf('view', 'window.__prosemirrorBeltype.viewPagesOf()');
+    console.log(`\n### Retitled \`${from}\` to \`${to}\` at ${edit.at}\n\nSettled: ${edit.settled}, ${Math.round(edit.ms)} ms. Pages redrawn without a refill: ${edit.redrawn}; dirtied for a flow site: ${edit.dirtied}; fills: ${edit.refilled.length} (pages ${edit.refilled.join(', ') || 'none'}). The fresh fill after \`invalidate()\`: ${fresh.fills} fills, settled ${fresh.settled}, late fills ${JSON.stringify(fresh.late)}.\n`);
+    console.log('| Page | after the edit: words, margin boxes, flow | the fresh fill | same |');
+    console.log('| ---: | :-- | :-- | :-- |');
+    let sameAll = 0;
+    const m = Math.max(edit.pages.length, fresh.pages.length);
+    for (let i = 0; i < m; i++) {
+      const a = edit.pages[i], b = fresh.pages[i];
+      const ca = edited[i], cb = freshChrome[i];
+      const same = JSON.stringify([a, ca]) === JSON.stringify([b, cb]);
+      if (same) sameAll++;
+      const show = (p, c) => (p ? `${p.count} words, ${boxText(c?.boxes)}; flow ${c?.flow.map((f) => f.text).join(' ') || '∅'}` : '·');
+      console.log(`| ${i + 1} | ${show(a, ca)} | ${same ? '=' : show(b, cb)} | ${same ? 'yes' : '**no**'} |`);
+    }
+    console.log(`\nThe edited chain and the fresh fill agree on ${sameAll} of ${m} pages (words, margin boxes, flow generated content).`);
+    console.log(JSON.stringify(edit.reads?.settles.at(-1)));
+    console.log(JSON.stringify(fresh.reads?.settles.at(-1)));
+    console.log(`\nThe edit's fills:\n${edit.detail.map((f) => `  ${JSON.stringify(f)}`).join('\n')}\nThe fresh fill's:\n${fresh.detail.map((f) => `  ${JSON.stringify(f)}`).join('\n')}`);
+  }
+
+  if (keys) {
+    const [pageNo, n] = keys.split(':').map(Number);
+    const typed = await page.evaluate(([p, n]) => window.__prosemirrorBeltype.keystrokes(p, n), [pageNo, n]);
+    console.log(`\n### ${n} keystrokes on page ${pageNo}\n`);
+    for (const t of typed) console.log(`  ${JSON.stringify(t)}`);
+  }
   if (process.argv.includes('--keep')) await new Promise(() => {});
 } finally {
   await browser?.close();
