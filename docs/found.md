@@ -123,6 +123,13 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen on a page 2026-10-25**, by `fixtures/dressing/` under `node scripts/specimen.mjs --bare`, the CLI's adopted sheets taken off the document before the view is mounted: the resumed blockquote on page 3 showed its `::before` label (`"Quoted"`), the resumed items on pages 5 and 6 their author `::marker`, the resumed drop-cap paragraph on page 7 its `::first-letter` (`float: left`, 49.87 px), the resumed paragraph on page 9 its `::first-line` (16.87 px small caps against its own 14.67 px), and the cut-off aside on page 10 its `::after` attribution. No cut moved: the label pushed page 3's measured foot from 461.18 to 485.38 px with the page's start read at 24.2 px, and the first line page 9's from 401.91 to 405.52 px.
 - **State**: CLOSED 2026-10-25, 1c26f19 on `round/the-host-wears-the-dressing`: the engine's door, `ensureContinuationDressing(doc)` in `dressing.js` (BelType's CHANGELOG 2026-10-25, *The continuation dressing is a door*), and the factory calling it, with `ensureDressing`, as it checks the render conditions. Under `--bare` every resumed piece of the fixture reads `none` at its edges and the paragraph's own size and caps, as the CLI's do, and the view gives the CLI's 11 pages, every fill the same as with the root's sheets worn (docs/results.md, "The host wears the dressing").
 
+### A fill overtaken by a second transaction in the same task throws in the grab
+
+- **Seen**: 2026-10-25, the studio's checks-see-the-view round (`round/the-checks-see-the-view`), `scripts/collab-undo.mjs` scenario (3) under `?view=fragmented&schema=studio`: two page errors, `Cannot read properties of undefined (reading 'start')` at `CiceroPage.cutOnce` (`src/cicero-page.js:371`, from `cutAndDraw` and `fill`). Reduced: the quiet press, two `studio.apply(tr.insertText('A', p))` in a row in one task in the middle of the long chapter throw once (three throw twice); one insert, or the same inserts each awaited to the settled chain, throw nothing. Real keys never arrive inside one task, which is why the typing session (61 plans, 1 803 keys) never met it; a collaboration burst or a script's batch does. The pages afterwards equal a fresh pagination in scenario (3), so the chain recovered, but the fill rejected where it should not.
+- **Layer**: the Cicero page, `src/cicero-page.js`, `cutOnce`: `t.law.positions.get(event.el)` is undefined for the forcing event the grab found, so the event's element is not in the trial's law (read off a rendering of another document, by the look of it).
+- **Fix**: read the grab's event from the same trial's law, and where its element is not there (a newer document overtook the fill), end the fill as overtaken rather than throw; *the page always advances* says `fill` never throws.
+- **State**: OPEN.
+
 ### Known from phase 1, not met by the studio
 
 - `adjoin` after a forced break: the fill strips it; no difference traced to it.
@@ -201,6 +208,34 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen**: by building the Ledger, 2026-10-25: the Ledger plugin's state round-trips through `toJSON` and `fromJSON`, but the fragments plugin has neither, so a state reopened from JSON starts with one dirty entry under key 0 and the Ledger's rows under the other keys are dropped by the first transaction; only the warm tables survive (the reopened state's first settle starts from the numbers the saved one left).
 - **Layer**: the view, `src/fragments-plugin.js`.
 - **Fix**: `toJSON` and `fromJSON` on the fragments plugin's state field (the entries are plain data), the keys kept so the Ledger's rows meet their entries again.
+- **State**: OPEN.
+
+### A composition in a divided paragraph loses the paragraph's other piece
+
+- **Seen**: 2026-10-25, the studio's checks-see-the-view round, `scripts/limits.mjs` under `?view=fragmented&schema=studio`, then reduced: the quiet press, a click in the paragraph at position 5779 (777 characters, divided between two pages), a real composition through the DevTools protocol (`に`, `にほ`, committed `日本`): the paragraph is 706 characters afterwards, its last 73 characters (the piece on the next page) gone and `日本` in, the document 71 characters shorter. The old path leaves the paragraph whole.
+- **Layer**: the view, `src/fragmented-view.js`, `readComposition`: "the textblock under the caret is parsed back and diffed against the model", and the DOM holds only the piece of it the caret's page shows.
+- **Fix**: parse back only the piece's range (the fragment's `from` and `to` inside the textblock) and diff that against the same range of the model, or take the composed text from `compositionend`'s data and insert it at the composition's range.
+- **State**: OPEN.
+
+### A drag loses its anchor when the pane scrolls under the held button
+
+- **Seen**: 2026-10-25, the studio's checks-see-the-view round, `scripts/selection.mjs` 1.1 under the switch ("selection 12123..12123, expected 11905..12123", a drag inside one page), then reduced: the quiet press, a button pressed at position 10290, the pages' pane scrolled 94 px by script, the pointer moved 200 px in six steps and released: the model's selection is 10708..10708, collapsed where the pointer ended. With no scroll the same drag gives 10290..10385; on the old path, scroll or not, 10290..10708 and 10290..10385. The selection, marks and lists checks scroll a target into view between `mousedown` and the move, as a reader's wheel would.
+- **Layer**: the view, `src/fragmented-view.js`: the pointer is the browser's (the entry above on a selection leaving its page).
+- **Fix**: the same as the entry above: the view owns the pointer, the anchor the model's position at `mousedown`, so a scroll under the held button moves only the head.
+- **State**: OPEN.
+
+### ArrowDown and ArrowUp stop in a textblock that only generated content fills
+
+- **Seen**: 2026-10-25, the studio's checks-see-the-view round, `scripts/caret.mjs` under the switch, "press 11 (line 10 -> 11, page 2 -> 3): no DOM caret; caret on line null, expected 11", and every later press one line behind: the quiet press, ArrowDown from the contents' last line puts the head in the empty `p.chapter-number` at chapter one's head (`paragraph.chapter-number size 0`, position 282), where the DOM caret has no rectangle, and the next press reaches the chapter title. The old path's caret (`caret.js`, `nextPos`) skips such a textblock ("a block the stylesheet fills with a generated chapter number is no place for a caret"), so its walk passes the same 675 lines with no failure.
+- **Layer**: the view, `src/fragmented-view.js` (the arrows are the browser's, and an empty textblock with its trailing break is a caret stop). A question of design as much as a fault: ProseMirror stops in an empty paragraph; a page that draws only generated content there shows the reader no line.
+- **Fix**: decide whether an empty textblock whose box is filled only by generated content is a stop; if not, the view moves past it as `caret.js` did.
+- **State**: OPEN.
+
+### Around a facsimile, the arrows stop and a click lands in the heading
+
+- **Seen**: 2026-10-25, the studio's checks-see-the-view round, `scripts/facsimile-check.mjs` (C) under `?view=fragmented&schema=studio`, the facsimile demo (6 pages, the landscape attachment on a page of its own): ArrowRight at the end of the last paragraph before the page of its own leaves the head where it was ("one press crosses it: {"right":2807,"heading":2814,"before":2807}"), and ArrowLeft from the heading after it goes one position past the paragraph's end (2806 where 2807 is wanted); a click on each of the three facsimiles lands in a heading, where the old path puts it in the figure's caption, the nearest text ("a click on a figure's page lands in its caption, the nearest text: ["heading","heading","heading"]"). The old path passes all three (`caret.js` takes the arrows across a box no caret can enter, and its click finds the nearest text).
+- **Layer**: the view, `src/fragmented-view.js`: the arrows and the pointer are the browser's, and a page whose one box is an atom (an `<object>` drawn `contenteditable="false"`) gives the browser no place to move the caret into.
+- **Fix**: the view takes the arrow across a fragment that holds no caret position (the next position the model has, as `leftAcrossCut` does across a cut), and a click on an atom's box goes to the nearest textblock position, or selects the atom.
 - **State**: OPEN.
 
 ## The engine (BelType)
@@ -282,14 +317,14 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen**: `npm run roundtrip` under the generic schema, with or without the switch, on 2026-10-24: the "re-parse equals the state" part fails on all four demos that have a data block, because structured marks mint a fresh instance id on every parse, and with plain marks the check's own parse drops the body's leading whitespace. The source-against-saved-body and body-against-page parts hold (quiet-press 619 nodes, report 874, manuale 1 159; the bill differs only in its data block, `giorni` 0 against 61, on `main` too). The check also crashes on the three demos without a data block, on `main` as well.
 - **Layer**: the studio's wiring, `scripts/roundtrip.mjs`.
 - **Fix**: compare after renumbering instance ids in order of first appearance, parse the serialization inside a `<body>` tag so the leading whitespace survives, and guard the demos without a data block.
-- **State**: OPEN.
+- **State**: CLOSED 2026-10-25, the studio's `round/the-checks-see-the-view` (studio main 9db717d): instance ids renumbered in order of first appearance, the serialization parsed inside a `<body>`, the demos without a data block guarded; the quiet press, the report and the manuale equal on all three paths, the bill's re-parse leg holds, the schema lab's still fails (an instance written as two elements comes back as two).
 
 ### The studio's checks cannot see the view
 
 - **Seen**: every check of the studio README's "Checks" section, and the panes' checks, run against a server whose default is the switch (`STUDIO_VIEW=fragmented`), each check's load gate (`__beltypeCicero.last.pages > 0`) rewritten by the runner to also pass when the view's chain has settled. Two pass: `roundtrip` and `generic-schema` (they read the state and the schema, never the pages). The rest stop within seconds on the old orchestrator's surface: `__beltypeCicero.buildAll` (typing:timings, the screens, marks, nested-lists, inline-atoms, sub-sup, inline-lists, generic-schema-edits, selection, amendments, print, repeat:check, values:check's paint-check), `eng.box` (lists), `<beltype-root>` (typing:limits, verbatim, facsimile, integration, resources), the engine's last result (typing, collab:pages, collab:together). `identity` timed out; `structure` asks a server on a port of its own (48801) and did not run. On the old path the same run passed roundtrip, typing, typing:timings and the two screens checks; identity, verbatim (two running-head assertions, the stale margin-box reading the README names) and typing:limits (a script error, `mouse.click: x: expected float, got undefined`) fail there too; the rest were not reached before the round stopped the pass.
 - **Layer**: the studio's wiring, `scripts/page-helpers.js` and each check's own reads of the pages.
 - **Fix**: one page reader for both paths in `page-helpers.js` (the pages as `.fragview > beltype-page` or the root's, a position's point through `studio.view.domAtPos` or `positions.js`, "settled" as the view's chain or the patcher), so a check proves the view; `scripts/fragview-pages.mjs` and `scripts/fragview-keys.mjs` already read both.
-- **State**: OPEN.
+- **State**: CLOSED 2026-10-25, the studio's `round/the-checks-see-the-view` (studio main 9db717d): one reader in `scripts/page-helpers.js` for both paths, every check on it, a skip or a known difference named where the view lacks or differs by design; 43 of 65 checks pass under the view where 2 did, the typing sessions 61 of 61 on every path; the table is the studio's `notes/fragview-checks.md`.
 
 ### A value written from the pane reaches the authority as four steps under the view
 
