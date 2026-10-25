@@ -19,6 +19,7 @@ import { assertRenderConditions } from '@egildo/beltype-engine-cicero/src/measur
 import { present } from '@egildo/beltype-engine-cicero/src/presenters.js';
 import { CiceroPage } from './cicero-page.js';
 import { Originals } from './originals.js';
+import { Chain } from './chain.js';
 
 /** @import { ContainerFactory } from 'prosemirror-fragview/src/fragmentainer.js' */
 
@@ -27,7 +28,7 @@ import { Originals } from './originals.js';
  * @param {object} [options]
  * @param {ReturnType<typeof readGeometryTable>} [options.table] A geometry table the host already read; read from the document when omitted.
  * @param {boolean} [options.relaxDpr] Pass the engine's render-condition check at a device pixel ratio other than 1, as the CLI's preview does (I5); the default.
- * @returns {ContainerFactory & { originals: Originals }}
+ * @returns {ContainerFactory & { originals: Originals, chain: Chain }}
  */
 export function ciceroContainers(document = globalThis.document, { table, relaxDpr = true } = {}) {
   assertRenderConditions(document, { relaxDpr });
@@ -37,7 +38,13 @@ export function ciceroContainers(document = globalThis.document, { table, relaxD
   const geometry = table ?? readGeometryTable(document);
   const intake = () => takeFacsimile(document);
   const originals = new Originals(document);
-  return Object.assign((/** @type {number} */ index, /** @type {any} */ hint) => new CiceroPage({ table: geometry, index, hint, document, intake, originals }), { originals });
+  const chain = new Chain({ originals, table: geometry, document });
+  const factory = (/** @type {number} */ index, /** @type {any} */ hint, /** @type {ReadonlyArray<{ key: number }>} */ entries) => {
+    const page = new CiceroPage({ table: geometry, index, hint, document, intake, originals, chain, key: entries?.[index]?.key ?? null });
+    chain.adopt(page);
+    return page;
+  };
+  return Object.assign(factory, { originals, chain });
 }
 
 /** The selector of the elements the facsimile presents, as the one-round host's intake asks it (`seam/client.js`, `PDF_OBJECT`). */

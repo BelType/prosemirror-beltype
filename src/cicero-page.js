@@ -103,10 +103,14 @@ export class CiceroPage {
    * @param {Document} [a.document]
    * @param {() => Promise<void>} [a.intake] What the presenters need before a trial is presented, the factory's (`takeFacsimile`); nothing by default.
    * @param {Originals | null} [a.originals] The chain's rendering of the whole state, the factory's (`originals.js`), which the page's chrome is read from; without it the page draws no chrome, as in phase 1.
+   * @param {import('./chain.js').Chain | null} [a.chain] The factory's chain object, told when a fill begins and ends (`chain.js`); none in a test.
+   * @param {number | null} [a.key] The key of the chain entry the page was made for.
    */
-  constructor({ table, index, hint, document = globalThis.document, intake = async () => {}, originals = null }) {
+  constructor({ table, index, hint, document = globalThis.document, intake = async () => {}, originals = null, chain = null, key = null }) {
     this.table = table;
     this.originals = originals;
+    this.chain = chain;
+    this.key = key;
     this.intake = intake;
     this.index = index;
     this.hint = hint ?? {};
@@ -187,6 +191,32 @@ export class CiceroPage {
    * @returns {Promise<FillResult>}
    */
   async fill(doc, from, render) {
+    this.chain?.began(this);
+    try {
+      const answer = await this.cutAndDraw(doc, from, render);
+      this.chain?.filled(this, doc, answer);
+      return answer;
+    } catch (error) {
+      this.chain?.failed(this, doc, error);
+      throw error;
+    }
+  }
+
+  /**
+   * `fill`'s work, which the chain object is told the beginning and the end of.
+   * @param {PMNode} doc
+   * @param {number} from
+   * @param {SliceRenderer} render
+   * @returns {Promise<FillResult>}
+   */
+  async cutAndDraw(doc, from, render) {
+    // The hint the page before left at its last fill, which the view hands a page only when it builds it: a page refilled in a ripple is otherwise cut under the hint of the layout before the edit (docs/found.md, "A refilled page keeps the hint it was built with").
+    const hint = this.chain?.hintFor(this);
+    if (hint !== undefined && JSON.stringify(hint) !== JSON.stringify(this.hint)) {
+      this.hint = hint;
+      this.blank = !!hint.blank;
+      this.conditions = this.conditionsFor(hint.name ?? '');
+    }
     const o = this.originals;
     if (!o) return this.cutOnce(doc, from, render);
     const t0 = performance.now();
@@ -799,6 +829,7 @@ export class CiceroPage {
 
   release() {
     this.originals?.pages.delete(this);
+    this.chain?.released(this);
     this.observer.disconnect();
     this.rendered = null;
     this.dom.setContent();

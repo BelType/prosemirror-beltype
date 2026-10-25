@@ -69,24 +69,35 @@ export function wordsBeforePoint(block, point, { isInline = isInlineBox, isFixed
 }
 
 /**
- * The flat word position of a DOM point of the rendering: the base of the top-level block it stands in plus the words of that block before it; between blocks, or in a box that is no block (a running element, a fixed box at the top level), the base of the next block; past the last, the total.
+ * The flat word position of a DOM point of the rendering, and the top-level block it stands in: the base of that block plus the words of it before the point; between blocks, or in a box that is no block (a running element, a fixed box at the top level), the base of the next block and that block; past the last, the total and the block count (the engine's address of a cut: `cut.path[0]` and `pos`).
  * @param {any} holder
  * @param {Map<any, number>} blockIndex Each top-level block's index.
  * @param {{ bases: number[], total: number }} index
  * @param {{ node: any, offset: number }} point
  * @param {Parameters<typeof wordsBeforePoint>[2]} [reads]
+ * @returns {{ pos: number, block: number }}
  */
-export function wordPositionOf(holder, blockIndex, index, point, reads) {
+export function wordAddressOf(holder, blockIndex, index, point, reads) {
   const nextBlock = (/** @type {any} */ node) => {
-    for (let n = node; n; n = n.nextSibling) if (blockIndex.has(n)) return index.bases[/** @type {number} */ (blockIndex.get(n))];
-    return index.total;
+    for (let n = node; n; n = n.nextSibling) if (blockIndex.has(n)) { const b = /** @type {number} */ (blockIndex.get(n)); return { pos: index.bases[b], block: b }; }
+    return { pos: index.total, block: blockIndex.size };
   };
   if (point.node === holder) return nextBlock(holder.childNodes[point.offset] ?? null);
   let top = point.node;
   while (top.parentNode && top.parentNode !== holder) top = top.parentNode;
   const b = blockIndex.get(top);
-  return b == null ? nextBlock(top.nextSibling) : index.bases[b] + wordsBeforePoint(top, point, reads);
+  return b == null ? nextBlock(top.nextSibling) : { pos: index.bases[b] + wordsBeforePoint(top, point, reads), block: b };
 }
+
+/**
+ * The flat word position of a DOM point of the rendering (`wordAddressOf`'s `pos`).
+ * @param {any} holder
+ * @param {Map<any, number>} blockIndex
+ * @param {{ bases: number[], total: number }} index
+ * @param {{ node: any, offset: number }} point
+ * @param {Parameters<typeof wordsBeforePoint>[2]} [reads]
+ */
+export const wordPositionOf = (holder, blockIndex, index, point, reads) => wordAddressOf(holder, blockIndex, index, point, reads).pos;
 
 /**
  * A page's state, as the driver writes it on the page's `closes`: the document's counters at its first word (`counterStateAt`), the four readings of every named string over its interval (`namedStringsForPage`), and of every running element, `null` the empty value. `end` is the next page's first word, null on the last page; a blank page's interval is empty.
@@ -160,8 +171,9 @@ export class Originals {
       holder = d.createElement('div');
       holder.id = HOLDER;
       holder.style.display = 'none';
-      d.body.appendChild(holder);
     }
+    // The first of body's children, so `getElementById` finds an original before any copy: the reads loop takes a target as the first element in tree order with its id (`reads.js`' header), and the pages' slices, the law copy and a root's light children keep the author's ids.
+    if (d.body.firstChild !== holder) d.body.prepend(holder);
     const rendered = render(doc, 0, null);
     holder.replaceChildren(rendered.fragment);
     const t1 = performance.now();
@@ -189,10 +201,25 @@ export class Originals {
    * @param {number} pos
    */
   wordAt(state, pos) {
-    const holder = /** @type {Element} */ (this.document.getElementById(HOLDER));
+    return this.addressAt(state, pos).pos;
+  }
+
+  /**
+   * The engine's word position of a model position and the top-level block it stands in (`wordAddressOf`).
+   * @param {OriginalsState} state
+   * @param {number} pos
+   * @returns {{ pos: number, block: number }}
+   */
+  addressAt(state, pos) {
+    const holder = this.holder();
     const point = pointAt(holder, state.rendered.positions, pos);
-    if (!point) return pos <= 0 ? 0 : state.index.total;
-    return wordPositionOf(holder, state.blockIndex, state.index, point);
+    if (!point) return pos <= 0 ? { pos: 0, block: 0 } : { pos: state.index.total, block: state.blocks.length };
+    return wordAddressOf(holder, state.blockIndex, state.index, point);
+  }
+
+  /** The hidden holder the rendering stands in. */
+  holder() {
+    return /** @type {Element} */ (this.document.getElementById(HOLDER));
   }
 
   /**
