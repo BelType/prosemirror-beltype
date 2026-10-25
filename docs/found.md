@@ -74,8 +74,22 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen**: measured 2026-10-25 on the studio's showcase, five characters typed on page 3: the rendering of the whole state 1.9 to 5.6 ms and its reading 12.0 to 23.6 ms per transaction, inside `updateState`, so the chain settles in 24.1 to 46.5 ms where `main` settles in 7.6 to 22.8 ms (docs/results.md, "The page wears its chrome", the cost).
 - **Seen again 2026-10-25**, with the Ledger and the reads loop (`round/the-ledger-is-state`), the showcase in the harness, five characters on page 3: the chain is quiet 26.9 to 33.9 ms after the dispatch with the Ledger and 16.5 to 21.4 ms without it; of the view's update (23.8 to 30.5 ms), the clean pages' chrome read again is 1.8 to 3.2 ms and the loop's start 7.5 to 9.6 ms, its site search, position index and written facts walking every block (`cicero:reads`), and the settle ends in 18.3 to 22.6 ms in 1 run. The engine's `keep` door would spare those walks per top-level box, but it keeps a part by the box's element, and the originals are rendered anew per state, so no element survives a transaction: the incremental rendering below is the loop's prerequisite too.
 - **Layer**: this package, `src/originals.js`.
-- **Fix**: proposed, not built: render and read per top-level node, keeping each unchanged node's element, index part and ops part by the node's identity (ProseMirror's nodes are persistent, so an untouched top-level node is the same object), through the engine's own door for kept parts (`indexBlocks` and `documentOpsOf` take a `Keep`, settled by `sheetReach`, *a resumed run keeps its reads*).
-- **State**: OPEN.
+- **Fix**: render and read per top-level node, keeping each unchanged node's element, index part and ops part by the node's identity (ProseMirror's nodes are persistent, so an untouched top-level node is the same object), through the engine's own door for kept parts (`indexBlocks` and `documentOpsOf` take a `Keep`, settled by `sheetReach`, *a resumed run keeps its reads*).
+- **State**: CLOSED 2026-10-25 for this package's half, 5f811f2, 65f2de8 and 692392d on `round/the-originals-keep-their-parts`: the first state is rendered whole and every later one per top-level node, matched to the last by identity, an untouched node's element surviving the edit; the engine's `ForcingMemo` is settled once per state against `sheetReach` and its `keep` handed to the originals' walks and to the loop's (docs/results.md, "The originals keep their parts"). Measured in the harness on the showcase, five characters on page 3, before and after interleaved, three runs each: the rendering 0.1 to 0.4 ms against 2.3 to 2.9, the reading 8.3 to 9.6 ms against 10.9 to 13.0 (one chapter restyled instead of the whole holder), the chain quiet 20.4 to 25.6 ms against 26.0 to 32.4 with the Ledger, and 11.3 to 15.7 ms against 16.7 to 20.8 without it. The loop's start is unchanged, 7.1 to 8.9 ms, because the showcase's sheets put the engine's memo out of use: reach 2 (one `:has()`) and 10 rules of reach 1 (`p + p` and its kin), so it keeps nothing there. Settled under reach 0 by the harness's `--reach 0`, the same keystrokes are quiet in 6.4 to 11.5 ms, the reading 1.9 to 2.4 ms and the loop's start 0.7 to 1.0 ms, every page and the originals' reading equal to a fresh whole rendering: what the engine's door below would give. In the studio, real keys on the showcase under the view: a character a third in 36.9 ms (34.5–43.1) against 42 (38.2–50.3), two thirds in 48.3 (46.8–53.7) against 53 (49.3–59.4), medians of 10; the quiet press is bound by the frame on both sides.
+
+### A page keeps the copy of a running element an edit changed inside it
+
+- **Seen**: the chrome fixture under `--bare`, 2026-10-25, a character typed at the document's very start, which is inside its running element (`position: running(mark)`): pages 2 to 9, which the edit did not refill, kept `The Chrome fixture` in `@top-left` where the view's fresh fill of the same state shows `xThe Chrome fixture`, 8 of 16 pages different; each page's state equal, since a page's running elements are indices into the state's list and an edit inside one keeps its index.
+- **Layer**: this package, `src/chain.js` (`rechrome` compared the indices) and `src/cicero-page.js` (`drawChrome`'s key holds the indices). Present before the round too: every state was rendered anew, so every running element was a new object, and the indices alone were compared.
+- **Fix**: compare the elements a page places as well (`runningPlaced`), by identity or as equal nodes (`sameElements`), since an element whose top-level node was rendered again for an edit elsewhere in it is a new object of the same content.
+- **State**: CLOSED 2026-10-25, 5f811f2 and 692392d on `round/the-originals-keep-their-parts`: the same edit gives 16 of 16 pages equal to the fresh fill. By identity alone, retitling `Strings` redrew 9 pages without a refill where 2 had moved; as equal nodes, 2.
+
+### The view's invalidation left the originals as they were read
+
+- **Seen**: by reading, 2026-10-25: `Originals.of` keeps one reading per document, and `invalidate()` dirties every entry without a new document, so after a conditions change (a stylesheet in the studio's amendments pane, a face arriving) the pages refilled read the counters, strings and running elements computed under the old sheets until the next edit. Not measured on a page.
+- **Layer**: this package, `src/originals.js` and `src/chain.js`.
+- **Fix**: forget the rendering and the memo where the view releases every page at once, which only `invalidate()` does.
+- **State**: CLOSED 2026-10-25, 5f811f2 on `round/the-originals-keep-their-parts` (`Chain.released`, `Originals.forget`); the harness's fresh fill after `invalidate()` renders the originals whole, which the round's edit equalities rely on.
 
 ### A refilled page keeps the hint it was built with
 
@@ -225,6 +239,34 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Fix**: let the run return the facts each page was laid out under (beside `account`), and compare the truth with those where given; the driver's own run returns the facts it was handed, so nothing changes for the CLI.
 - **State**: OPEN (a run's cost, no cut: the second run converges on the first run's cuts).
 
+### The sheets' reach is read per box, and this host replaces whole top-level boxes
+
+- **Seen**: the round *the originals keep their parts*, 2026-10-25: `sheetReach(document)` is 2 on the specimen (3 rules, its `section:has(> h1)` as the has-words rewrite leaves it), on the flow fixture (2, `section:has(> h2.verso)` and `section:has(> h2.wide)`) and on the showcase (1 `:has()`, and 10 rules of reach 1, `p + p`, `.lead + p`, `h3 + p` and their kin), so the memo keeps nothing there and the loop's start costs on a keystroke what it cost before. Every studio demo is 2 as well, through one rule of the studio's own sheet, `li > p:first-child:not(:has(~ p) …)`, besides the demos' own (the showcase's 10 of reach 1, the manuale's 6). At reach 1 a top-level box replaced forgets every part too. Every other fixture is 0.
+- **Layer**: the engine, `src/capture.js` (`sheetReach`) and `src/forcing-memo.js` (`settle`). The reach answers for `patchBox`, which replaces a box at any depth and keeps its ancestors; this host replaces a top-level box whole, its subtree with it, so a `:has()` whose subject stands inside a top-level box and whose argument does not open with `+` or `~`, and a sibling combinator between boxes inside one, cannot make another top-level box's part stale. What can: a `:has()` or a sibling combinator that matches across top-level boxes or on `html`, `body` or the holder.
+- **Fix**: a reach read for a unit of replacement (a parameter of `sheetReach`, or a `settle` told the replaced boxes are top-level and whole), the engine's to decide. Measured with the reach forced to 0 on the showcase (`--reach 0`): a keystroke quiet in 6.4 to 11.5 ms against 20.4 to 25.6, the loop's start 0.7 to 1.0 ms, every page, the originals' reading and the delivered reads equal to a fresh whole rendering after 5 keystrokes; not a proof that 0 is right for the showcase's sheets.
+- **State**: OPEN.
+
+### A kept index part is read again when its block moved
+
+- **Seen**: the chrome fixture, two paragraphs pasted at the top level, 2026-10-25: the memo's tally read the position index part of every block after the insertion again (`index` 3 read, of which 2 new), since `indexBlocks` asks a part with `still: p.b === b` and each entry of the part carries its block's number.
+- **Layer**: the engine, `src/positions.js` (`indexBlock` writes `block: b` into every entry).
+- **Fix**: keep the part block-relative and stamp the block when the parts are laid end to end. A keystroke moves no block, so the round's measurement does not meet it; an Enter or a paste at the top level does.
+- **State**: OPEN (minor).
+
+### The running elements are found by a walk with no part
+
+- **Seen**: the showcase under `--reach 0`, 2026-10-25: of the originals' reading of a keystroke (1.9 to 2.4 ms), the intake's blocks and running elements are 1.4 to 1.6 ms, since `runningBoxes` asks the computed style of every element at any depth and takes no `keep`.
+- **Layer**: the engine, `src/driver.js` (`runningBoxes`).
+- **Fix**: the running elements of a top-level box as its part, through the same door.
+- **State**: OPEN (minor).
+
+### The unit of a kept part is the top-level box, and a Markdown document has few
+
+- **Seen**: the round *the originals keep their parts*, 2026-10-25: BelType's body articulates as nested `<section>` elements, so a document's top-level boxes are its outermost sections: the chrome fixture has 2 top-level nodes (its running element and one section), the specimen 7, the showcase 14 (13 blocks and a running element). A keystroke renders and reads again the whole chapter it stands in, under any reach.
+- **Layer**: the engine, `src/forcing-memo.js` (`keep` takes the top-level box) and the walks that ask it per top-level block; and this package, which renders per top-level node.
+- **Fix**: a part per box at a depth the host names, the engine's question; this package's per-node rendering would follow it down.
+- **State**: OPEN, a question for a later round.
+
 ## The studio's wiring
 
 ### Roundtrip's re-parse check cannot hold under structured marks
@@ -281,4 +323,4 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen**: by building the Ledger, 2026-10-25: the reads loop, the chrome of the pages an edit does not refill and the Ledger's rows need `ledger()` among the state's plugins, and the studio's mount (`src/fragmented.js`, line 171, beside `collapsedSpaces()`) does not install it, so under `?view=fragmented` the studio's pages show no `target-counter()` or `target-text()` value and keep their chrome on an edit, as before the round. The round measured the reads through the harness instead (docs/results.md, "The Ledger is state").
 - **Layer**: the studio's wiring, `src/fragmented.js`.
 - **Fix**: one line: `ledger()` from `prosemirror-beltype` among the plugins the mount adds.
-- **State**: OPEN; the studio was not edited by the round.
+- **State**: CLOSED 2026-10-25, studio f54ba3c: the mount installs `ledger()` beside `collapsedSpaces()`.

@@ -9,9 +9,11 @@
  * 2. `account(view)`, the Ledger's rows in the chain's order, in the shape of the driver's account (`accountOf`): `pos` the word position of the page's end, `cut.path[0]` the top-level block it stands in, `closes` the page's number, content box, counters and strings. Its `index` is the originals' own.
  * 3. `resume(view, at, ...)`, the loop's `resume.at` (the addresses, in the originals' position space, of the boxes whose lines a delivered value moved) mapped to the pages that hold them through the account's intervals (`pageIntervals`, `pageContaining`, the engine's own), and each such page and the one before it dirtied through the view's `dirtied`, earliest first: the driver restarts one page before the page holding the edit, since a cut reads what it pushed to the next page.
  *
- * THE LOOP SEATED (*the engine knows no view*, ruling 3: the loop is the engine's, `run` is the door). Once per document, after the view's update that started its first fill (`update`, through the Ledger's plugin view), `settleReads` runs with `blocksOf` the originals' blocks, `originals` the holder's children, the Ledger's warm tables, `hide` scoped to `beltype-page`, and `run` this object's: the first attempt is the chain as the view fills it for that state, awaited `settled`; a later one dirties the pages `resume.at` names and awaits `settled` again. Each returns `{ account, index, resumed, why }`. The settle is synchronous up to its first `await run`, so its delivery sheet and its reservations are adopted before the first trial of the state is measured (a fill measures after its first `await`). A newer document overtakes a settle: its pending `run` rejects, and since the loop delivers only after a `run` returns, an overtaken settle never writes again; its results are not recorded. The loop's result (`delivered`, `facts`, `resumed`, `why`, `reads`) is written into the Ledger by one transaction outside the history.
+ * THE LOOP SEATED (*the engine knows no view*, ruling 3: the loop is the engine's, `run` is the door). Once per document, after the view's update that started its first fill (`update`, through the Ledger's plugin view), `settleReads` runs with `blocksOf` the originals' blocks, `originals` the holder's children, the Ledger's warm tables, `hide` scoped to `beltype-page`, `keep` the engine memo's door the originals settled for the state (so the site search, the position index and the written facts take the parts of the top-level boxes the edit did not replace), and `run` this object's: the first attempt is the chain as the view fills it for that state, awaited `settled`; a later one dirties the pages `resume.at` names and awaits `settled` again. Each returns `{ account, index, resumed, why }`. The settle is synchronous up to its first `await run`, so its delivery sheet and its reservations are adopted before the first trial of the state is measured (a fill measures after its first `await`). A newer document overtakes a settle: its pending `run` rejects, and since the loop delivers only after a `run` returns, an overtaken settle never writes again; its results are not recorded. The loop's result (`delivered`, `facts`, `resumed`, `why`, `reads`) is written into the Ledger by one transaction outside the history.
  *
- * THE CHROME OF CLEAN PAGES (docs/found.md, "A page an edit does not refill keeps the chrome it was drawn with"). On a new document every clean page's interval, translated by the view's mapping, is read again off the new rendering (`stateOfPage`), and its row is staged for the next transaction on that document; a page whose counters, strings or running elements moved has its chrome redrawn without a refill (`drawChrome`), unless its strings moved and a flow site that reads a page fact stands on it (`Originals.sitesIn`), which is a line that may move, so the page is dirtied (`dirtied`, deferred to a microtask so the view's update is not re-entered). Counters are chrome (*the run resumes from an entry*: named strings, running elements and counters reach no cut).
+ * THE CHROME OF CLEAN PAGES (docs/found.md, "A page an edit does not refill keeps the chrome it was drawn with"). On a new document every clean page's interval, translated by the view's mapping, is read again off the new rendering (`stateOfPage`), and its row is staged for the next transaction on that document; a page whose counters, strings or running elements moved, by value or by a running element it places being replaced by one of other content (`runningPlaced`, `sameElements`), has its chrome redrawn without a refill (`drawChrome`), unless its strings moved and a flow site that reads a page fact stands on it (`Originals.sitesIn`), which is a line that may move, so the page is dirtied (`dirtied`, deferred to a microtask so the view's update is not re-entered). Counters are chrome (*the run resumes from an entry*: named strings, running elements and counters reach no cut).
+ *
+ * THE VIEW'S INVALIDATION. `invalidate()` releases every built container at once, which nothing else does (the window policy keeps the near ones built): the last release tells the originals to forget their rendering and its kept parts (`Originals.forget`), before the first new fill asks for them, so the conditions that moved are read afresh over a whole rendering.
  *
  * @packageDocumentation
  */
@@ -20,7 +22,7 @@ import { settleReads } from '@egildo/beltype-engine-cicero/src/reads.js';
 import { pageIntervals, pageContaining, elAt } from '@egildo/beltype-engine-cicero/src/positions.js';
 import { fragmentsKey, dirtied } from 'prosemirror-fragview';
 import { ledgerKey, keyOf, accountOf } from './ledger.js';
-import { stateOfPage } from './originals.js';
+import { stateOfPage, runningPlaced, sameElements } from './originals.js';
 import { parityAt } from './turn.js';
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
@@ -97,6 +99,8 @@ export class Chain {
   released(page) {
     if (page.key != null && this.pages.get(page.key) === page) this.pages.delete(page.key);
     if (this.byIndex.get(page.index) === page) this.byIndex.delete(page.index);
+    // Every live page released is the view's `invalidate()`, the one act that releases them all (the window policy keeps the near ones built): the conditions moved, so the originals forget their rendering and its kept parts before the first new fill asks for them.
+    if (!this.byIndex.size) this.originals.forget();
   }
 
   /** @param {CiceroPage} _page */
@@ -366,7 +370,7 @@ export class Chain {
       const facts = stateOfPage(state, start, end);
       const strings = !same(facts.strings, c.strings);
       if (strings && o.sitesIn(state, e.from, e.to)) { dirty.push(e.key); continue; }
-      const moved = strings || !same(facts.counters, c.counters) || !same(facts.running, c.running);
+      const moved = strings || !same(facts.counters, c.counters) || !same(facts.running, c.running) || !sameElements(runningPlaced(facts.running, state.boxes), runningPlaced(c.running, c.boxes));
       page.chrome = { ...facts, boxes: state.boxes, start, end, block: endAt?.block ?? null };
       if (moved) { page.drawChrome(); this.counts.redrawn++; }
       const row = this.rowOf(page, doc);
@@ -401,7 +405,8 @@ export class Chain {
       originals: [...o.holder().children],
       warm: value?.delivered ?? null,
       warmFacts: value?.facts ?? null,
-      hide: 'beltype-page'
+      hide: 'beltype-page',
+      keep: state.keep
     }).then((result) => {
       record.ms = performance.now() - record.started;
       record.result = { resumed: result.resumed, why: result.why, reads: result.reads, complete: result.complete };

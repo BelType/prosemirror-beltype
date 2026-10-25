@@ -1,4 +1,4 @@
-// usage: node scripts/specimen.mjs [target] [--headed] [--keep] [--bare] — the target is a path BelType's CLI takes, relative to its repository's root, `./test/specimen.md` by default; phase 1's measurement, one engine, two hosts, one answer. BelType's dev server serves the specimen under Cicero on a free port; Chromium opens it headless and waits for the CLI's round to be whole; every page the root presents is read (first and last visible word); then this package's harness is loaded from Vite into the same page, the view is mounted beside the root over the same served document and filled whole, and its pages are read the same way. Prints the pages side by side, the first difference, each page's chrome on both sides (every generated margin box's text, read as the browser laid out its `::before` and `::after` through a CDP DOM snapshot, with its slotted running element, and every flow element's generated text, a `target-counter()` read marked as the round 3 difference it is) and the state it is drawn from (each page's interval end in the engine's word positions, its counters, strings and running elements, the CLI's Ledger against the view's fills), what every divided piece's edges show on each side (its pseudo-elements' computed style), and the console's warnings on each side; docs/results.md records them. `--bare` takes every adopted sheet off the document after the CLI's pages are read and before the view is mounted, the CLI's root's among them, so the view is measured in a document no root has dressed.
+// usage: node scripts/specimen.mjs [target] [--headed] [--keep] [--bare] [--no-ledger] [--retitle 'old=>new'] [--edits 'key:3;delete:2;paste;start;end;retitle:old=>new'] [--keys page:n] [--reach 0|1|2] — the target is a path BelType's CLI takes, relative to its repository's root, `./test/specimen.md` by default; phase 1's measurement, one engine, two hosts, one answer. BelType's dev server serves the specimen under Cicero on a free port; Chromium opens it headless and waits for the CLI's round to be whole; every page the root presents is read (first and last visible word); then this package's harness is loaded from Vite into the same page, the view is mounted beside the root over the same served document and filled whole, and its pages are read the same way. Prints the pages side by side, the first difference, each page's chrome on both sides (every generated margin box's text, read as the browser laid out its `::before` and `::after` through a CDP DOM snapshot, with its slotted running element, and every flow element's generated text, a `target-counter()` read marked as the round 3 difference it is) and the state it is drawn from (each page's interval end in the engine's word positions, its counters, strings and running elements, the CLI's Ledger against the view's fills), what every divided piece's edges show on each side (its pseudo-elements' computed style), and the console's warnings on each side; docs/results.md records them. `--bare` takes every adopted sheet off the document after the CLI's pages are read and before the view is mounted, the CLI's root's among them, so the view is measured in a document no root has dressed. `--no-ledger` mounts the state without the Ledger plugin. `--retitle` and `--edits` edit the view's state by transactions (the harness's `editOf`), and compare each edited state with the view's fresh fill of it after `invalidate()`, which renders the originals whole: the pages' words, margin boxes and flow, each page's chrome state, the originals' reading and the delivered reads. `--keys page:n` types n characters on a page and prints each one's cost, then compares the same way. `--reach` settles the originals' memo under a reach of its own, whatever the sheets say, to measure what a host-side reading of the reach would keep. Every run prints the sheets' reach and the rules that give it.
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { createServer as createNetServer } from 'node:net';
@@ -14,7 +14,8 @@ const noLedger = process.argv.includes('--no-ledger');
 const opt = (name) => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : null);
 const retitle = opt('--retitle');
 const keys = opt('--keys');
-const target = process.argv.slice(2).find((a, i, all) => !a.startsWith('--') && !['--retitle', '--keys'].includes(all[i - 1])) ?? './test/specimen.md';
+const forcedReach = opt('--reach') == null ? null : Number(opt('--reach'));
+const target = process.argv.slice(2).find((a, i, all) => !a.startsWith('--') && !['--retitle', '--keys', '--reach', '--edits'].includes(all[i - 1])) ?? './test/specimen.md';
 
 /** The ports no measurement may take: the engine repository's preview seats, and the ones Egildo keeps for other work. */
 const launch = JSON.parse(readFileSync(`${BELTYPE}/.claude/launch.json`, 'utf8'));
@@ -124,13 +125,13 @@ try {
   const referenceDressing = await page.evaluate(() => window.__prosemirrorBeltype.dressingOf(window.__prosemirrorBeltype.rootPages()));
   const referenceChrome = await chromeOf('cli', 'window.__prosemirrorBeltype.rootPages()');
   const ledger = await page.evaluate(() => window.__prosemirrorBeltype.cliLedger());
-  const view = await page.evaluate(([bare, noLedger]) => window.__prosemirrorBeltype.mount({ bare, noLedger }), [bare, noLedger]);
+  const view = await page.evaluate(([bare, noLedger, reach]) => window.__prosemirrorBeltype.mount({ bare, noLedger, reach }), [bare, noLedger, forcedReach]);
   const viewChrome = await chromeOf('view', 'window.__prosemirrorBeltype.viewPagesOf()');
   const lateTruth = await page.evaluate(() => window.__lateTruth);
 
   const n = Math.max(reference.length, view.pages.length);
   const cell = (s) => (s == null ? '·' : `\`${s}\``);
-  console.log(`\n## ${target}${bare ? ' (bare)' : ''}${noLedger ? ' (no Ledger)' : ''}, ${reference.length} pages under the CLI, ${view.pages.length} under the view\n`);
+  console.log(`\n## ${target}${bare ? ' (bare)' : ''}${noLedger ? ' (no Ledger)' : ''}${forcedReach != null ? ` (the memo settled under reach ${forcedReach})` : ''}, ${reference.length} pages under the CLI, ${view.pages.length} under the view\n`);
   console.log(`The CLI's last \`run()\` call ${Math.round(cliMs)} ms (its bootstrap cuts the first screen, then the rest); the view's chain ${Math.round(view.ms)} ms over ${view.fills.length} fills; doc size ${view.docSize}.\n`);
   console.log('| Page | CLI first | CLI last | words | view first | view last | words | entry | fill | same |');
   console.log('| ---: | :-- | :-- | ---: | :-- | :-- | ---: | :-- | :-- | :-- |');
@@ -206,17 +207,17 @@ try {
   console.log(`\nConsole, CLI (${consoles.cli.length}):\n${unique(consoles.cli).map((m) => `  ${m.slice(0, 300)}`).join('\n')}`);
   console.log(`\nConsole, view (${consoles.view.length}):\n${unique(consoles.view).map((m) => `  ${m.slice(0, 300)}`).join('\n')}`);
   console.log(`\nLate truth taken from the rim after the reference: ${JSON.stringify(lateTruth)}`);
+  const reach = await page.evaluate(() => window.__prosemirrorBeltype.reachOf());
+  console.log(`\nThe sheets' reach (\`sheetReach\`): ${reach.reach}; ${reach.two} rule(s) of reach 2, ${reach.one} of reach 1${reach.first.length ? `, the first: ${reach.first.join(' | ')}` : ''}. The originals' last reading kept ${view.originals.at(-1)?.kept ?? 0} node(s) and rendered ${view.originals.at(-1)?.rendered ?? 0}; the memo's tally ${JSON.stringify(view.originals.at(-1)?.tally ?? {})}.`);
   console.log(`\n### The reads loop\n\nChain counts: ${JSON.stringify(view.counts)}`);
   console.log(JSON.stringify(view.reads, null, 1));
 
-  if (retitle) {
-    // The chrome on an edit: a heading retitled by a transaction, every page's margin boxes and flow read; then the view invalidated and its fresh fill of the same state read; the two compared page for page.
-    const [from, to] = retitle.split('=>');
-    const edit = await page.evaluate(([from, to]) => window.__prosemirrorBeltype.retitle(from, to), [from, to]);
+  /** Compare an edited state with the view's fresh fill of it after `invalidate()`, which renders the originals whole again: pages (words, margin boxes, flow), each page's chrome state, the originals' reading and the delivered reads. */
+  const compare = async (label, edit) => {
     const edited = await chromeOf('view', 'window.__prosemirrorBeltype.viewPagesOf()');
     const fresh = await page.evaluate(() => window.__prosemirrorBeltype.refillWhole());
     const freshChrome = await chromeOf('view', 'window.__prosemirrorBeltype.viewPagesOf()');
-    console.log(`\n### Retitled \`${from}\` to \`${to}\` at ${edit.at}\n\nSettled: ${edit.settled}, ${Math.round(edit.ms)} ms. Pages redrawn without a refill: ${edit.redrawn}; dirtied for a flow site: ${edit.dirtied}; fills: ${edit.refilled.length} (pages ${edit.refilled.join(', ') || 'none'}). The fresh fill after \`invalidate()\`: ${fresh.fills} fills, settled ${fresh.settled}, late fills ${JSON.stringify(fresh.late)}.\n`);
+    console.log(`\n### ${label}\n\nSettled: ${edit.settled}, ${Math.round(edit.ms)} ms. Pages redrawn without a refill: ${edit.redrawn ?? '·'}; dirtied for a flow site: ${edit.dirtied ?? '·'}; fills: ${edit.refilled?.length ?? '·'} (pages ${edit.refilled?.join(', ') || 'none'}). The originals' last reading: ${edit.originals ? `${edit.originals.rendered} node(s) rendered, ${edit.originals.kept} kept, reach ${edit.originals.reach}, tally ${JSON.stringify(edit.originals.tally)}` : '·'}. The fresh fill after \`invalidate()\`: ${fresh.fills} fills, settled ${fresh.settled}, late fills ${JSON.stringify(fresh.late)}, the originals ${fresh.originals.rendered} node(s) rendered whole.\n`);
     console.log('| Page | after the edit: words, margin boxes, flow | the fresh fill | same |');
     console.log('| ---: | :-- | :-- | :-- |');
     let sameAll = 0;
@@ -229,10 +230,23 @@ try {
       const show = (p, c) => (p ? `${p.count} words, ${boxText(c?.boxes)}; flow ${c?.flow.map((f) => f.text).join(' ') || '∅'}` : '·');
       console.log(`| ${i + 1} | ${show(a, ca)} | ${same ? '=' : show(b, cb)} | ${same ? 'yes' : '**no**'} |`);
     }
-    console.log(`\nThe edited chain and the fresh fill agree on ${sameAll} of ${m} pages (words, margin boxes, flow generated content).`);
+    const eq = (x, y) => JSON.stringify(x) === JSON.stringify(y);
+    const chromeSame = edit.state.chrome.filter((c, i) => eq(c, fresh.state.chrome[i])).length;
+    const parts = Object.keys(edit.state.originals).filter((k) => !eq(edit.state.originals[k], fresh.state.originals[k]));
+    console.log(`\nThe edited chain and the fresh fill agree on ${sameAll} of ${m} pages (words, margin boxes, flow generated content); each page's state (start, end, block, counters, strings, running) on ${chromeSame} of ${Math.max(edit.state.chrome.length, fresh.state.chrome.length)}; the originals' reading ${parts.length ? `**differs** in ${parts.join(', ')}` : 'the same in bases, total, the counter log, strings, running elements, page sites and every entry\'s word addresses'}; the delivered reads ${eq(edit.state.delivered, fresh.state.delivered) ? 'the same' : '**differ**'}.`);
+    for (const k of parts) console.log(`  ${k}: edited ${JSON.stringify(edit.state.originals[k]).slice(0, 300)} / fresh ${JSON.stringify(fresh.state.originals[k]).slice(0, 300)}`);
     console.log(JSON.stringify(edit.reads?.settles.at(-1)));
     console.log(JSON.stringify(fresh.reads?.settles.at(-1)));
-    console.log(`\nThe edit's fills:\n${edit.detail.map((f) => `  ${JSON.stringify(f)}`).join('\n')}\nThe fresh fill's:\n${fresh.detail.map((f) => `  ${JSON.stringify(f)}`).join('\n')}`);
+    console.log(`\nThe edit's fills:\n${(edit.detail ?? []).map((f) => `  ${JSON.stringify(f)}`).join('\n')}\nThe fresh fill's:\n${fresh.detail.map((f) => `  ${JSON.stringify(f)}`).join('\n')}`);
+  };
+
+  // The edits, each by a transaction, each compared with the fresh fill of the state it made: `--retitle old=>new` (a heading), `--edits 'key:3;delete:2;paste;start;end'` (editOf in the harness).
+  const edits = [...(retitle ? [`retitle:${retitle}`] : []), ...(opt('--edits') ?? '').split(';').filter(Boolean)];
+  for (const e of edits) {
+    const [kind, ...rest] = e.split(':');
+    const arg = rest.join(':');
+    const done = await page.evaluate(([kind, arg]) => window.__prosemirrorBeltype.edit(kind, arg), [kind, arg]);
+    await compare(kind === 'retitle' ? `Retitled \`${arg.split('=>')[0]}\` to \`${arg.split('=>')[1]}\` at ${done.at}` : `Edit \`${e}\` at ${done.at}`, done);
   }
 
   if (keys) {
@@ -240,6 +254,8 @@ try {
     const typed = await page.evaluate(([p, n]) => window.__prosemirrorBeltype.keystrokes(p, n), [pageNo, n]);
     console.log(`\n### ${n} keystrokes on page ${pageNo}\n`);
     for (const t of typed) console.log(`  ${JSON.stringify(t)}`);
+    const state = await page.evaluate(() => window.__prosemirrorBeltype.stateOf());
+    await compare(`After the ${n} keystrokes`, { settled: true, ms: 0, pages: await page.evaluate(() => window.__prosemirrorBeltype.readPages(window.__prosemirrorBeltype.viewPagesOf())), state });
   }
   if (process.argv.includes('--keep')) await new Promise(() => {});
 } finally {

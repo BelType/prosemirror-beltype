@@ -231,9 +231,9 @@ async function quiet(view, factory, { settleMs = 300, timeoutMs = 120000, starte
 
 /**
  * Mount the view beside the root, the root hidden, and wait for the chain to fill whole and the reads loop to settle. `bare` first takes every sheet the document has adopted off it, the CLI's root's among them, so the view is measured in a document no root has dressed, as it is in a host that runs none. `noLedger` mounts the state without the Ledger plugin, as round 1 did: no reads loop, no chrome on an edit.
- * @param {{ settleMs?: number, timeoutMs?: number, bare?: boolean, noLedger?: boolean }} [options]
+ * @param {{ settleMs?: number, timeoutMs?: number, bare?: boolean, noLedger?: boolean, reach?: 0 | 1 | 2 | null }} [options]
  */
-export async function mount({ settleMs = 300, timeoutMs = 120000, bare = false, noLedger = false } = {}) {
+export async function mount({ settleMs = 300, timeoutMs = 120000, bare = false, noLedger = false, reach = null } = {}) {
   const removed = bare ? adoptedSheets() : [];
   if (bare) document.adoptedStyleSheets = [];
   /** @type {any[]} */
@@ -249,6 +249,8 @@ export async function mount({ settleMs = 300, timeoutMs = 120000, bare = false, 
   document.head.appendChild(style);
   const restored = restoreMarginContent();
   const factory = ciceroContainers(document);
+  // `--reach N`: the memo settled under N whatever the sheets say, to measure what a host-side reading of the reach would keep (docs/found.md, the engine's `sheetReach` and this host's unit of replacement).
+  if (reach != null) factory.originals.reachOf = () => reach;
   const started = performance.now();
   const containers = Object.assign((/** @type {number} */ index, /** @type {any} */ hint, /** @type {any} */ entries) => {
     const page = factory(index, hint, entries);
@@ -291,29 +293,79 @@ export function readsOf() {
 }
 
 /**
- * Retitle a heading by a transaction on the view, and wait for the chain and the loop: the counts of pages redrawn without a refill, dirtied for a flow site, and fills, before and after.
- * @param {string} from The heading's text.
- * @param {string} to
+ * The transaction of one edit on the view's state, and the position it acts at: `retitle` a heading's text (`from=>to`), `key` a character typed in the first paragraph of page `arg`, `delete` the first paragraph of page `arg` removed whole, `paste` two paragraphs inserted between the first two top-level nodes, `start` a character typed at the document's first text and `end` at its last.
+ * @param {any} view
+ * @param {string} kind
+ * @param {string} [arg]
+ * @returns {{ tr: any, at: number }}
  */
-export async function retitle(from, to) {
+function editOf(view, kind, arg = '') {
+  const { doc } = view.state;
+  /** @type {{ node: any, pos: number }[]} */
+  const blocks = [];
+  doc.descendants((/** @type {any} */ node, /** @type {number} */ pos) => { if (node.isTextblock) { blocks.push({ node, pos }); return false; } return true; });
+  const paragraph = (/** @type {{ node: any }} */ b) => b.node.type.name === 'paragraph' || b.node.type.name === 'p' || /^p$/i.test(b.node.attrs?.tag ?? '');
+  const onPage = (/** @type {number} */ n) => { const e = view.entries[n - 1]; return blocks.find((b) => paragraph(b) && b.pos >= e.from && b.node.textContent.length > 8); };
+  if (kind === 'retitle') {
+    const [from, to] = arg.split('=>');
+    const b = blocks.find((x) => x.node.textContent === from);
+    if (!b) throw new Error(`no textblock reads "${from}"`);
+    return { tr: view.state.tr.insertText(to, b.pos + 1, b.pos + 1 + from.length), at: b.pos + 1 };
+  }
+  if (kind === 'key') { const b = /** @type {any} */ (onPage(Number(arg))); const at = b.pos + 1 + b.node.textContent.indexOf(' '); return { tr: view.state.tr.insertText('x', at), at }; }
+  if (kind === 'delete') { const b = /** @type {any} */ (onPage(Number(arg))); return { tr: view.state.tr.delete(b.pos, b.pos + b.node.nodeSize), at: b.pos }; }
+  if (kind === 'paste') {
+    const like = /** @type {any} */ (blocks.find(paragraph)).node;
+    const at = doc.child(0).nodeSize;
+    const made = ['Pasted, the first of two paragraphs, with a few words in it.', 'Pasted, the second, a little longer than the first so it runs on.'].map((t) => like.type.create(like.attrs, view.state.schema.text(t)));
+    return { tr: view.state.tr.insert(at, made), at };
+  }
+  if (kind === 'start') { const at = blocks[0].pos + 1; return { tr: view.state.tr.insertText('x', at), at }; }
+  if (kind === 'end') { const b = /** @type {any} */ (blocks.at(-1)); const at = b.pos + 1 + b.node.content.size; return { tr: view.state.tr.insertText('x', at), at }; }
+  throw new Error(`no edit named "${kind}"`);
+}
+
+/**
+ * What the comparison of an edited state with its fresh fill reads beside the pages: the originals' reading (the position index's bases, the counter log, the strings and running elements assigned, the page sites, every entry's interval as word addresses), each live page's chrome state, and the delivered reads.
+ */
+export function stateOf() {
+  const { view, factory } = mounted;
+  const o = factory.originals;
+  const s = o.state;
+  const ledgerState = ledgerKey.getState(view.state);
+  const pages = view.fragments.map((/** @type {any} */ f) => f.container).filter(Boolean);
+  return {
+    originals: { bases: s.index.bases, total: s.index.total, ops: JSON.stringify(s.ops), strings: s.strings, running: s.running, boxes: s.boxes.map((/** @type {any} */ b) => b.name), sites: s.sites, addresses: view.entries.map((/** @type {any} */ e) => [o.addressAt(s, e.from), e.to == null ? null : o.addressAt(s, e.to)]) },
+    chrome: pages.map((/** @type {any} */ p) => p.chrome && { start: p.chrome.start, end: p.chrome.end, block: p.chrome.block, counters: p.chrome.counters, strings: p.chrome.strings, running: p.chrome.running }),
+    delivered: ledgerState?.delivered ? [...ledgerState.delivered].map(([k, m]) => [k, [...m]]) : null
+  };
+}
+
+/**
+ * Edit by a transaction on the view (`editOf`), and wait for the chain and the loop: the counts of pages redrawn without a refill, dirtied for a flow site, and fills, before and after, the pages read, and the state read (`stateOf`).
+ * @param {string} kind
+ * @param {string} [arg]
+ */
+export async function edit(kind, arg) {
   const { view, factory, fills } = mounted;
-  /** @type {number | null} */
-  let at = null;
-  view.state.doc.descendants((/** @type {any} */ node, /** @type {number} */ pos) => {
-    if (at == null && node.isTextblock && node.textContent === from) at = pos + 1;
-    return at == null;
-  });
-  if (at == null) throw new Error(`no textblock reads "${from}"`);
+  const { tr, at } = editOf(view, kind, arg);
   const before = { ...factory.chain.counts, fills: fills.length };
   const t0 = performance.now();
-  view.dispatch(view.state.tr.insertText(to, at, at + from.length));
+  view.dispatch(tr);
   const settled = await quiet(view, factory, { started: t0 });
   const after = { ...factory.chain.counts, fills: fills.length };
   const refilled = fills.slice(before.fills).map((/** @type {any} */ f) => f.index + 1);
   const detail = fills.slice(before.fills).map((/** @type {any} */ f) => ({ page: f.index + 1, from: f.from, to: f.to, name: f.name, forced: f.forced, kind: f.kind, cls: f.cls, pageStart: f.pageStart && Math.round(f.pageStart * 100) / 100 }));
   viewPages = view.fragments.map((/** @type {any} */ f) => f.container?.dom).filter(Boolean);
-  return { at, settled, ms: performance.now() - t0 - 300, redrawn: after.redrawn - before.redrawn, dirtied: after.dirtied - before.dirtied, refilled, detail, pages: readPages(view.fragments.map((/** @type {any} */ f) => f.container?.dom).filter(Boolean)), reads: readsOf() };
+  return { at, settled, ms: performance.now() - t0 - 300, redrawn: after.redrawn - before.redrawn, dirtied: after.dirtied - before.dirtied, refilled, detail, pages: readPages(viewPages), reads: readsOf(), state: stateOf(), originals: factory.originals.timings.at(-1) };
 }
+
+/**
+ * Retitle a heading by a transaction on the view (`edit('retitle', 'from=>to')`).
+ * @param {string} from The heading's text.
+ * @param {string} to
+ */
+export const retitle = (from, to) => edit('retitle', `${from}=>${to}`);
 
 /** Invalidate the view and wait for its fresh fill of the same state. */
 export async function refillWhole() {
@@ -330,7 +382,7 @@ export async function refillWhole() {
   const pages = view.fragments.map((/** @type {any} */ f) => f.container?.dom).filter(Boolean);
   viewPages = pages;
   const detail = fills.slice(before).map((/** @type {any} */ f) => ({ page: f.index + 1, from: f.from, to: f.to, name: f.name, forced: f.forced, kind: f.kind, cls: f.cls, pageStart: f.pageStart && Math.round(f.pageStart * 100) / 100 }));
-  return { settled, fills: fills.length - before, late, detail, pages: readPages(pages), reads: readsOf() };
+  return { settled, fills: fills.length - before, late, detail, pages: readPages(pages), reads: readsOf(), state: stateOf(), originals: factory.originals.timings.at(-1) };
 }
 
 /**
@@ -361,4 +413,26 @@ export async function keystrokes(pageNo, n) {
   return out;
 }
 
-Object.assign(window, { __prosemirrorBeltype: { wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount, tagChrome, untagChrome, cliLedger, viewPagesOf, readsOf, retitle, refillWhole, keystrokes } });
+
+/**
+ * The sheets' reach as the engine reads it (`sheetReach`), and the rules that give it: each rule whose selector holds `:has(`, an `@container` rule, a sheet that cannot be read (reach 2), or a sibling combinator or `:nth-…(… of …)` (reach 1), with its sheet's address; the first few of each.
+ */
+export function reachOf() {
+  /** @type {{ two: string[], one: string[] }} */
+  const out = { two: [], one: [] };
+  const where = (/** @type {CSSStyleSheet} */ sheet) => sheet.href ?? (sheet.ownerNode ? `<${sheet.ownerNode.nodeName.toLowerCase()}${/** @type {Element} */ (sheet.ownerNode).id ? ` id=${/** @type {Element} */ (sheet.ownerNode).id}` : ''}>` : 'adopted');
+  const inRules = (/** @type {CSSRuleList} */ rules, /** @type {string} */ at) => {
+    for (const rule of /** @type {Iterable<any>} */ (rules)) {
+      const text = rule.selectorText;
+      if (rule.constructor?.name === 'CSSContainerRule' || text?.includes(':has(')) out.two.push(`${at}: ${text ?? '@container'}`);
+      else if (text && (/:nth-[\w-]+\([^)]*\sof\s/.test(text) || /[+~]/.test(text.replace(/\[[^\]]*\]/g, '').replace(/:nth-[\w-]+\([^)]*\)/g, '')))) out.one.push(`${at}: ${text}`);
+      if (rule.cssRules) inRules(rule.cssRules, at);
+      if (rule.styleSheet) inSheet(rule.styleSheet);
+    }
+  };
+  const inSheet = (/** @type {CSSStyleSheet} */ sheet) => { try { inRules(sheet.cssRules, where(sheet)); } catch { out.two.push(`${where(sheet)}: unreadable`); } };
+  for (const sheet of [...document.styleSheets, ...document.adoptedStyleSheets]) inSheet(sheet);
+  return { reach: out.two.length ? 2 : out.one.length ? 1 : 0, two: out.two.length, one: out.one.length, first: [...out.two, ...out.one].slice(0, 8) };
+}
+
+Object.assign(window, { __prosemirrorBeltype: { wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount, tagChrome, untagChrome, cliLedger, viewPagesOf, readsOf, retitle, edit, stateOf, refillWhole, keystrokes, reachOf } });

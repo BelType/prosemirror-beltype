@@ -42,7 +42,7 @@ import { presentation } from '@egildo/beltype-engine-cicero/src/presenters.js';
 import '@egildo/beltype-engine-cicero/src/chase.js';
 import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition, wholeAfter, advances, inFlowStart } from './turn.js';
 import { Positions, nodeDom, nodeStart, continueAsShell, endAsShell, seatPieces, shellsOf, endsOf, pinTracks } from './shells.js';
-import { stateOfPage } from './originals.js';
+import { stateOfPage, runningPlaced, sameElements } from './originals.js';
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
 /** @import { FillResult, RenderedSlice, SliceRenderer, ContainerHint } from 'prosemirror-fragview/src/fragmentainer.js' */
@@ -144,6 +144,8 @@ export class CiceroPage {
     this.chrome = null;
     /** What the chrome was last drawn with, so a redraw that would change nothing does nothing. */
     this.chromeKey = '';
+    /** The running elements the chrome last placed (`runningPlaced`). @type {(Element | null)[]} */
+    this.chromePlaced = [];
     /** The margin boxes the chrome last drew, so a page whose name changed clears the ones it no longer has. @type {string[]} */
     this.boxesDrawn = [];
     /** The light children the chrome added (a running element's slot), which are not the page's content. @type {Set<Element>} */
@@ -276,8 +278,11 @@ export class CiceroPage {
     const boxes = /** @type {Record<string, string>} */ (/** @type {any} */ (this.conditions).marginBoxes ?? {});
     const plan = Object.entries(boxes).map(([box, value]) => /** @type {[string, ReturnType<typeof transliterateContent>]} */ ([box, transliterateContent(value, { pagesKnown: total != null })]));
     const key = JSON.stringify([this.conditions.name, this.blank, plan, this.index, total, c.counters, c.strings, c.running]);
-    if (key === this.chromeKey) return;
+    // The running elements it places: an edit inside one keeps its index in the list and replaces its element (`runningPlaced`, `sameElements`).
+    const placed = runningPlaced(c.running, c.boxes);
+    if (key === this.chromeKey && sameElements(placed, this.chromePlaced)) return;
     this.chromeKey = key;
+    this.chromePlaced = placed;
     this.dom.dress(this.conditions.pageStyle ?? null, Object.fromEntries(plan.map(([box, t]) => [box, t && { before: t.before, after: t.after }])));
     this.dom.setCounters(c.counters, { page: this.index + 1, pages: total });
     this.dom.setStrings(c.strings);
