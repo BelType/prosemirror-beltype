@@ -8,7 +8,7 @@
  *
  * The Cicero page's host wears the engine's dressing, and not the view's continuation sheet (`continuationSheet` in prosemirror-fragview): the engine's rules are keyed on the engine's words at every depth and `!important`, and what a divided box shows at its edges is the engine's to say, so the factory ensures the words sheet (`ensureDressing`, which the measure context also seats) and the continuation dressing (`ensureContinuationDressing`, the five rules that withhold a resumed piece's `::before`, `::marker`, `::first-letter` and `::first-line` and a cut-off piece's `::after`) as it checks the render conditions. No root runs under the view, so nothing else adopts them (docs/found.md, "Resumed pieces wear no dressing sheet", closed 2026-10-25).
  *
- * No reads in this phase: a page carries no folio, no `counter(pages)`, no named strings and no running element in its margins, and the author's counters are not delivered at its start (`setCounters` with `page N` is phase 2's, docs/plan.md). The table is read from the document's sheets as the host left them; a host that rewrote its sheets for Cicero (`rewriteDocumentSheets`) has done so before the factory is made.
+ * The page wears its chrome (phase 2's first round, docs/results.md, "The page wears its chrome"): the factory owns the chain's one rendering of the whole state (`Originals`, `originals.js`), from which every page reads its counters at its first word, its named strings and running elements over its interval, and the chain's total once a page runs to the document's end; the factory hands it to every page and exposes it as `originals` on the function it returns. The reads loop around the view (`settleReads`) and `target-counter()` are not here: phase 2's second and third rounds. The table is read from the document's sheets as the host left them, its margin boxes' `content` included; a host that rewrote its sheets for Cicero (`rewriteDocumentSheets`) has done so before the factory is made, and a host whose root presented the document first has had that `content` cleared (`neutralizeMarginBoxes`) and passes the table it read before (`options.table`).
  *
  * @packageDocumentation
  */
@@ -18,6 +18,7 @@ import { ensureContinuationDressing, ensureDressing } from '@egildo/beltype-engi
 import { assertRenderConditions } from '@egildo/beltype-engine-cicero/src/measure.js';
 import { present } from '@egildo/beltype-engine-cicero/src/presenters.js';
 import { CiceroPage } from './cicero-page.js';
+import { Originals } from './originals.js';
 
 /** @import { ContainerFactory } from 'prosemirror-fragview/src/fragmentainer.js' */
 
@@ -26,7 +27,7 @@ import { CiceroPage } from './cicero-page.js';
  * @param {object} [options]
  * @param {ReturnType<typeof readGeometryTable>} [options.table] A geometry table the host already read; read from the document when omitted.
  * @param {boolean} [options.relaxDpr] Pass the engine's render-condition check at a device pixel ratio other than 1, as the CLI's preview does (I5); the default.
- * @returns {ContainerFactory}
+ * @returns {ContainerFactory & { originals: Originals }}
  */
 export function ciceroContainers(document = globalThis.document, { table, relaxDpr = true } = {}) {
   assertRenderConditions(document, { relaxDpr });
@@ -35,7 +36,8 @@ export function ciceroContainers(document = globalThis.document, { table, relaxD
   registerGcpmProperties(/** @type {any} */ (document.defaultView));
   const geometry = table ?? readGeometryTable(document);
   const intake = () => takeFacsimile(document);
-  return (index, hint) => new CiceroPage({ table: geometry, index, hint, document, intake });
+  const originals = new Originals(document);
+  return Object.assign((/** @type {number} */ index, /** @type {any} */ hint) => new CiceroPage({ table: geometry, index, hint, document, intake, originals }), { originals });
 }
 
 /** The selector of the elements the facsimile presents, as the one-round host's intake asks it (`seam/client.js`, `PDF_OBJECT`). */

@@ -571,3 +571,115 @@ No warning from the view on any fixture; the multicol fixture's `info` is the en
 - **The view's selection over a click** (docs/found.md, "A refill redraws the model's selection over a click not yet read") is the view's, and open: no refill happens while nobody types now, so it waits for a legitimate late `moved` during a click.
 - **A node test**: the observer's judgement needs a `ResizeObserver` and a page that fills; the page's constructor needs the engine's `<beltype-page>`. `scripts/idle.mjs` is the check.
 - **A page scaled by a transform, or a node in a vertical writing mode**, would make the recorded `getBoundingClientRect().height` and the observer's `blockSize` disagree and loop again; neither occurs in the studio or the fixtures.
+
+## The page wears its chrome
+
+Written 2026-10-25, on the branch `round/the-page-wears-its-chrome`, phase 2's first round, for docs/found.md's "No folios, running heads, strings or author counters". Run it again with `npm test` (30 tests, in node, 5 of them the chrome's), `node scripts/specimen.mjs <absolute path>` and `node scripts/specimen.mjs <absolute path> --bare` on each fixture under `fixtures/`, on `./test/specimen.md` and on the studio's `demos/showcase/index.html` (the CLI round is the reference), and, with the studio's dev server started on a free port (`npx vite --port <port> --strictPort` in the studio), the studio's `node scripts/fragview-pages.mjs --demo <demo> --url <its url> --out <a file outside the studio>` on `showcase`, `quiet-press`, `report`, `manuale`, `facsimile` and `bolletta`, and once more on `showcase` with `--query schema=studio`.
+
+### What was built
+
+| Module | Lines | What it is |
+| :--- | ---: | :--- |
+| `src/originals.js` | 219 | `Originals`, the chain's one rendering of the whole state, the factory's: the view's renderer renders the document into a hidden holder once per state (`of`), and the driver's intake reads it, `topLevelBlocks` and `runningBoxes` asked of a stand-in whose `body` is the holder, `indexBlocks` over the blocks, `documentOpsOf` with the computed style and `html` and `body` as the ancestors, each running element logged where the flow resumed after it, the string and running assignments, and the model positions of the flow sites that read a page fact (`findPageSites`). The pure parts are exported and pinned in node: `wordsBeforePoint` and `wordPositionOf` (the mapping, below), `stateOfPage` (a page's counters at its first word, its strings and running elements over its interval) and `totalAfter` (the page total). `settle` moves the total when a page answers and has every other live page redraw its chrome. |
+| `src/cicero-page.js` | 850 | `fill` wraps the cut, which is phase 1's `fill` renamed `cutOnce` and unchanged but for the measure container: the page's state is read off the originals, the trial wears what the page publishes (`publishOf`: `page N`, `pages T` once known, every string's four properties), and a page whose interval reads its strings otherwise than the trial wore and on which a flow site stands is cut again under its own values, twice at most. Then `drawChrome`, the root's `#chrome`: `dress` with each margin box's `content` transliterated (`transliterateContent`, `pagesKnown` while the total is known), `setCounters(counters, { page: index + 1, pages })`, `setStrings`, `setMarginBox` with each running element a copy of the originals' (`runningPart`), `layoutBands`. A redraw that would change nothing does nothing, and every dress `conditionsFor` makes forgets what the chrome was drawn with. |
+| `src/containers.js` | 69 | The factory makes the `Originals`, hands it to every page and exposes it as `originals` on the function it returns. |
+| `harness/specimen.js`, `scripts/specimen.mjs` | 259, 203 | The chrome read on both sides: the margin boxes' `content` the CLI's root clears put back first (an init script records each one, `restoreMarginContent` writes them back before the factory reads the table); every generated margin box and every flow element with generated content inked on the page tagged, and the text the browser laid out for its `::before` and `::after` read through a CDP DOM snapshot, since a counter's text is in no DOM; a slotted running element read as text, and said when it lays out no box; the CLI's Ledger beside the view's fills (each page's end in word positions, its counters, strings and running elements). A `target-counter()` read is marked round 3's known difference, a difference on a page whose words differ the cut's. |
+| `fixtures/chrome/` | 1 257 words | The flow fixture's 110 × 150 mm page wearing every kind of chrome the chain answers: `counter(page) " / " counter(pages)` at the foot; a chapter string set from `h2` and read as `string(chapter) " · " string(chapter, start)` in `@top-right`, `first-except` in `@top-center` and `last` at the inner foot, with `:first` clearing the head; `body { counter-reset: chapter }`, `h2 { counter-increment: chapter }`, the counter read at the outer foot (`"Ch. " counter(chapter, upper-roman)`) and in the flow (`h2::before`); a running element written at the start and again in chapter IV, in `@top-left`; two flow sites, `string(chapter)` and `counter(page)`, in six chapters, three of which open a page. |
+
+### The originals, and why one rendering
+
+Counters, strings and running elements are CSS, so the state at a cut is a question about computed style, and the driver answers it once at intake with the source in its real ancestor chain. The view has no source in the document: its pages hold slices, and a slice's ancestors are partial copies. So the factory keeps one rendering of the whole state, made by the same slice renderer the pages are filled with (so the elements the engine reads are the ones a page shows), hidden in a holder that is a child of `body`, so `body`'s and `html`'s own rules apply to its blocks as they apply to the source's: the showcase's `body { counter-reset: family }` is in force on page one, read at position −1 from `body` itself. It is made when a page first fills a state the object has not seen, and kept for every other page of that state, so a chain of 74 fills reads it once.
+
+The name is the engine's: `paginate`'s `originals` is every top-level box the intake took, and the reads loop of the next round will ask the same object. Egildo names it finally.
+
+### The mapping
+
+A page knows `from` and `to` as model positions, and the engine's state is ordered by the flat word position of its index. The renderer's map turns a model position into a DOM point of the originals (`pointAt`); the point is climbed to the holder's child that holds it, a block or not; and the word position is the block's base (`index.bases[b]`) plus the words of the block wholly before the point, tokenized as the engine's `indexBlock` tokenizes it, fixed boxes and running elements skipped at any depth, a point inside a word counted as that word's (`wordsBeforeChar`'s rule). A point between blocks, or in a top-level running element, is the next block's base; past the last block it is the index's total.
+
+So a Class A cut before a box, which the view enters down the box's first-child chain, is the words before the box, the driver's `posOfCut` of a bare path; a Class B cut mid-paragraph, the position of the first character the next line shows, is that line's first word, the driver's `wordsBefore(leaf) + word`; a painted shell's `to`, the box's own position, is the words before it; a blank shell's, after the box, the words before what follows. A running element has no word: it is logged at the position of the first word after it, `index.bases[block] + wordsBefore(next)`, the driver's `runningPosition`.
+
+Measured: every page's end on every fixture, the specimen and the showcase's first 49 pages equals the CLI's `entry.pos`, and every page's counters, strings and running elements equal its `closes`; the chrome fixture's nine Class B pages and three Class A, and the flow fixture's 26 pages, cut mid-paragraph and between boxes.
+
+### The page total
+
+The view says the chain is complete when a fill answers `to: null`: it drops every entry after that one, and it fills the first dirty entry first, so every page before it has filled. `totalAfter` is the arithmetic: a page that runs to the end makes the total its index plus one; the last page known cutting again makes it blank, since a later page must end the chain; any other answer leaves it. Until then every page's `counter(pages)` is `""` (`transliterateContent` with `pagesKnown` false) and its host resets no `pages`, as the CLI's `run({ until })` leaves the total blank until the document is complete; when it moves every live page draws its chrome again, `setCounters` with the total and the plan transliterated with `pagesKnown`, without a refill.
+
+### The measure container, measured with and without
+
+The engine's measure context has the door: `createMeasureContext(doc, w).measure(nodes, publish)` writes a page's published values on the container (`publishOn`), which the driver uses for the facts the run before it decided. The page's strings are a reading of its interval, which the cut decides, so the first trial wears the entry values (or the last fill's, where the page filled before), and a page on which a flow site stands is cut again when its own interval reads them otherwise. The chrome fixture's pages 3, 9, 12 and 15 were cut twice (a chapter that opens the page with a flow site on it); no other page of any fixture, the specimen or the showcase was.
+
+| Document | With the published values | Without |
+| :--- | :--- | :--- |
+| `fixtures/chrome` | 16 of 16 the same | first difference page 10: 87 words against 88, and page 13 91 against 92 |
+| the showcase against the CLI | page 25 222 words to `name.`, the CLI's; page 26 189 | page 25 233 words to `the`, page 26 166 |
+
+The brief asked page 25 to hold 245. That is the old path's count, not the CLI's: the CLI's page 25 holds 222 words and ends at `name.`, and the view's now does too. The old path, and the view under the studio's own schema, draw the page's first paragraph without the three `<code>` elements the source holds, 3 px shorter (docs/found.md, the studio's entry), so the witness's page 25 holds 245, and under `schema=studio` the view gives 245 with the string delivered (256 before). Under the generic ground before the round the view's page 25 was 245 by chance: the empty string shortened its line by what the `<code>` lines had lengthened it.
+
+### Parity
+
+`node scripts/specimen.mjs`, the CLI round against the view in one page, after the round (3800dfb, 9b90285); "margin boxes" is the generated boxes' laid-out text, page for page, with the CLI's count of boxes read; "state" is each page's end, counters, strings and running elements against the CLI's Ledger. Every row is the same under `--bare`.
+
+| Document | CLI | View | Same | First difference | Margin boxes (read) | State | Flow generated content |
+| :--- | ---: | ---: | ---: | :--- | :--- | :--- | :--- |
+| `test/specimen.md` | 9 | 9 | 9 | none | 9 of 9 (24) | none differs | 19 sites, the same; under `--bare` 15 `target-counter()` reads blank on the view, pages 1 to 3 |
+| `fixtures/flow` | 26 | 26 | 26 | none | no box declared | none differs | none |
+| `fixtures/tall` | 10 | 10 | 10 | none | no box declared | none differs | 1 site, the same |
+| `fixtures/end-gap` | 6 | 6 | 6 | none | no box declared | none differs | none |
+| `fixtures/row` | 13 | 13 | 13 | none | no box declared | none differs | none |
+| `fixtures/multicol` | 6 | 6 | 6 | none | no box declared | none differs | none |
+| `fixtures/running` | 13 | 13 | 13 | none | 13 of 13 (26) | none differs | none |
+| `fixtures/facsimile` | 5 | 5 | 5 | none | no box declared | none differs | 1 site, the same |
+| `fixtures/dressing` | 11 | 11 | 11 | none | no box declared | none differs | 2 sites, the same |
+| `fixtures/chrome` | 16 | 16 | 16 | none | 16 of 16 (94) | none differs | 15 sites, the same |
+| the showcase | 76 | 74 | 53 | page 50 | 65 of 76 (216), first difference page 18 | first difference page 50 | 194 sites; 2 `target-counter()` reads, 33 on pages that hold other words |
+
+The running fixture's two running elements now stand in `@top-left` and `@bottom-left` on all 13 view pages, each laying out a box. The chrome fixture page by page, the same on both sides: page 1 the head cleared by `:first`, `Folios` at the inner foot, `1 / 16`, `Ch. 0`; page 2 `Folios` in all three readings and `Ch. I`; page 3, where chapter II opens the page, `first-except` empty, `Strings · Strings`; page 10, the first after the second mark is written, `The second mark` in `@top-left` to page 16; page 16 `16 / 16` and `Ch. VI`. The flow's 15 sites, the chapter numbers before each heading, the `[chapter]` strings and the `(page N)` folios, read the same on both sides.
+
+**The specimen's reads.** Without `--bare` the CLI's delivery sheet, adopted on the document (`:where([href="#x"])::before { --beltype-read-…: "3" }`), reaches the view's links as well, so the view's pages show the CLI's values; with it taken off, the view's 15 reads on pages 1 to 3 are blank (`p. 3` and the rest on page 1, nine on page 2, `(Configuration, p. 7)` and `Chapter II` on page 3), round 3's. No cut moved for them.
+
+**The showcase against the CLI.** Before the round (main, a134b04): 74 pages against 76, 51 the same, first difference page 25 (245 words against 222, then 166 against 189), no margin box. After: 53 the same, first difference page 50, the carried floats of the flows family (pages 50 to 58) and the engine's own page-63 continuation of a `pre` (pages 63 on), as recorded in "The page always advances". The margin boxes differ on page 18, the `band` page's `page 18 of 76` against `of 74`, the chain's length, and on the pages from 58 that hold other words; the state differs from page 50 only.
+
+### The studio, through its witness
+
+A dev server of the studio's own on a free port, the old path against the view, the studio unchanged; margin boxes read by a probe with the harness's CDP reading on both paths:
+
+| Demo | Old path | View | Same | First difference | As last recorded | Margin boxes the same |
+| :--- | ---: | ---: | ---: | :--- | :--- | :--- |
+| showcase | 76 | 74 | 43 | page 13 | 45, page 13 | 65 of 76 (216 boxes against 210), first difference page 18 |
+| showcase, `schema=studio` | 76 | 76 | 52 | page 29 | 50, page 25 | not read |
+| quiet-press | 30 | 30 | 30 | none | yes | 30 of 30 (50), the running head `Notes on the Quiet Press` on both |
+| report | 11 | 11 | 11 | none | yes | 11 of 11 (30) |
+| manuale | 7 | 7 | 6 | page 5, the repeated table header | yes | 7 of 7 (24), `Pagina N di 7` |
+| facsimile | 6 | 6 | 6 | none | yes | 6 of 6 (5) |
+| bolletta | 3 | 3 | 2 | page 3 | yes | 3 of 3 (10), `pagina 2 di 3` |
+
+Under the generic ground the witness's pages 25 and 26 now differ (222 and 189 against its 245 and 166), where they agreed by chance before; both are the CLI's counts, and the witness drops the `<code>` there. Under the studio's own schema the reads cluster closed: pages 25 and 26 hold 245 and 166 on both paths, and the first difference is page 29, the `verbatim` atoms found.md records. The bolletta's page 3 is phase 1's repeated table header, as recorded.
+
+### The cost
+
+The plan's open question, measured on the studio's showcase (74 pages, 1 421 elements in the originals), under `?view=fragmented`. Load, the sums over the 74 fills of the account's own timings: the originals rendered once, 4.8 ms, and read, 18.4 ms; with each page's two word positions, 36.7 ms; the cuts 490.6 ms; the chrome drawn at each fill's end 116.3 ms; the redraw of 73 pages when the total arrived 69.1 ms. No page was cut twice. Five transactions, one character typed into a paragraph on page 3, each awaited until the chain is quiet:
+
+| Transaction | Render | Read | Settled, the round | Settled, main |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 | 5.6 ms | 23.6 ms | 46.5 ms | 22.8 ms |
+| 2 | 2.3 ms | 14.7 ms | 28.0 ms | 9.9 ms |
+| 3 | 2.0 ms | 13.1 ms | 25.7 ms | 9.1 ms |
+| 4 | 1.9 ms | 12.0 ms | 24.1 ms | 7.6 ms |
+| 5 | 2.2 ms | 12.6 ms | 25.4 ms | 7.9 ms |
+
+The view's first paint, which is its whole chain (docs/found.md, the view's "The first page waits for the whole chain"), the studio's script three times each: the showcase 936, 763 and 774 ms on main against 1 087, 1 051 and 1 042 ms after, the whole chain 875, 709 and 713 against 1 035, 999 and 990; the quiet press's first paint 485, 424 and 437 against 468, 452 and 459.
+
+So the rendering is small beside a whole chain (23.2 ms of about 700) and large beside a keystroke: a transaction that refills one page settled in 7.6 to 9.9 ms and now in 24.1 to 28.0, of which the originals are 14.2 to 16.0, inside `updateState`. The load's 280 ms are mostly the chrome's (116.3 and 69.1 ms), the root's own cost for the same work; the originals are 36.7. An incremental path, proposed and not built (docs/found.md, "The originals cost a keystroke more than the refill it serves"): render and read per top-level node, keeping each untouched node's element, its index part and its ops part by the node's identity, ProseMirror's nodes being persistent, through the engine's own `Keep` door on `indexBlocks` and `documentOpsOf`, settled against the sheets' reach as the engine's memo is.
+
+### Doors
+
+- **`setMarginBox` takes a running element only through a forwarding slot** (`chase.js`): a page outside the root cannot forward, and a `<slot>` outside a shadow tree draws nothing (measured: the clone laid out no box). Worked around by slotting the clone itself, with an `assign` that does nothing.
+- **`runningBoxes` and `topLevelBlocks` read `doc.body`, `runningPosition` is private** (`driver.js`): worked around by a stand-in document and two lines written again.
+- **The root clears the margin boxes' `content` and keeps the table it captured** (`seam/client.js`): met only by the harness, which holds both hosts; worked around there.
+
+### Not done
+
+- **The reads loop** (phase 2's second round): a page an edit does not refill keeps its chrome, and no page is refilled because another page's chrome moved (docs/found.md).
+- **The layout facts** (phase 2's third round): `target-counter()` and `target-text()`, and `counter(pages)` in the flow measured at its reservation until the chain is complete.
+- **The incremental originals**, above.
+- **A node test of `drawChrome`**: it needs the engine's `<beltype-page>`; the chrome fixture is the check.
