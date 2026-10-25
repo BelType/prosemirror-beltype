@@ -119,13 +119,25 @@ export class CiceroPage {
     this.to = null;
     /** The positions the last cut fill held, the seed of the next trial's span. */
     this.span = 0;
-    /** The heights of the given nodes after the fill, against which `moved` is judged. @type {Map<Element, number>} */
+    /**
+     * The border-box heights of the nodes the last fill gave the page, against which `moved` is judged; cleared at every fill, so it holds only what the page shows.
+     *
+     * @remarks
+     * The border box, recorded off `getBoundingClientRect()` and read off the observer's `borderBoxSize`, since padding and borders are what the cut was decided against. The observer's `contentRect` is a content box: measured 2026-10-25, the quiet press's `section.titlepage`, with a 151.18 px `padding-top`, recorded 522.81 against a content box of 371.64 on every observation, so every fill ended in `moved` and the view refilled the title page once a frame (docs/results.md, "Late truth, like with like"). The two readings agree while no transform scales the page and the node's writing mode is horizontal.
+     * @type {Map<Element, number>}
+     */
     this.heights = new Map();
     /** The last fill's own account, for a reader that compares it with the engine's. @type {Record<string, any> | null} */
     this.account = null;
     this.observer = new ResizeObserver((entries) => {
       if (!this.rendered) return;
-      if (entries.some((e) => Math.abs(e.contentRect.height - (this.heights.get(/** @type {Element} */ (e.target)) ?? e.contentRect.height)) > EPS)) {
+      // Only a node the page still shows, judged by its border box; the observation `observe()` makes at once reads the recorded height and is dropped by `EPS`.
+      const changed = (/** @type {ResizeObserverEntry} */ e) => {
+        const recorded = this.heights.get(e.target);
+        if (recorded == null || !e.target.isConnected) return false;
+        return Math.abs((e.borderBoxSize?.[0]?.blockSize ?? e.target.getBoundingClientRect().height) - recorded) > EPS;
+      };
+      if (entries.some(changed)) {
         requestAnimationFrame(() => { if (this.rendered) this.moved.dispatchEvent(new Event('moved')); });
       }
     });
@@ -152,6 +164,7 @@ export class CiceroPage {
   async fill(doc, from, render) {
     this.to = null;
     this.observer.disconnect();
+    this.heights.clear();
     if (this.blank) {
       // A page nothing flows onto (§3.1's second break): the cursor does not move, and the demand is spent.
       this.show(render(doc, from, from));

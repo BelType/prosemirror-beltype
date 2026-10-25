@@ -491,3 +491,83 @@ No warning from the view; the old path's one 404 on load is as before.
 - **Enter beside a space**: the rule reads the document after the step, so a paragraph split before a space begins the new paragraph with a U+00A0, and one split after a space ends the old one with one; both are the truth of what print would hide, and a Backspace that joins them gives the space back. Measured in neither demo.
 - **A run the provider wrote**: a source whose paragraphs hold runs of collapsible whitespace (line feeds and indentation) keeps them; the plugin looks only beside a change, and a space typed at the end of such a run is promoted alone, so the run still draws one space and the typed one a second, and a trailing space a provider wrote stays a space when a word is typed before it (pinned in node).
 - **The title page's refill loop** is filed, not fixed: the round was not to touch `cicero-page.js`.
+
+## Late truth, like with like
+
+Written 2026-10-25, on the branch `round/late-truth-like-with-like`, for docs/found.md's "The title page refills every frame". Run it again with `npm test` (25 tests, in node), `node scripts/specimen.mjs <absolute path>` on each fixture under `fixtures/` and on `./test/specimen.md`, and, with the studio's dev server started on a free port (`npx vite --port <port> --strictPort` in the studio), `node scripts/idle.mjs --url <its url> --out <a file outside the studio>` for the pages left alone, `node scripts/spaces.mjs --url <its url> --out <a file outside the studio>` for the clicks, and the studio's `node scripts/fragview-pages.mjs --demo <demo> --url <its url> --out <a file outside the studio>` on `quiet-press` and `report`.
+
+### The defect
+
+After a fill the page recorded each given node's `getBoundingClientRect().height`, a border box, and observed the node; the observer compared the record with `contentRect.height`, a content box. A node with vertical padding or borders differed on every observation, so every fill ended in `moved`, the view marked the page dirty and refilled it, and the refill's fresh nodes were observed and differed again: once a frame, for as long as the page was rendered. `fill` disconnected the observer but never cleared `heights`, which kept one detached node per refill.
+
+`scripts/idle.mjs` wraps the `ResizeObserver` class from the first script and sets every observation a page's own observer receives beside the height the page had recorded for its target at that moment. Before the fix, on every demo, every observation that differed from its record differed by the node's padding and borders, its border box equal to the record, and no node differed for any other reason:
+
+| Demo | Page | Node | Recorded | Content box | Border box | When it loops |
+| :--- | ---: | :--- | ---: | ---: | ---: | :--- |
+| quiet-press | 1 | `section.titlepage` (151.18 px `padding-top`) | 522.81 | 371.64 | 522.81 | from load, for as long as it stands |
+| bolletta | 3 | `section.info` | 197.17 | 185.52 | 197.17 | from load, for as long as it stands |
+| report | 11 | `section.colophon` | 829.11 | 111 | 829.11 | while on screen |
+| showcase | 74 | `section.colophon` | 536.25 | 271.69 | 536.25 | while on screen |
+
+The last two refill only while shown: a page off screen is skipped (`content-visibility: auto`) and its observer hears nothing, so they loop while a reader scrolls past them and stop when the page leaves the screen. Probed 2026-10-25 on the quiet press 1.5 s after the chain settled: page 1's `heights` held 104 nodes, 103 of them detached; pages 2 and 3 held two and three, the nodes they show.
+
+### What was built
+
+`src/cicero-page.js`, three changes and nothing else:
+
+- **Like with like**: the observer reads `borderBoxSize[0].blockSize`, or the target's `getBoundingClientRect().height` where `borderBoxSize` is absent, against the border box `fill` records. The border box is the measure, since padding and borders are what the cut was decided against. The field's comment says so, and names the ceiling: the two readings agree while no transform scales the page and the node's writing mode is horizontal (the studio scales nothing).
+- **A fill starts clean**: `fill` disconnects the observer and clears `heights` before anything else, so a refill watches only what it now shows and the map holds no detached node; after `show` it records and observes as before. A blank page records and observes nothing, as before.
+- **Only what the page shows**: an observation counts only when its target is still connected and still one of the page's given nodes (`this.heights.has(target)`); `moved` is still dispatched in the next frame.
+
+**The first observation is harmless, measured.** `observe()` makes one observation at once with the node's current size. After the fix, on every demo and in every span, the border box of every observation equalled the record (0 differing), so `EPS` drops it; it is not ignored by design.
+
+### Before and after
+
+`node scripts/idle.mjs` on each demo under `?view=fragmented`, three spans: the load, until the chain settles (`moved` counted from the first script, refills only from the studio's first settled mark, so the load's refills are a floor); the scroll, each page brought into view in turn, 50 ms apart, then back to the top and settled; and an idle 1.5 s. `moved` events, by page, and refill transactions (a `dirtied` or a `refilled`), before (main, 75ae643) and after (ead7cca):
+
+| Demo | Pages | Load, before | Scroll, before | Idle, before | Load, scroll, idle, after |
+| :--- | ---: | :--- | :--- | :--- | :--- |
+| quiet-press | 30 | 25 moved (page 1), 48 refills | 35, 70 | 90, 180 | 0, 0 in each |
+| report | 11 | 0, 0 | 10 moved (page 11), 20 | 0, 0 | 0, 0 in each |
+| manuale | 7 | 0, 0 | 0, 0 | 0, 0 | 0, 0 in each |
+| showcase | 74 | 0, 0 | 11 moved (page 74), 22 | 0, 0 | 0, 0 in each |
+| facsimile | 6 | 0, 0 | 0, 0 | 0, 0 | 0, 0 in each |
+| bolletta | 3 | 17 moved (page 3), 32 | 29, 58 | 44, 88 | 0, 0 in each |
+| schema-lab | 6 | 0, 0 | 0, 0 | 0, 0 | 0, 0 in each |
+
+After the fix each of the four nodes is observed once, on `observe()`, with its border box equal to the record. The idle window holds no observation at all on any demo.
+
+**The facsimile announces no late size**, before or after, in any span: the page takes the facsimile's intake before its trial is presented (docs/results.md, "The page presents what it renders"), so the PDF's size is known when the fill measures and nothing arrives after it. A late `moved` there is legitimate and would count once; none was seen.
+
+### The clicks
+
+`node scripts/spaces.mjs` clicks three times in the quiet press's paragraph on page 2 (inside a word, after the last character, before the first) and now says, for each click, the position the view's `posAtCoords` gives its point, the model's head after the click, and whether the script had to put the caret there:
+
+| Path | Before (75ae643) | After (ead7cca) |
+| :--- | :--- | :--- |
+| view | 3 of 3 placed: 341 against a head of 4, 748 against 341, 311 against 750 | 0 of 3 placed: 341, 748, 311, the head where the click is |
+| old | 0 of 3 | 0 of 3 |
+
+Before, the head stayed where the last placement had put it; after, every click reaches the model on its own. The typing that follows is the last round's "after" to the character and the step: `A  B` is `A`, U+0020, U+00A0, `B` at 29.2 px in 5 steps, the end's space U+00A0 at 3.17 px and the start's at 8.42 px in 2 steps each.
+
+### Parity
+
+| Document | CLI | View | Same | First difference |
+| :--- | ---: | ---: | ---: | :--- |
+| `test/specimen.md` | 9 | 9 | 9 | none |
+| `fixtures/flow` | 26 | 26 | 26 | none |
+| `fixtures/tall` | 10 | 10 | 10 | none |
+| `fixtures/end-gap` | 6 | 6 | 6 | none |
+| `fixtures/row` | 13 | 13 | 13 | none |
+| `fixtures/multicol` | 6 | 6 | 6 | none |
+| `fixtures/running` | 13 | 13 | 13 | none |
+| `fixtures/facsimile` | 5 | 5 | 5 | none, objects page 2 189 × 252 and page 4 533 × 400 on both sides |
+| `fixtures/dressing` | 11 | 11 | 11 | none |
+
+No warning from the view on any fixture; the multicol fixture's `info` is the engine's, as before. The studio's witness, old path against view: quiet-press 30, 30, 30 the same, none; report 11, 11, 11 the same, none.
+
+### Not done
+
+- **The view's selection over a click** (docs/found.md, "A refill redraws the model's selection over a click not yet read") is the view's, and open: no refill happens while nobody types now, so it waits for a legitimate late `moved` during a click.
+- **A node test**: the observer's judgement needs a `ResizeObserver` and a page that fills; the page's constructor needs the engine's `<beltype-page>`. `scripts/idle.mjs` is the check.
+- **A page scaled by a transform, or a node in a vertical writing mode**, would make the recorded `getBoundingClientRect().height` and the observer's `blockSize` disagree and loop again; neither occurs in the studio or the fixtures.
