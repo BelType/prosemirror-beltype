@@ -48,13 +48,14 @@ const IN_PAGE = () => {
       }
       return { mid, end: { x: last.right - 0.5, y: (last.top + last.bottom) / 2 }, start: { x: first.left + 0.5, y: (first.top + first.bottom) / 2 } };
     },
-    /** Under the view, the position the browser's own hit test gives a point, and the caret put there when the click did not reach the model (docs/found.md, "The title page refills every frame"). */
+    /** Under the view, the position the browser's own hit test gives a point, and the caret put there when the click did not reach the model (docs/found.md, "The title page refills every frame", closed 2026-10-25; the view's "A refill redraws the model's selection over a click not yet read" is open). */
     place(x, y) {
-      if (!fragmented) return false;
+      if (!fragmented) return { placed: false };
       const pos = window.studio.view.posAtCoords({ left: x, top: y })?.pos;
-      if (pos == null || window.studio.state.selection.head === pos) return false;
+      const head = window.studio.state.selection.head;
+      if (pos == null || head === pos) return { pos, head, placed: false };
       window.studio.caret.select(window.studio.lib.TextSelection.create(window.studio.state.doc, pos));
-      return true;
+      return { pos, head, placed: true };
     },
     head() { const $h = window.studio.state.selection.$head; return { head: $h.pos, offset: $h.parentOffset, size: $h.parent.content.size }; },
     model: (from, to) => window.studio.state.doc.textBetween(from, to, '', '￼'),
@@ -102,10 +103,14 @@ async function measure(browser, fragmented) {
   const snippet = await page.evaluate(() => window.__spaces.pick());
   const result = { path: fragmented ? 'view' : 'old', snippet };
   result.placed = 0;
+  result.clicks = [];
   const click = async (pt) => {
     await page.mouse.click(pt.x, pt.y);
     await page.waitForTimeout(150);
-    if (await page.evaluate(({ x, y }) => window.__spaces.place(x, y), pt)) result.placed++;
+    // Each click: the position the hit test gives its point, the model's head after it, and whether the caret had to be put there.
+    const c = await page.evaluate(({ x, y }) => window.__spaces.place(x, y), pt);
+    result.clicks.push(c);
+    if (c.placed) result.placed++;
     return page.evaluate(() => window.__spaces.head());
   };
   const version = async () => { await page.waitForFunction(() => window.__spaces.unconfirmed() === 0, null, { timeout: 5000 }).catch(() => {}); return page.evaluate(() => window.__spaces.version()); };
@@ -173,7 +178,7 @@ const results = { demo, date: new Date().toISOString().slice(0, 10), old: await 
 await browser.close();
 fs.writeFileSync(out, JSON.stringify(results, null, 1) + '\n');
 for (const r of [results.old, results.view]) {
-  console.log(`${r.path} (caret placed after a lost click: ${r.placed} of 3): middle (in "${r.middle.word}") model ${r.middle.model}, drawn ${r.middle.drawnCodePoints} ${r.middle.drawn?.width} px [${r.middle.drawn?.each.join(', ')}], ${r.middle.steps} steps; undo 1 ${r.middle.afterUndo1}, undo 2 ${r.middle.afterUndo2}`);
+  console.log(`${r.path} (caret placed after a lost click: ${r.placed} of 3; clicks ${r.clicks.map((c) => (c.pos == null ? '-' : `${c.pos}→${c.head}${c.placed ? ' placed' : ''}`)).join(', ')}): middle (in "${r.middle.word}") model ${r.middle.model}, drawn ${r.middle.drawnCodePoints} ${r.middle.drawn?.width} px [${r.middle.drawn?.each.join(', ')}], ${r.middle.steps} steps; undo 1 ${r.middle.afterUndo1}, undo 2 ${r.middle.afterUndo2}`);
   console.log(`  end (at end ${r.end.atEnd}) model ${r.end.model}, drawn ${r.end.drawnCodePoints} last ${r.end.drawn.width} px, ${r.end.steps} steps; then x ${r.end.thenX}`);
   console.log(`  start (at start ${r.start.atStart}) model ${r.start.model}, drawn ${r.start.drawnCodePoints} first ${r.start.drawn.width} px, ${r.start.steps} steps`);
   if (r.warnings.length) console.log(`  warnings: ${r.warnings.join(' | ')}`);
