@@ -51,6 +51,8 @@ export class Chain {
     this.document = document;
     /** The live pages, by their entry's key. @type {Map<number, CiceroPage>} */
     this.pages = new Map();
+    /** The live pages, by their index in the chain, which a container keeps for its life. @type {Map<number, CiceroPage>} */
+    this.byIndex = new Map();
     /** The view, once the Ledger's plugin view hands it over. @type {any} */
     this.view = null;
     /** The document the last update saw. @type {PMNode | null} */
@@ -88,11 +90,13 @@ export class Chain {
   /** @param {CiceroPage} page */
   adopt(page) {
     if (page.key != null) this.pages.set(page.key, page);
+    this.byIndex.set(page.index, page);
   }
 
   /** @param {CiceroPage} page */
   released(page) {
     if (page.key != null && this.pages.get(page.key) === page) this.pages.delete(page.key);
+    if (this.byIndex.get(page.index) === page) this.byIndex.delete(page.index);
   }
 
   /** @param {CiceroPage} _page */
@@ -261,16 +265,13 @@ export class Chain {
   }
 
   /**
-   * The hint the page before `page` left at its last fill, which is what the view recorded for it; `{}` for the first page, and `undefined` where this object cannot say (no view, or the page before is not built), so the page keeps the one it was built with.
+   * The hint the page before `page` left at its last fill, which is what the view recorded for it; `{}` for the first page, and `undefined` where the page before is not built or has not filled, so the page keeps the one it was built with. Read by index, so it needs no view and holds in a state without the Ledger plugin.
    * @param {CiceroPage} page
    * @returns {Record<string, any> | undefined}
    */
   hintFor(page) {
-    if (!this.view) return undefined;
     if (page.index === 0) return {};
-    const entries = fragmentsKey.getState(this.view.state)?.entries ?? [];
-    const before = entries[page.index - 1];
-    const prev = before ? this.pages.get(before.key) : null;
+    const prev = this.byIndex.get(page.index - 1);
     return prev?.account ? prev.account.next ?? {} : undefined;
   }
 

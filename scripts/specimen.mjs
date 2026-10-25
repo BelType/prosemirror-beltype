@@ -89,13 +89,19 @@ try {
         texts.set(k, (texts.get(k) ?? '') + t);
       }
       for (const [k, t] of texts) out.set(k, t);
+      for (const v of probe.values()) out.set(`${v}|seen`, '');
     }
     return out;
   };
   /** Each page's chrome on one side: its margin boxes' text and its flow's generated text. */
   const chromeOf = async (side, pagesExpr) => {
     const tags = await page.evaluate(([side, expr]) => window.__prosemirrorBeltype.tagChrome(eval(expr), side), [side, pagesExpr]);
-    const texts = await generated();
+    // A tagged element can be missing from a snapshot (measured 2026-10-25: the slotted flow of a page refilled after `invalidate()`, now and then): snapshot again, three times at most, until every tag is in it.
+    const tagged = tags.flatMap((t) => [...t.boxes.map((b) => b.probe), ...t.flow.map((f) => f.probe)]);
+    let texts = await generated();
+    for (let i = 0; i < 2 && tagged.some((p) => !texts.has(`${p}|seen`)); i++) texts = await generated();
+    const missing = tagged.filter((p) => !texts.has(`${p}|seen`));
+    if (missing.length) console.log(`(the snapshot misses ${missing.length} tagged element(s) on the ${side} side: ${missing.slice(0, 6).join(', ')})`);
     await page.evaluate((expr) => window.__prosemirrorBeltype.untagChrome(eval(expr)), pagesExpr);
     const text = (probe) => `${texts.get(`${probe}|::before`) ?? ''}`;
     const after = (probe) => `${texts.get(`${probe}|::after`) ?? ''}`;
