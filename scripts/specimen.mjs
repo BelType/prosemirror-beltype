@@ -96,13 +96,22 @@ try {
   };
   /** Each page's chrome on one side: its margin boxes' text and its flow's generated text. */
   const chromeOf = async (side, pagesExpr) => {
-    const tags = await page.evaluate(([side, expr]) => window.__prosemirrorBeltype.tagChrome(eval(expr), side), [side, pagesExpr]);
-    // A tagged element can be missing from a snapshot (measured 2026-10-25: the slotted flow of a page refilled after `invalidate()`, now and then): snapshot again, three times at most, until every tag is in it.
-    const tagged = tags.flatMap((t) => [...t.boxes.map((b) => b.probe), ...t.flow.map((f) => f.probe)]);
-    let texts = await generated();
-    for (let i = 0; i < 2 && tagged.some((p) => !texts.has(`${p}|seen`)); i++) texts = await generated();
-    const missing = tagged.filter((p) => !texts.has(`${p}|seen`));
-    if (missing.length) console.log(`(the snapshot misses ${missing.length} tagged element(s) on the ${side} side: ${missing.slice(0, 6).join(', ')})`);
+    // A tagged element can be missing from a snapshot (measured 2026-10-25: the slotted flow of a page refilled after `invalidate()`, now and then; and the flow of a page an edit refilled, page 1 of the specimen in one run of three): snapshot again, three times at most a frame apart, then tag the pages again and start over, three times at most, until every tag is in it; each miss is said, with how many of the missing elements the document still holds.
+    let tags, texts, missing;
+    for (let attempt = 1; ; attempt++) {
+      tags = await page.evaluate(([side, expr]) => window.__prosemirrorBeltype.tagChrome(eval(expr), side), [side, pagesExpr]);
+      const tagged = tags.flatMap((t) => [...t.boxes.map((b) => b.probe), ...t.flow.map((f) => f.probe)]);
+      texts = await generated();
+      for (let i = 0; i < 2 && tagged.some((p) => !texts.has(`${p}|seen`)); i++) { await page.waitForTimeout(50); texts = await generated(); }
+      missing = tagged.filter((p) => !texts.has(`${p}|seen`));
+      if (missing.length) {
+        const held = await page.evaluate((ps) => ps.filter((p) => document.querySelector(`[data-probe="${p}"]`)).length, missing);
+        console.log(`(the snapshot misses ${missing.length} tagged element(s) on the ${side} side, ${held} of them in the document's light tree, attempt ${attempt}: ${missing.slice(0, 6).join(', ')})`);
+      }
+      if (!missing.length || attempt === 3) break;
+      await page.evaluate((expr) => window.__prosemirrorBeltype.untagChrome(eval(expr)), pagesExpr);
+      await page.waitForTimeout(200);
+    }
     await page.evaluate((expr) => window.__prosemirrorBeltype.untagChrome(eval(expr)), pagesExpr);
     const text = (probe) => `${texts.get(`${probe}|::before`) ?? ''}`;
     const after = (probe) => `${texts.get(`${probe}|::after`) ?? ''}`;
@@ -208,7 +217,7 @@ try {
   console.log(`\nConsole, view (${consoles.view.length}):\n${unique(consoles.view).map((m) => `  ${m.slice(0, 300)}`).join('\n')}`);
   console.log(`\nLate truth taken from the rim after the reference: ${JSON.stringify(lateTruth)}`);
   const reach = await page.evaluate(() => window.__prosemirrorBeltype.reachOf());
-  console.log(`\nThe sheets' reach for a whole top-level box (\`topLevelReach\`): ${reach.topLevel}; for a box at any depth (\`sheetReach\`): ${reach.reach}; ${reach.two} rule(s) of reach 2, ${reach.one} of reach 1${reach.first.length ? `, the first: ${reach.first.join(' | ')}` : ''}. The originals' last reading kept ${view.originals.at(-1)?.kept ?? 0} node(s) and rendered ${view.originals.at(-1)?.rendered ?? 0}; the memo's tally ${JSON.stringify(view.originals.at(-1)?.tally ?? {})}.`);
+  console.log(`\nThe sheets' reach for a whole top-level box (\`topLevelReach\`): ${reach.topLevel}, and after a change of shape ${reach.shaped}${reach.shapedRules.length ? ` (${reach.shapedRules.join(' | ')})` : ''}; for a box at any depth (\`sheetReach\`): ${reach.reach}; ${reach.two} rule(s) of reach 2, ${reach.one} of reach 1${reach.first.length ? `, the first: ${reach.first.join(' | ')}` : ''}. The originals' last reading kept ${view.originals.at(-1)?.kept ?? 0} node(s) and rendered ${view.originals.at(-1)?.rendered ?? 0}; the memo's tally ${JSON.stringify(view.originals.at(-1)?.tally ?? {})}.`);
   console.log(`\n### The reads loop\n\nChain counts: ${JSON.stringify(view.counts)}`);
   console.log(JSON.stringify(view.reads, null, 1));
 

@@ -425,7 +425,7 @@ export async function keystrokes(pageNo, n) {
 
 
 /**
- * The sheets' reach as the engine reads it for this host's unit, a whole top-level box (`topLevelReach` over the originals' holder's children, with no boxes before, so the structural forms after a change of shape are not counted here; the originals' timings carry each state's own), and for `patchBox`'s (`sheetReach`), with the rules that give the latter: each rule whose selector holds `:has(`, an `@container` rule, a sheet that cannot be read (reach 2), or a sibling combinator or `:nth-…(… of …)` (reach 1), with its sheet's address; the first few of each.
+ * The sheets' reach as the engine reads it for this host's unit, a whole top-level box (`topLevelReach` over the originals' holder's children, with no boxes before, and again as after a change of shape, the first box new, with the rules that give the latter; the originals' timings carry each state's own), and for `patchBox`'s (`sheetReach`), with the rules that give the latter: each rule whose selector holds `:has(`, an `@container` rule, a sheet that cannot be read (reach 2), or a sibling combinator or `:nth-…(… of …)` (reach 1), with its sheet's address; the first few of each.
  */
 export function reachOf() {
   /** @type {{ two: string[], one: string[] }} */
@@ -443,7 +443,18 @@ export function reachOf() {
   const inSheet = (/** @type {CSSStyleSheet} */ sheet) => { try { inRules(sheet.cssRules, where(sheet)); } catch { out.two.push(`${where(sheet)}: unreadable`); } };
   for (const sheet of [...document.styleSheets, ...document.adoptedStyleSheets]) inSheet(sheet);
   const holder = mounted?.factory.originals.holder();
-  return { topLevel: holder ? topLevelReach(document, holder.children, []) : null, reach: sheetReach(document), two: out.two.length, one: out.one.length, first: [...out.two, ...out.one].slice(0, 8) };
+  const boxes = holder ? [...holder.children] : [];
+  // Under a change of shape (the first box new, `before` the rest), each style rule asked alone, so the rules that give the reach for a whole top-level box are named.
+  /** @type {string[]} */
+  const shapedRules = [];
+  const each = (/** @type {CSSRuleList} */ rules, /** @type {string} */ at) => {
+    for (const rule of /** @type {Iterable<any>} */ (rules)) {
+      if (rule.selectorText != null && !rule.cssRules?.length) { const r = topLevelReach(/** @type {any} */ ({ styleSheets: [{ cssRules: [rule] }], adoptedStyleSheets: [] }), boxes, boxes.slice(1)); if (r) shapedRules.push(`${r} ${at}: ${rule.selectorText}`); }
+      if (rule.cssRules) each(rule.cssRules, at);
+    }
+  };
+  if (holder) for (const sheet of [...document.styleSheets, ...document.adoptedStyleSheets]) { try { each(sheet.cssRules, where(sheet)); } catch { shapedRules.push(`2 ${where(sheet)}: unreadable`); } }
+  return { topLevel: holder ? topLevelReach(document, boxes, []) : null, shaped: holder ? topLevelReach(document, boxes, boxes.slice(1)) : null, shapedRules: shapedRules.slice(0, 8), reach: sheetReach(document), two: out.two.length, one: out.one.length, first: [...out.two, ...out.one].slice(0, 8) };
 }
 
 Object.assign(window, { __prosemirrorBeltype: { wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount, tagChrome, untagChrome, cliLedger, viewPagesOf, readsOf, retitle, edit, stateOf, refillWhole, keystrokes, reachOf } });
