@@ -157,12 +157,14 @@ test('a position inside a kept node finds the same point after an edit before it
   assert.equal(o.pointOf(/** @type {any} */ (o.state), 100), null, 'past the last element');
 });
 
-test('the running elements a page places compare by identity, so an edit inside one redraws the pages that place it', () => {
-  const [a, b, c] = [{ n: 'a' }, { n: 'b' }, { n: 'c' }];
+test('the running elements a page places compare by identity or as equal nodes, so an edit inside one redraws the pages that place it and a copy of the same content does not', () => {
+  const node = (/** @type {string} */ n) => ({ n, isEqualNode: (/** @type {any} */ o) => o.n === n });
+  const [a, b, c] = [node('a'), node('b'), node('c')];
   const running = { mark: { first: 0, start: 0, last: 1, 'first-except': null } };
   const before = runningPlaced(running, /** @type {any} */ ([{ el: a }, { el: b }]));
   assert.deepEqual(before, [a, null, b, a], 'the four readings in a fixed order (first, first-except, last, start)');
   assert.ok(sameElements(before, runningPlaced(running, /** @type {any} */ ([{ el: a }, { el: b }]))), 'the same elements: nothing to redraw');
   assert.ok(!sameElements(before, runningPlaced(running, /** @type {any} */ ([{ el: c }, { el: b }]))), 'the first element replaced at the same index: a redraw');
+  assert.ok(sameElements(before, runningPlaced(running, /** @type {any} */ ([{ el: node('a') }, { el: b }]))), 'a new element of the same content: nothing to redraw');
   assert.deepEqual(runningPlaced(null, []), []);
 });

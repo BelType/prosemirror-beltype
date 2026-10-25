@@ -119,7 +119,7 @@ export function stateOfPage({ ops, strings, running }, start, end) {
 }
 
 /**
- * The running elements a page's chrome places, by identity: for each name and each of its four readings, in a fixed order, the element its value indexes in the state's list. An edit inside a running element keeps its index and replaces its element, so two drawings of one interval compare by this as well as by `running`.
+ * The running elements a page's chrome places: for each name and each of its four readings, in a fixed order, the element its value indexes in the state's list. An edit inside a running element keeps its index and replaces its element with one of other content, so two drawings of one interval compare by this (`sameElements`) as well as by `running`.
  * @param {Record<string, Record<string, number | null>> | null | undefined} running
  * @param {{ el: Element }[]} boxes
  * @returns {(Element | null)[]}
@@ -129,11 +129,11 @@ export function runningPlaced(running, boxes) {
 }
 
 /**
- * Whether two lists hold the same objects in the same order.
- * @param {readonly unknown[]} a
- * @param {readonly unknown[]} b
+ * Whether two lists hold the same elements in the same order, or elements equal as nodes (`isEqualNode`): a running element whose top-level node was rendered again for an edit elsewhere in it is a new object with the same content, and its copy in a margin box still stands.
+ * @param {readonly any[]} a
+ * @param {readonly any[]} b
  */
-export const sameElements = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+export const sameElements = (a, b) => a.length === b.length && a.every((x, i) => x === b[i] || (!!x && !!b[i] && typeof x.isEqualNode === 'function' && x.isEqualNode(b[i])));
 
 /**
  * The page total after page `index` answered `to`: the chain's length when the page ran to the document's end, blank (`null`) when the page that was last cut on, since the chain is not complete until a later page ends it, and unchanged otherwise.

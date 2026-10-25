@@ -278,7 +278,7 @@ export class CiceroPage {
     const boxes = /** @type {Record<string, string>} */ (/** @type {any} */ (this.conditions).marginBoxes ?? {});
     const plan = Object.entries(boxes).map(([box, value]) => /** @type {[string, ReturnType<typeof transliterateContent>]} */ ([box, transliterateContent(value, { pagesKnown: total != null })]));
     const key = JSON.stringify([this.conditions.name, this.blank, plan, this.index, total, c.counters, c.strings, c.running]);
-    // The running elements it places, by identity: an edit inside one keeps its index in the list and replaces its element (`runningPlaced`).
+    // The running elements it places: an edit inside one keeps its index in the list and replaces its element (`runningPlaced`, `sameElements`).
     const placed = runningPlaced(c.running, c.boxes);
     if (key === this.chromeKey && sameElements(placed, this.chromePlaced)) return;
     this.chromeKey = key;
