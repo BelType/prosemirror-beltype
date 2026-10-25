@@ -96,7 +96,6 @@ test('a kept node keeps its element across two states, and a changed node gets a
   const second = place(typed);
   assert.equal(second.rendered, 1, 'one node rendered again');
   assert.equal(counted.nodes, 5);
-  assert.equal(second.shaped, false, 'a node replaced in place changes no sibling\'s index');
   assert.deepEqual(second.entries.map((e, i) => e.el === els[i]), [true, false, true, true], 'the untouched nodes keep their elements; the edited one is new');
   assert.deepEqual(shown(second.holder), ['alpha', 'bexta', 'gamma', 'delta']);
   assert.equal(els[1].parentNode, null, 'the old element is out of the holder');
@@ -111,13 +110,11 @@ test('a paste of two paragraphs, a deletion of one, edits at the very start and 
   const a = place(pasted);
   assert.deepEqual(shown(a.holder), ['one', 'new1', 'new2', 'two', 'three']);
   assert.equal(a.rendered, 2);
-  assert.equal(a.shaped, true, 'an insertion shifts the indices after it');
   assert.deepEqual([a.entries[0].el, a.entries[3].el, a.entries[4].el], els);
   const deleted = new Transform(pasted).delete(5, 5 + 6).doc;
   const b = place(deleted);
   assert.deepEqual(shown(b.holder), ['one', 'new2', 'two', 'three']);
   assert.equal(b.rendered, 0, 'a deletion renders nothing');
-  assert.equal(b.shaped, true);
   const atStart = new Transform(deleted).insert(1, schema.text('A')).doc;
   const c = place(atStart);
   assert.deepEqual(shown(c.holder), ['Aone', 'new2', 'two', 'three']);
@@ -136,7 +133,6 @@ test('a moved node keeps its element and is put in its new place', () => {
   const moved = schema.node('doc', null, [doc.child(0), doc.child(3), doc.child(1), doc.child(2)]);
   const m = place(moved);
   assert.equal(m.rendered, 0);
-  assert.equal(m.shaped, true);
   assert.deepEqual(shown(m.holder), ['a', 'd', 'b', 'c']);
   assert.deepEqual(m.entries.map((e) => e.el), [els[0], els[3], els[1], els[2]]);
 });

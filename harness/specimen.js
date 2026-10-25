@@ -18,6 +18,7 @@ import { FragmentedView } from 'prosemirror-fragview';
 import * as g from 'beltype-studio-experiment/src/schema-generic.js';
 import { ciceroContainers, ledger, ledgerKey } from '../src/index.js';
 import { findSites } from '@egildo/beltype-engine-cicero/src/reads.js';
+import { sheetReach, topLevelReach } from '@egildo/beltype-engine-cicero/src/capture.js';
 
 /** The Gauge's word: a maximal run of what a breaking space does not divide. */
 const WORD = /[\S  ﻿]+/g;
@@ -249,7 +250,7 @@ export async function mount({ settleMs = 300, timeoutMs = 120000, bare = false, 
   document.head.appendChild(style);
   const restored = restoreMarginContent();
   const factory = ciceroContainers(document);
-  // `--reach N`: the memo settled under N whatever the sheets say, to measure what a host-side reading of the reach would keep (docs/found.md, the engine's `sheetReach` and this host's unit of replacement).
+  // `--reach N`: the memo settled under N whatever the sheets say, a measurement of what each reach keeps beside the engine's reading for a whole top-level box (`topLevelReach`).
   if (reach != null) factory.originals.reachOf = () => reach;
   const started = performance.now();
   const containers = Object.assign((/** @type {number} */ index, /** @type {any} */ hint, /** @type {any} */ entries) => {
@@ -293,7 +294,7 @@ export function readsOf() {
 }
 
 /**
- * The transaction of one edit on the view's state, and the position it acts at: `retitle` a heading's text (`from=>to`), `key` a character typed in the first paragraph of page `arg`, `delete` the first paragraph of page `arg` removed whole, `paste` two paragraphs inserted between the first two top-level nodes, `start` a character typed at the document's first text and `end` at its last.
+ * The transaction of one edit on the view's state, and the position it acts at: `retitle` a heading's text (`from=>to`), `key` a character typed in the first paragraph of page `arg`, `delete` the first paragraph of page `arg` removed whole, `paste` two paragraphs inserted between the first two top-level nodes, `enter` Enter pressed at the end of the first top-level textblock (a new top-level block after it), `start` a character typed at the document's first text and `end` at its last.
  * @param {any} view
  * @param {string} kind
  * @param {string} [arg]
@@ -319,6 +320,15 @@ function editOf(view, kind, arg = '') {
     const at = doc.child(0).nodeSize;
     const made = ['Pasted, the first of two paragraphs, with a few words in it.', 'Pasted, the second, a little longer than the first so it runs on.'].map((t) => like.type.create(like.attrs, view.state.schema.text(t)));
     return { tr: view.state.tr.insert(at, made), at };
+  }
+  if (kind === 'enter') {
+    // Enter at the end of the first top-level textblock, as `splitBlock` does at a block's end: a new block of the default type after it, at the top level.
+    /** @type {number | null} */
+    let at = null;
+    let index = -1;
+    doc.forEach((/** @type {any} */ node, /** @type {number} */ offset, /** @type {number} */ i) => { if (at == null && node.isTextblock) { at = offset + node.nodeSize - 1; index = i; } });
+    if (at == null) throw new Error('no top-level textblock to press Enter in');
+    return { tr: view.state.tr.split(at, 1, [{ type: doc.contentMatchAt(index + 1).defaultType }]), at };
   }
   if (kind === 'start') { const at = blocks[0].pos + 1; return { tr: view.state.tr.insertText('x', at), at }; }
   if (kind === 'end') { const b = /** @type {any} */ (blocks.at(-1)); const at = b.pos + 1 + b.node.content.size; return { tr: view.state.tr.insertText('x', at), at }; }
@@ -415,7 +425,7 @@ export async function keystrokes(pageNo, n) {
 
 
 /**
- * The sheets' reach as the engine reads it (`sheetReach`), and the rules that give it: each rule whose selector holds `:has(`, an `@container` rule, a sheet that cannot be read (reach 2), or a sibling combinator or `:nth-…(… of …)` (reach 1), with its sheet's address; the first few of each.
+ * The sheets' reach as the engine reads it for this host's unit, a whole top-level box (`topLevelReach` over the originals' holder's children, with no boxes before, and again as after a change of shape, the first box new, with the rules that give the latter; the originals' timings carry each state's own), and for `patchBox`'s (`sheetReach`), with the rules that give the latter: each rule whose selector holds `:has(`, an `@container` rule, a sheet that cannot be read (reach 2), or a sibling combinator or `:nth-…(… of …)` (reach 1), with its sheet's address; the first few of each.
  */
 export function reachOf() {
   /** @type {{ two: string[], one: string[] }} */
@@ -432,7 +442,19 @@ export function reachOf() {
   };
   const inSheet = (/** @type {CSSStyleSheet} */ sheet) => { try { inRules(sheet.cssRules, where(sheet)); } catch { out.two.push(`${where(sheet)}: unreadable`); } };
   for (const sheet of [...document.styleSheets, ...document.adoptedStyleSheets]) inSheet(sheet);
-  return { reach: out.two.length ? 2 : out.one.length ? 1 : 0, two: out.two.length, one: out.one.length, first: [...out.two, ...out.one].slice(0, 8) };
+  const holder = mounted?.factory.originals.holder();
+  const boxes = holder ? [...holder.children] : [];
+  // Under a change of shape (the first box new, `before` the rest), each style rule asked alone, so the rules that give the reach for a whole top-level box are named.
+  /** @type {string[]} */
+  const shapedRules = [];
+  const each = (/** @type {CSSRuleList} */ rules, /** @type {string} */ at) => {
+    for (const rule of /** @type {Iterable<any>} */ (rules)) {
+      if (rule.selectorText != null && !rule.cssRules?.length) { const r = topLevelReach(/** @type {any} */ ({ styleSheets: [{ cssRules: [rule] }], adoptedStyleSheets: [] }), boxes, boxes.slice(1)); if (r) shapedRules.push(`${r} ${at}: ${rule.selectorText}`); }
+      if (rule.cssRules) each(rule.cssRules, at);
+    }
+  };
+  if (holder) for (const sheet of [...document.styleSheets, ...document.adoptedStyleSheets]) { try { each(sheet.cssRules, where(sheet)); } catch { shapedRules.push(`2 ${where(sheet)}: unreadable`); } }
+  return { topLevel: holder ? topLevelReach(document, boxes, []) : null, shaped: holder ? topLevelReach(document, boxes, boxes.slice(1)) : null, shapedRules: shapedRules.slice(0, 8), reach: sheetReach(document), two: out.two.length, one: out.one.length, first: [...out.two, ...out.one].slice(0, 8) };
 }
 
 Object.assign(window, { __prosemirrorBeltype: { wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount, tagChrome, untagChrome, cliLedger, viewPagesOf, readsOf, retitle, edit, stateOf, refillWhole, keystrokes, reachOf } });
