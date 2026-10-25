@@ -433,6 +433,8 @@ export async function overtaken() {
   const entries = view.entries.map((/** @type {any} */ { key, from, to }) => ({ key, from, to }));
   /** @type {string[]} */
   const failures = [];
+  const pagesOf = () => readPages(view.fragments.map((/** @type {any} */ f) => f.container?.dom).filter(Boolean));
+  const before = pagesOf();
   for (let i = 0; i + 1 < entries.length; i++) {
     const pair = [entries[i], entries[i + 1]];
     const settled = await Promise.allSettled(pair.map((e) => view.containers.get(e.key).fill(doc, e.from, view.render)));
@@ -442,6 +444,8 @@ export async function overtaken() {
       else if (r.value.to !== e.to) failures.push(`page ${i + 1 + k} (with page ${i + 1 + (1 - k)}): answered ${r.value.to}, the chain holds ${e.to}`);
     });
   }
+  const after = pagesOf();
+  before.forEach((p, i) => { if (JSON.stringify(p) !== JSON.stringify(after[i])) failures.push(`page ${i + 1} shows ${after[i]?.first} … ${after[i]?.last} (${after[i]?.count} words) where it showed ${p.first} … ${p.last} (${p.count})`); });
   return { pairs: entries.length - 1, failures, holders: document.querySelectorAll('[id^="__prosemirror-beltype-law"]').length };
 }
 
