@@ -81,6 +81,8 @@ export class Chain {
     this.settling = null;
     /** @type {Map<string, boolean>} */
     this.sidedness = new Map();
+    /** What the last new document cost inside the view's update: the clean pages' chrome read again, and the settle up to its first `run` (the site search, the position index, the written and cascade facts, the delivery). */
+    this.timing = { rechrome: 0, settle: 0 };
   }
 
   /** @param {CiceroPage} page */
@@ -102,9 +104,9 @@ export class Chain {
    * A page's fill ended: its row staged for the next transaction on `doc`, which is the `refilled` the view dispatches next.
    * @param {CiceroPage} page
    * @param {PMNode} doc
-   * @param {{ to: number | null }} answer
+   * @param {{ to: number | null }} _answer
    */
-  filled(page, doc, answer) {
+  filled(page, doc, _answer) {
     this.inflight--;
     this.counts.fills++;
     // A fill of a document a newer one overtook is the view's to discard, and so is its row.
@@ -112,7 +114,7 @@ export class Chain {
     if (this.cut.doc !== doc) this.cut = { doc, pages: new Set() };
     this.cut.pages.add(page.index);
     this.runCut?.add(page.index);
-    const row = this.rowOf(page, doc, answer.to);
+    const row = this.rowOf(page, doc);
     if (row && page.key != null) this.stage(doc, page.key, row);
   }
 
@@ -129,18 +131,14 @@ export class Chain {
   }
 
   /**
-   * The row of a page as its last fill or reading left it, over the rendering of `doc`.
+   * The row of a page as its last fill or reading left it, over the rendering of `doc`: its end and the block that end stands in are the page's own record (`chrome.end`, `chrome.block`).
    * @param {CiceroPage} page
    * @param {PMNode} doc
-   * @param {number | null} to The page's end as a model position; a blank page's is its start.
-   * @param {{ pos: number, block: number } | null} [at] The end's word address, where the caller has read it.
    * @returns {Row | null}
    */
-  rowOf(page, doc, to, at) {
+  rowOf(page, doc) {
     const c = page.chrome;
-    const state = this.originals.state;
-    if (!c || state?.doc !== doc) return null;
-    const end = at !== undefined ? at : to == null ? null : this.originals.addressAt(state, to);
+    if (!c || this.originals.state?.doc !== doc) return null;
     const g = page.conditions;
     const next = page.account?.next ?? null;
     return {
@@ -150,8 +148,8 @@ export class Chain {
       counters: c.counters,
       strings: c.strings,
       running: c.running,
-      end: page.blank ? c.start : end?.pos ?? null,
-      block: end?.block ?? null,
+      end: c.end,
+      block: c.block ?? null,
       contentW: g.contentW,
       contentH: g.contentH,
       next,
@@ -220,9 +218,12 @@ export class Chain {
       this.lengthBefore = this.entries.length;
       this.doc = doc;
       this.reason = first ? 'the chain\'s first fill' : invalidated ? 'the view was invalidated: every entry dirtied' : null;
+      const t0 = performance.now();
       if (!first && !invalidated) this.rechrome(view, entries);
+      const t1 = performance.now();
       this.entries = entries;
       this.settle(doc);
+      this.timing = { rechrome: t1 - t0, settle: performance.now() - t1 };
     }
     this.entries = entries;
     this.check(view);
@@ -324,6 +325,9 @@ export class Chain {
 
   /**
    * On a new document, each clean page's interval read again off the new rendering, the chrome redrawn where its state moved, or the page dirtied where a flow site reads a string that moved; every clean page's row staged.
+   *
+   * @remarks
+   * A clean page before the first dirty entry is passed over: nothing before it or in it changed, so its interval, its counters at its start and its strings and running elements over it are what they were. A run of clean pages after a dirty one is untouched by the edit, so its word positions moved by one amount and its blocks by one count: the first page of the run reads its interval off the rendering (`addressAt`, twice), and the others are shifted by the same amounts, which spares a walk of the block per page (measured on the showcase, a keystroke on page 3: 10 ms for 74 pages read each).
    * @param {any} view
    * @param {ReadonlyArray<Entry>} entries
    */
@@ -331,27 +335,40 @@ export class Chain {
     const doc = view.state.doc;
     const o = this.originals;
     const state = o.of(doc, view.render);
+    const firstDirty = entries.findIndex((e) => e.dirty);
     /** @type {number[]} */
     const dirty = [];
-    /** @type {{ to: number | null, at: { pos: number, block: number } | null } | null} */
-    let carry = null;
+    /** The shift of the clean run being read, in words and in blocks, null at a run's first page. @type {{ pos: number, block: number } | null} */
+    let shift = null;
+    /** The previous page's end, which is this page's start. @type {number | null} */
+    let prevEnd = null;
     for (let i = 0; i < entries.length; i++) {
       const e = entries[i];
-      const startAt = i === 0 ? { pos: 0, block: 0 } : carry && carry.to === e.from && carry.at ? carry.at : o.addressAt(state, e.from);
-      const endAt = e.to == null ? null : o.addressAt(state, e.to);
-      carry = { to: e.to, at: endAt };
       const page = this.pages.get(e.key);
-      if (!page?.chrome || e.dirty) continue;
-      const start = startAt.pos;
+      const c = page?.chrome;
+      if (e.dirty || !page || !c) { shift = null; prevEnd = null; continue; }
+      if (firstDirty < 0 || i < firstDirty) { prevEnd = c.end; continue; }
+      /** @type {number} */
+      let start;
+      /** @type {{ pos: number, block: number } | null} */
+      let endAt;
+      if (!shift) {
+        start = i === 0 ? 0 : prevEnd ?? o.addressAt(state, e.from).pos;
+        endAt = e.to == null ? null : o.addressAt(state, e.to);
+        shift = { pos: endAt && c.end != null ? endAt.pos - c.end : start - c.start, block: endAt && c.block != null ? endAt.block - c.block : 0 };
+      } else {
+        start = c.start + shift.pos;
+        endAt = c.end == null ? null : { pos: c.end + shift.pos, block: (c.block ?? 0) + shift.block };
+      }
       const end = page.blank ? start : endAt?.pos ?? null;
+      prevEnd = end;
       const facts = stateOfPage(state, start, end);
-      const c = page.chrome;
       const strings = !same(facts.strings, c.strings);
       if (strings && o.sitesIn(state, e.from, e.to)) { dirty.push(e.key); continue; }
       const moved = strings || !same(facts.counters, c.counters) || !same(facts.running, c.running);
-      page.chrome = { ...facts, boxes: state.boxes, start, end };
+      page.chrome = { ...facts, boxes: state.boxes, start, end, block: endAt?.block ?? null };
       if (moved) { page.drawChrome(); this.counts.redrawn++; }
-      const row = this.rowOf(page, doc, page.blank ? e.from : e.to, page.blank ? startAt : endAt);
+      const row = this.rowOf(page, doc);
       if (row) this.stage(doc, e.key, row);
     }
     if (!dirty.length) return;

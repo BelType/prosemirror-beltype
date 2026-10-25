@@ -140,7 +140,7 @@ export class CiceroPage {
     this.heights = new Map();
     /** The last fill's own account, for a reader that compares it with the engine's. @type {Record<string, any> | null} */
     this.account = null;
-    /** What the page's chrome is drawn from, as the last fill read it off the originals: its counters, strings and running elements, the running elements' list, and the word interval. @type {{ counters: Record<string, number[]>, strings: Record<string, any>, running: Record<string, any>, boxes: { el: Element }[], start: number, end: number | null } | null} */
+    /** What the page's chrome is drawn from, as the last fill read it off the originals: its counters, strings and running elements, the running elements' list, and the word interval. @type {{ counters: Record<string, number[]>, strings: Record<string, any>, running: Record<string, any>, boxes: { el: Element }[], start: number, end: number | null, block?: number | null } | null} */
     this.chrome = null;
     /** What the chrome was last drawn with, so a redraw that would change nothing does nothing. */
     this.chromeKey = '';
@@ -226,19 +226,22 @@ export class CiceroPage {
     let facts = stateOfPage(state, start, guess);
     let answer;
     let end;
+    /** @type {{ pos: number, block: number } | null} */
+    let at = null;
     let recuts = -1;
     const t1 = performance.now();
     for (;;) {
       recuts++;
       this.publish = this.publishOf(facts.strings);
       answer = await this.cutOnce(doc, from, render);
-      end = answer.to == null ? null : o.wordAt(state, answer.to);
+      at = answer.to == null ? null : o.addressAt(state, answer.to);
+      end = at?.pos ?? null;
       const truth = stateOfPage(state, start, this.blank ? start : end);
       const moved = JSON.stringify(truth.strings) !== JSON.stringify(facts.strings);
       facts = truth;
       if (this.blank || !moved || recuts >= 2 || !o.sitesIn(state, from, answer.to)) break;
     }
-    this.chrome = { ...facts, boxes: state.boxes, start, end: this.blank ? start : end };
+    this.chrome = { ...facts, boxes: state.boxes, start, end: this.blank ? start : end, block: at?.block ?? null };
     const t2 = performance.now();
     o.settle(this, answer.to);
     const t3 = performance.now();

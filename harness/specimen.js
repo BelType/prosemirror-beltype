@@ -355,7 +355,8 @@ export async function keystrokes(pageNo, n) {
     const update = view.lastUpdateMs;
     await quiet(view, factory, { started: t0, settleMs: 100 });
     const s = factory.chain.settles[settles];
-    out.push({ ms: Math.round((performance.now() - t0 - 100) * 10) / 10, update: Math.round(update * 10) / 10, settle: s ? Math.round(s.ms * 10) / 10 : null, runs: s?.runs.length ?? null, originals: factory.originals.timings.at(-1) });
+    const r1 = (/** @type {number} */ x) => Math.round(x * 10) / 10;
+    out.push({ ms: Math.round((performance.now() - t0 - 100) * 10) / 10, update: Math.round(update * 10) / 10, rechrome: r1(factory.chain.timing.rechrome), settleSync: r1(factory.chain.timing.settle), reads: r1(performance.getEntriesByName('cicero:reads').at(-1)?.duration ?? 0), settle: s ? Math.round(s.ms * 10) / 10 : null, runs: s?.runs.length ?? null, originals: factory.originals.timings.at(-1) });
   }
   return out;
 }
