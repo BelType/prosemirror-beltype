@@ -683,3 +683,125 @@ So the rendering is small beside a whole chain (23.2 ms of about 700) and large 
 - **The layout facts** (phase 2's third round): `target-counter()` and `target-text()`, and `counter(pages)` in the flow measured at its reservation until the chain is complete.
 - **The incremental originals**, above.
 - **A node test of `drawChrome`**: it needs the engine's `<beltype-page>`; the chrome fixture is the check.
+
+## The Ledger is state
+
+Written 2026-10-25, on the branch `round/the-ledger-is-state`, phase 2's second round, for docs/found.md's "A page an edit does not refill keeps the chrome it was drawn with" and the `target-counter()` part of "`target-counter()` and `target-text()` read nothing". Run it again with `npm test` (38 tests, in node, 8 of them the round's), `node scripts/specimen.mjs <absolute path>` and the same with `--bare` on each fixture under `fixtures/`, on `./test/specimen.md` and on the studio's `demos/showcase/index.html`; `--retitle 'Strings=>Strings, retitled'` (and `'Folios=>Folia'`, `'Folios=>Folios, retitled'`) on `fixtures/chrome` for the chrome on an edit; `--keys 3:5` on the showcase for the cost, with and without `--no-ledger`; and the studio's `node scripts/fragview-pages.mjs --demo <demo> --url <its url> --out <a file outside the studio>` on its six demos, with the studio's dev server on a free port.
+
+### The decision
+
+Settled by Egildo, 2026-10-25: *the Ledger is plugin state of prosemirror-beltype*. The view's fragments plugin is the Ledger's spine: each entry's key, its `from` and `to` mapped through every transaction, and its `dirty`. This package keeps, in a plugin of its own keyed by the entry's key and never in a slot of the view's entries (the view knows no engine), one row per page, pure data, and the reads loop's two warm tables. *The memos are not state*: the whole rendering (`Originals`), the live pages and the rows waiting for a transaction live on an object the factory owns, beside the state.
+
+### The plugin
+
+`ledger()` (`src/ledger.js`) returns a `Plugin` under `ledgerKey`, with no option. Its state:
+
+| Field | What it holds |
+| :--- | :--- |
+| `rows` | A `Map` from the chain entry's key to the page's row: `name`, `parity`, `blank`, `counters` at its start, `strings` and `running` over its interval in their four readings, `end` as a word position (null at the document's end, the start on a blank page), `block`, the top-level block that end stands in, `contentW` and `contentH`, `next`, the hint its fill left, and `key`, the engine's key. |
+| `delivered`, `facts` | The loop's warm tables (*a resumed run starts from the numbers it left*): the values the layout was cut under and each page's published facts. |
+| `resumed`, `why`, `reads` | The last settle's own results, `reads.runs` among them. |
+
+The engine's key (`keyOf`) is *the run resumes from an entry*'s: in it the cut's class, whether the page began at a forced break, the side a forced break still owes, the parity only where it can change a cut (the page's geometry differs between left and right, or a side is owed), and what the next page begins with besides its slice (a shell, a row's pieces); the address itself is the entry's `to`, which the spine holds and maps; out of it the word position, the page number and the literals. `pageOf(state, pos)` is an index lookup over the entries by the view's own rule (a cut belongs to the page after it), null where the entry is dirty or has no row yet. `accountOf(rows)` is the rows in the driver's account shape. The state round-trips through `toJSON` and `fromJSON`; the fragments plugin has neither, so a reopened state keeps its warm tables and loses its rows at its first transaction (filed in docs/found.md, the view's "The chain does not serialize").
+
+**Who writes the row.** The page's fill ends with the chain object computing its row (`Chain.filled`) and staging it for the document it was cut from; the view then dispatches its `refilled` transaction, and the Ledger's `appendTransaction`, seeing a transaction on that document, appends one carrying the staged rows, outside the history. An appended transaction rather than the chain object dispatching its own after the view's: the refill and its row land in one `state.apply`, so the view's `updateState` receives one state in which the spine and the Ledger agree, with no extra update of the view. The same append drops a row whose entry the view dropped, so the plugin's place among the state's plugins does not matter (the view adds its own last when the state lacks it). The plugin finds the chain object through the view it is given, `view.someProp('containers').chain`.
+
+### The chain object
+
+`Chain` (`src/chain.js`), made by `ciceroContainers` beside `Originals` and exposed as `chain` on the function it returns, is the factory's: the live pages by their entry's key and by their index, the rows staged per document, the waiters, and the reads loop's seat. A new object rather than `Originals` grown: `Originals` is one rendering of one state and what is read off it, a memo every fill reads synchronously; the chain object is the chain's life across states and needs the view. Egildo names both finally. Its three doors:
+
+1. **Settled.** `settled(doc)` resolves `{ complete: true }` at the first update of `doc` in which no entry is dirty, the last entry runs to the end and no dirtying the object owes is pending; `{ complete: false, why }` where the chain stops short (a dirty entry and no fill in flight after the view's update, or a fill that threw); and rejects with `Overtaken` when a newer document arrives first. The signals are the view's: the Ledger's plugin view hears every update after the view's `refresh` has started the next fill, and each page says when its fill begins and ends. Nothing polls.
+2. **The account.** `account(view)`, the Ledger's rows in the chain's order through `accountOf`: `pos` each page's end in word positions, `cut.path[0]` its block, `closes` the page's number, content box, counters and strings; its `index` is the originals'.
+3. **A resume.** `resume(view, at, index, blocks, account)`: the loop's `resume.at`, addresses in the originals' position space, each found as an element (`elAt`) and its words (`index.entryFor`), its page found by the engine's own `pageIntervals` and `pageContaining` over the account, and that page and the one before it dirtied through the view's `dirtied`, earliest first (the driver restarts one page before the page holding an edit).
+
+### The loop seated
+
+Once per document, and once after an `invalidate()`, the chain object runs `settleReads(document, { run, blocksOf: () => originals' blocks, originals: the holder's children, warm: the Ledger's delivered, warmFacts: the Ledger's facts, hide: 'beltype-page' })`, called from the Ledger's plugin view after the view's update has started the state's first fill. `run(laid)` is the chain: the first attempt dirties nothing and awaits `settled(doc)`, the chain as the view fills it after `updateState`; a later one dirties the pages `laid.resume.at` names and awaits `settled(doc)` again; both return `{ account, index, resumed, why }`, `resumed` the pages refilled in the run (`from`, `to`, `shift`, `converged`, `kept`) and `why` a sentence where none is (the chain's first fill, an invalidation, every page cut again). The settle is synchronous up to its first `await run`, so its delivery and its reservations are adopted before the state's first trial is measured, which a fill measures after its first `await`. The loop's result is written into the Ledger by one transaction outside the history.
+
+A newer document overtakes a settle: its pending `run` rejects with `Overtaken`, and since the loop delivers only after a `run` returns, an overtaken settle never writes again and its results are dropped; the newer settle has delivered its own on its first line. No second loop: the loop is the engine's, untouched.
+
+**The hiding scope.** `hideSheetText` scopes its rules as `${scope} :where([href="#x"])::before`; a page's slice is its light children (`setContent`), so `beltype-page` reaches them, and the CLI's pages, slotted from a root's light DOM, are out of its reach. Not measured on screen: the reservations stand only while a run is in flight.
+
+**The page's own facts.** The loop hands `run` the facts the layout before it decided (`laid.facts`), which the driver's pages wear; this package's pages wear their own interval's values, read off the originals, which are those facts or truer, so `laid.facts` is not read. One consequence is filed for the engine (docs/found.md, "The loop checks a page site against the facts it handed the run"): where an edit moves a string a flow site reads, the loop sends a second run that refills pages already cut under the truth.
+
+### The tree-order check
+
+`reads.js`' header: a target is `getElementById`'s answer, the first element in tree order, so the originals must precede every copy that keeps the id. The view's renderer keeps the author's ids (`slice-renderer.js` has no word for them; the schema's `toDOM` writes them), so every page's slice, the law copy and the staging copy carry them, and in the harness so do the CLI's root's light children. The holder was a body child appended when a page first filled, after the view. Measured with it there, the specimen under `--bare`: the loop warned that the nine targets were outside the flow, and all 15 reads differed from the CLI's. The holder is now body's first child (`Originals.of`), and the 15 are the CLI's.
+
+### Found on the way: a refilled page kept the hint it was built with
+
+Measured on the chrome fixture before the fix, `Folios` retitled `Folios, retitled`: the heading wraps, the chain refills from page 1 to a 17th page, and page 4, which now opens chapter II at a forced break, was refilled with `forced: false` and a lead of 27.72 px truncated, since the view hands a container its hint only when it builds it; every page from 4 on differed from a fresh fill (77 words against 83 on page 4). The page now takes, at every fill, the hint the page before it left last (`Chain.hintFor`, by index); the view's door is filed.
+
+### The chrome on an edit
+
+`--retitle` on `fixtures/chrome` under `--bare`: a heading's text replaced by a transaction on the view, the chain and the loop awaited, every page's words, margin boxes and flow read; then `invalidate()`, the view's fresh fill of the same state read the same way, and the two compared page for page.
+
+| Edit | Refilled | Redrawn, no refill | Dirtied for a flow site | Loop | Equal to the fresh fill |
+| :--- | :--- | ---: | :--- | :--- | :--- |
+| `Strings` to `Strings, retitled`, page 3 | 3 | 2 (pages 4, 5) | none | 2 runs: page 3, then 2 and 3 | 16 of 16 |
+| `Folios` to `Folia`, page 1 | 1 | 0 | page 2 | 1 run: pages 1 and 2 | 16 of 16 |
+| `Folios` to `Folios, retitled`, page 1 | 1 to 17, a page added | 0 | page 2 | 2 runs: 1 to 17, then 1 and 2 | 17 of 17 |
+
+After the first edit page 3 reads `Strings, retitled · Strings, retitled` in `@top-right` and `[Strings, retitled]` in its flow, page 4 the same in its head and foot, page 5 `Counters · Strings, retitled`, the `start` reading; pages 6 to 16 keep their own. The chain was quiet 13 ms after the dispatch, 13 ms and 98 ms for the other two. The second run of the first edit is the engine door above: page 3 was refilled under its new string, and the loop, laid under the warm facts, measured its site under the old one.
+
+### Parity
+
+`node scripts/specimen.mjs`, the CLI round against the view in one page, at 2de1bc9; every row is the same under `--bare`. "Reads" are the flow sites that read `target-counter()` or `target-text()`; "runs" the loop's on each side.
+
+| Document | CLI | View | Same | First difference | Margin boxes | State | Reads the same | Runs, CLI / view |
+| :--- | ---: | ---: | ---: | :--- | :--- | :--- | :--- | :--- |
+| `test/specimen.md` | 9 | 9 | 9 | none | 9 of 9 | none differs | 15 of 15 | 1 / 1 |
+| `fixtures/flow` | 26 | 26 | 26 | none | 26 of 26 | none differs | none declared | no loop |
+| `fixtures/tall` | 10 | 10 | 10 | none | 10 of 10 | none differs | none declared | no loop |
+| `fixtures/end-gap` | 6 | 6 | 6 | none | 6 of 6 | none differs | none declared | no loop |
+| `fixtures/row` | 13 | 13 | 13 | none | 13 of 13 | none differs | none declared | no loop |
+| `fixtures/multicol` | 6 | 6 | 6 | none | 6 of 6 | none differs | none declared | no loop |
+| `fixtures/running` | 13 | 13 | 13 | none | 13 of 13 | none differs | none declared | no loop |
+| `fixtures/facsimile` | 5 | 5 | 5 | none | 5 of 5 | none differs | none declared | no loop |
+| `fixtures/dressing` | 11 | 11 | 11 | none | 11 of 11 | none differs | none declared | no loop |
+| `fixtures/chrome` | 16 | 16 | 16 | none | 16 of 16 | none differs | 1 of 1 (`p. 15`) | 2 / 2 |
+| the showcase | 76 | 74 | 53 | page 50 | 65 of 76, first page 18 | first page 50 | 23 of 28 | 2 / 2 |
+
+The reads delivered: the specimen's 17 references (14 page reads and 3 counter or text reads, `target-text()`'s `Configuration` among them), its 15 flow reads on pages 1 to 3 the CLI's; the chrome fixture's 2 references and 9 page sites; the showcase's 28 references and 4 page sites. On the showcase the 5 read sites that differ are past its first cut difference, where the view's chain is two pages shorter: the contents' `65`, `71` and `74` against `67`, `73` and `76` on page 3, and the cross-reference that reads `p. 38` on both sides, on the view's page 67 and the CLI's 69. `counter(pages)` in the flow, the colophon's, is one of the 4 page sites: checked by the loop, its line not moved, it draws 74, the view's total, where the CLI's draws 76. Both sides print the same two meant warnings (the `words` counter style, `#a-chapter-never-written`). Before the round the specimen's 15 reads were blank on the view under `--bare`, and without it showed the CLI's values only because the CLI's own delivery sheet reached the view's links; nothing else in the table moved (round 1: the showcase 53 the same, first difference page 50, margin boxes 65 of 76, state page 50).
+
+### The studio, through its witness
+
+The studio was not edited, and its mount does not install `ledger()` (filed, the studio's "The fragmented view installs no Ledger"), so its pages have the round's holder and the hint taken by index, and no loop. A dev server of the studio's own on a free port:
+
+| Demo | Old path | View | Same | First difference | As last recorded |
+| :--- | ---: | ---: | ---: | :--- | :--- |
+| showcase | 76 | 74 | 43 | page 13 | yes |
+| showcase, `schema=studio` | 76 | 76 | 52 | page 29 | yes |
+| quiet-press | 30 | 30 | 30 | none | yes |
+| report | 11 | 11 | 11 | none | yes |
+| manuale | 7 | 7 | 6 | page 5 | yes |
+| facsimile | 6 | 6 | 6 | none | yes |
+| bolletta | 3 | 3 | 2 | page 3 | yes |
+
+### The cost
+
+The studio's showcase under the view, three runs each the same afternoon: on `main` (ca7a9c6) the first paint 1 300, 1 255 and 1 212 ms and the whole chain 1 236, 1 195 and 1 147 ms; on the branch (2de1bc9) 1 152, 1 158 and 1 229 ms and 1 099, 1 102 and 1 168 ms. Round 1's 1 087, 1 051 and 1 042 ms were measured on another afternoon; the two today are the comparison, and they do not differ beyond their spread.
+
+With the loop, measured in the harness on the showcase (the studio cannot install the plugin), three runs each:
+
+| | Without the Ledger (`--no-ledger`) | With it |
+| :--- | :--- | :--- |
+| The chain quiet after the mount | 779, 852 and 813 ms over 74 fills | 862, 882 and 893 ms over 78 fills |
+| The settle | none | 878.8, 898.6 and 908.9 ms: run 1, the chain as the view fills it, 757.0, 786.7 and 797.0 ms; run 2, pages 24, 25, 31 and 32, 46.4, 54.7 and 46.6 ms |
+| Five keystrokes on page 3, the chain quiet after each dispatch | 21.4, 20.2, 16.5, 18.8, 18.7; 20.9, 18.0, 17.3, 18.6, 20.2; 19.7, 20.1, 16.6, 19.7, 18.1 ms | 32.1, 27.7, 27.7, 29.8, 27.2; 30.6, 26.9, 27.8, 27.0, 27.0; 33.9, 29.7, 28.1, 30.9, 27.8 ms |
+
+Each keystroke settles in 1 run. Inside the view's update with the Ledger (23.8 to 30.5 ms), the clean pages' chrome read again takes 1.8 to 3.2 ms and the loop's start 7.5 to 9.6 ms (`cicero:reads`: the site search, the position index and the written facts over every block); the settle ends 18.3 to 22.6 ms after the dispatch. Before the clean runs were shifted (7171e58) the chrome took 9.9 to 10.9 ms, one reading of each of the 74 pages, and a keystroke 33.7 to 41.7 ms. Round 1's 46.5, 28.0, 25.7, 24.1 and 25.4 ms were the studio's, with no loop. The loop's start walks every block per state because the engine's `keep` door keeps a part by the box's element and the originals are rendered anew per state; the incremental rendering filed in docs/found.md is its prerequisite too.
+
+### Doors
+
+- **The view hands a container its hint only when it builds it** (`fragmented-view.js`, `build`, `fill`): worked around by the page asking the chain object.
+- **The fragments plugin does not serialize** (`fragments-plugin.js`): the Ledger's rows cannot meet their entries in a reopened state.
+- **The loop checks a page site against the facts it handed the run** (`reads.js`, `settleReads`): a run that could return the facts each page was cut under would spare the second run of an edit that moves a string a flow site reads.
+- **The studio's mount installs no Ledger** (`src/fragmented.js`): one line.
+
+### Not done
+
+- **The incremental originals and the loop's kept parts** (docs/found.md, "The originals cost a keystroke more than the refill it serves"): left filed, since the `keep` door needs box identity across states that a rendering made anew per state does not have, which is a round of its own.
+- **The hiding sheet seen on screen**: built and scoped, not measured.
+- **A browser test of the chain object**: its pure parts are pinned in node; the rest is measured by the harness.
+- The harness: a page refilled after `invalidate()` and never scrolled to had its slotted flow left out of the DOM snapshot now and then; the script scrolls each page in and snapshots again, three times at most, until every tag is in it.
