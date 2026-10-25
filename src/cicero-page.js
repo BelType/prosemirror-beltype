@@ -6,15 +6,16 @@
  *
  * `fill(doc, from, render)` is the driver's page cycle (`driver.js`, `paginateOnce`), with the engine's functions called and the gaps filled the ProseMirror way:
  * 1. Conditions. The page's name is the effective page name at its first in-flow box at or after `from` (`inFlowStart`: a running element, a fixed box or a whitespace leaf at `from` is passed over, since the driver's intake took them out before its cursor ever stood there), read off the trial's law copy (below) as the driver's `nameAt` reads it off the source; its geometry is the table's for that name, its side (`parityAt`), `:first` for the first page and `:blank` for a blank one.
- * 2. Trial. The slice from `from` is rendered twice: once into the engine's measure context (`createMeasureContext` at the page's content width, which neutralizes the native break properties and transforms inside it), and once into a hidden holder outside it, the LAW COPY. The two are the same tree, paired element by element, and the copy answers `sourceOf`: the Stonehand reads `break-*`, `orphans`, `widows` and the monolith grounds from the source because the measure context neutralizes them on what it lays out, so a slice cannot be its own source in the measure context. The trial is bounded as `OverflowBox` bounds its own (`firstSpan`), at a block boundary and never inside a box the driver's bound never cuts inside (`boundAt`, `sealedEnd`, the Cast-off's `neverCutInside`), and doubled until it reaches below the page's edge (`reachesBelowTheEdge`, the Cast-off's check) or the document's end. A fixed box or a running element (`isFixedBox`) is put away (`away`) on both copies and on the page, at any depth, which is the engine's zero footprint for both; the page that begins with one holds its positions, invisible. Placing a running element in its margin box (`setMarginBox`, the running assignments) is the reads' work, phase 2's, and not done here. What the page begins with besides its slice, a shell or a row's pieces (below), is built on both copies before they are measured, as the driver's feed is built with them.
+ * 2. Trial. The slice from `from` is rendered twice: once into the engine's measure context (`createMeasureContext` at the page's content width, which neutralizes the native break properties and transforms inside it), and once into a hidden holder outside it, the LAW COPY. The two are the same tree, paired element by element, and the copy answers `sourceOf`: the Stonehand reads `break-*`, `orphans`, `widows` and the monolith grounds from the source because the measure context neutralizes them on what it lays out, so a slice cannot be its own source in the measure context. The trial is bounded as `OverflowBox` bounds its own (`firstSpan`), at a block boundary and never inside a box the driver's bound never cuts inside (`boundAt`, `sealedEnd`, the Cast-off's `neverCutInside`), and doubled until it reaches below the page's edge (`reachesBelowTheEdge`, the Cast-off's check) or the document's end. A fixed box or a running element (`isFixedBox`) is put away (`away`) on both copies and on the page, at any depth, which is the engine's zero footprint for both; the page that begins with one holds its positions, invisible. Its copy in a margin box is the chrome's (below). What the page begins with besides its slice, a shell or a row's pieces (below), is built on both copies before they are measured, as the driver's feed is built with them.
  * 3. The grab. The engine's `forcingIndexOf` is built over the law copy's top-level blocks with readers this package supplies, and asked for the first forcing event strictly after the page's start, its first in-flow box, so an event there (a named page, a `break-before`) names the page or sets its side and does not end it; where it finds one in the trial, the trial is rendered again up to the event, as the driver cuts its feed there.
  * 4. Judgement. The fonts and the trial's images are awaited (`awaitFonts`, `awaitCloneImages`), the report taken (`takeReport`), the lead read (`report.contentTop` and the spent extent above a resumed box, `spentLead`), and the page's in-flow bottom compared with its content height as the driver compares it. A page that fits ends at the forced event or at the document's end; one that does not has the Stonehand rank the candidates (`adjudicate`).
  * 5. The verdict as the page's end (`cutOf`). A Class A boundary before a box is that box's position entered down its first-child chain (`enter`), the fragmented view's convention for a cut; a Class B cut between lines is the position of the first character the line after the cut shows, a word and, where the line begins inside it, a character (`placeAt`, `wordPoint`), so the breaking space before it stays on this page; a start-edge Class C resumes before the child after the gap. The three verdicts that continue a box in a form one position cannot say are built as the engine builds them (`shells.js` says what each side shows): the page edge's cut through a box (`E`) ends the page at the box's own position and the page after paints it, an end-gap Class C ends it after the box and the page after shows it as a blank shell, and a cut through a row ends it at the last item's place and gives every other item a piece of its own. Each is said to the page after in the hint (`next`: `at`, the position it was left for, `shell` and `row.items`).
  * 6. The page. The slice from `from` to the cut's own end (`openedAt(doc, to)`, or past `to` to the end of a box the page shows whole) is rendered into the page (`setContent`), the row pieces seated, the shells made, the tables and grids the page divides pinned to the tracks the trial laid them out at (`pinTracks`), the flow given the lead, the extent the verdict used and the extension a divided box takes (`setFlow`, `extensionPx`), and the answer is `{ to, next }` (`hintAfter`).
+ * 7. The chrome, as the root draws it (`drawChrome`, `root.js`' `#chrome`): the page's state read off the chain's one rendering of the whole state (`Originals`, `originals.js`) over the page's interval in the engine's word positions, its counters at its first word, its strings and running elements in their four readings; the margin boxes' `content` transliterated and dressed, `setCounters` with `page N` and, once the chain is complete, `pages T`, `setStrings`, each running element a copy of the originals' slotted into its box, and the bands measured. The trial is measured wearing what the page publishes (`publish`), and a page whose strings a flow site reads is cut again when its interval reads them otherwise (`fill`).
  *
  * The page never throws (*the build cannot fail*, C2). A verdict that maps to no position (a cut inside a leaf, which a schema's atom has none of) or to the page's own start with nothing entered or shrunk (`advances`) is an uncuttable run at the page's start: the node there is taken whole (`wholeAfter`), rendered as it is, its overflow clipped by the page as the engine's own page clips it, and the console says so once, with the page and the node's type.
  *
- * Where this departs from the driver's loop, each is a finding recorded in docs/results.md: the Cast-off's word estimate is the view's span; a parallel flow carried across a cut (a float, an absolutely positioned box) has no place in a position; a nested row cut inside a row item is taken whole; the root's parity demand on the first page is not read; and the page takes no reads (no folio, no `counter(pages)`, no strings, no running elements in the margins, no author counters delivered at the page's start: `setCounters` is phase 2's).
+ * Where this departs from the driver's loop, each is a finding recorded in docs/results.md: the Cast-off's word estimate is the view's span; a parallel flow carried across a cut (a float, an absolutely positioned box) has no place in a position; a nested row cut inside a row item is taken whole; the root's parity demand on the first page is not read; and the page settles no reads: no `target-counter()` (phase 2's third round), no reads loop around the chain (its second), so a page an edit leaves unfilled keeps the chrome it was drawn with, and a flow site reading `counter(pages)` is measured at its reservation until the chain is complete.
  *
  * The page resets the text mechanics the fragmented view's editing host sets (`white-space: break-spaces`, `overflow-wrap`, the ligatures and, from the editing host's own UA style, `line-break`) to what the document's body computes, because the trial in the measure context inherits from the body and the page's content inherits from the host. Measured 2026-10-24 with the reset left out: the cuts were the same, since the trial decides them, but the specimen's third page set its text on more lines than the trial had and its clip hid 21 of its 113 words, and the flow fixture differed from its first page.
  *
@@ -26,23 +27,27 @@
  */
 
 import { openedAt, pointAt, posAt } from 'prosemirror-fragview';
-import { addWord, AWAY, ADJOIN, END, SPLIT, hasWord, removeWord } from '@egildo/beltype-engine-cicero/src/data-beltype.js';
+import { addWord, AWAY, ADJOIN, ARTIFACT, END, FRAGMENT, SPLIT, hasWord, removeWord } from '@egildo/beltype-engine-cicero/src/data-beltype.js';
 import { createMeasureContext, awaitFonts, awaitCloneImages } from '@egildo/beltype-engine-cicero/src/measure.js';
 import { takeReport } from '@egildo/beltype-engine-cicero/src/gauge.js';
 import { adjudicate, reachesBelowTheEdge, isOutOfFlow, neverCutInside } from '@egildo/beltype-engine-cicero/src/stonehand.js';
 import { forcingIndexOf } from '@egildo/beltype-engine-cicero/src/driver.js';
-import { effectivePageName } from '@egildo/beltype-engine-cicero/src/capture.js';
+import { effectivePageName, transliterateContent } from '@egildo/beltype-engine-cicero/src/capture.js';
+import { encodeStringProp, STRING_KEYWORDS } from '@egildo/beltype-engine-cicero/src/gcpm-encoding.js';
+import { cssString } from '@egildo/beltype-engine-cicero/src/reads.js';
 import { pathOf, normalizePath, extensionPx, divides } from '@egildo/beltype-engine-cicero/src/positions.js';
 import { joinedWords } from '@egildo/beltype-engine-cicero/src/fragments.js';
-import { blockChildrenOf, isFixedBox, noteSource } from '@egildo/beltype-engine-cicero/src/word-space.js';
+import { blockChildrenOf, copyOf, isFixedBox, noteSource } from '@egildo/beltype-engine-cicero/src/word-space.js';
 import { presentation } from '@egildo/beltype-engine-cicero/src/presenters.js';
 import '@egildo/beltype-engine-cicero/src/chase.js';
 import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition, wholeAfter, advances, inFlowStart } from './turn.js';
 import { Positions, nodeDom, nodeStart, continueAsShell, endAsShell, seatPieces, shellsOf, endsOf, pinTracks } from './shells.js';
+import { stateOfPage } from './originals.js';
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
 /** @import { FillResult, RenderedSlice, SliceRenderer, ContainerHint } from 'prosemirror-fragview/src/fragmentainer.js' */
 /** @import { Shell, Piece } from './shells.js' */
+/** @import { Originals, OriginalsState } from './originals.js' */
 
 /** The comparison tolerance the driver and the Stonehand share, far below a line. */
 const EPS = 0.25;
@@ -97,9 +102,11 @@ export class CiceroPage {
    * @param {(ContainerHint & { forced?: boolean }) | undefined} [a.hint] What the fill before this page left for it.
    * @param {Document} [a.document]
    * @param {() => Promise<void>} [a.intake] What the presenters need before a trial is presented, the factory's (`takeFacsimile`); nothing by default.
+   * @param {Originals | null} [a.originals] The chain's rendering of the whole state, the factory's (`originals.js`), which the page's chrome is read from; without it the page draws no chrome, as in phase 1.
    */
-  constructor({ table, index, hint, document = globalThis.document, intake = async () => {} }) {
+  constructor({ table, index, hint, document = globalThis.document, intake = async () => {}, originals = null }) {
     this.table = table;
+    this.originals = originals;
     this.intake = intake;
     this.index = index;
     this.hint = hint ?? {};
@@ -129,6 +136,17 @@ export class CiceroPage {
     this.heights = new Map();
     /** The last fill's own account, for a reader that compares it with the engine's. @type {Record<string, any> | null} */
     this.account = null;
+    /** What the page's chrome is drawn from, as the last fill read it off the originals: its counters, strings and running elements, the running elements' list, and the word interval. @type {{ counters: Record<string, number[]>, strings: Record<string, any>, running: Record<string, any>, boxes: { el: Element }[], start: number, end: number | null } | null} */
+    this.chrome = null;
+    /** What the chrome was last drawn with, so a redraw that would change nothing does nothing. */
+    this.chromeKey = '';
+    /** The margin boxes the chrome last drew, so a page whose name changed clears the ones it no longer has. @type {string[]} */
+    this.boxesDrawn = [];
+    /** The light children the chrome added (a running element's slot), which are not the page's content. @type {Set<Element>} */
+    this.chromeNodes = new Set();
+    /** What the trial's measure container wears (`createMeasureContext`'s `measure(nodes, publish)`): the page's number and the strings it publishes. @type {{ counterReset: string, props: Record<string, string> } | null} */
+    this.publish = null;
+    originals?.pages.add(this);
     this.observer = new ResizeObserver((entries) => {
       if (!this.rendered) return;
       // Only a node the page still shows, judged by its border box; the observation `observe()` makes at once reads the recorded height and is dropped by `EPS`.
@@ -151,17 +169,119 @@ export class CiceroPage {
     const geometry = this.table.pageFor(conditionOf(this.index, name, this.blank));
     this.dom.applyConditions(geometry);
     this.dom.dress(geometry.pageStyle ?? null);
+    // The dress above has no margin boxes, so the chrome is drawn again whatever it was drawn with (measured 2026-10-25: a refill left the showcase's page 25 with every cell's content `none`).
+    this.chromeKey = '';
     return { ...geometry, name };
   }
 
   /**
-   * Render the slice of `doc` from `from` under the page's conditions, decide where the page ends, and answer it.
+   * Render the slice of `doc` from `from` under the page's conditions, decide where the page ends, draw its chrome, and answer.
+   *
+   * @remarks
+   * The cut is `cutOnce`'s, unchanged but for what the trial's measure container wears: the page's number and the named strings it publishes (`publish`), so a flow site that reads one (`string()` the host rewrote into a `var()`, `counter(page)`) is measured with its value standing, as the driver measures it under the facts the run before decided. The strings are a reading of the page's interval, which the cut decides, so the first trial wears the entry values (the strings in effect at the page's first word), or the last fill's where the page filled before; where the cut's own interval reads otherwise and a flow site stands on the page, the page is cut once more under the truth, twice at most, and the cut that stands is the last (the driver's three runs, said of one page). A document with no such site is cut once, as before.
+   *
+   * Then the chrome, as the root draws it (`drawChrome`), from the page's state read off the originals over its interval; the chain's total moves (`Originals.settle`) before the page draws.
    * @param {PMNode} doc
    * @param {number} from
    * @param {SliceRenderer} render
    * @returns {Promise<FillResult>}
    */
   async fill(doc, from, render) {
+    const o = this.originals;
+    if (!o) return this.cutOnce(doc, from, render);
+    const t0 = performance.now();
+    const state = o.of(doc, render);
+    const start = o.wordAt(state, from);
+    const guess = this.chrome && this.chrome.start === start ? this.chrome.end : start;
+    let facts = stateOfPage(state, start, guess);
+    let answer;
+    let end;
+    let recuts = -1;
+    const t1 = performance.now();
+    for (;;) {
+      recuts++;
+      this.publish = this.publishOf(facts.strings);
+      answer = await this.cutOnce(doc, from, render);
+      end = answer.to == null ? null : o.wordAt(state, answer.to);
+      const truth = stateOfPage(state, start, this.blank ? start : end);
+      const moved = JSON.stringify(truth.strings) !== JSON.stringify(facts.strings);
+      facts = truth;
+      if (this.blank || !moved || recuts >= 2 || !o.sitesIn(state, from, answer.to)) break;
+    }
+    this.chrome = { ...facts, boxes: state.boxes, start, end: this.blank ? start : end };
+    const t2 = performance.now();
+    o.settle(this, answer.to);
+    const t3 = performance.now();
+    this.drawChrome();
+    const t4 = performance.now();
+    if (this.account) Object.assign(this.account, { start, end: this.chrome.end, recuts, counters: facts.counters, strings: facts.strings, running: facts.running, ms: { state: t1 - t0, cut: t2 - t1, settle: t3 - t2, chrome: t4 - t3 } });
+    return answer;
+  }
+
+  /**
+   * What the page publishes on its host, as the measure container wears it (`reads.js`' `pageFactsOf`, for one page): `page N`, `pages T` once the chain's total is known, and each named string's four properties.
+   * @param {Record<string, Record<string, string>>} strings
+   */
+  publishOf(strings) {
+    /** @type {Record<string, string>} */
+    const props = {};
+    for (const [name, values] of Object.entries(strings)) for (const which of STRING_KEYWORDS) props[encodeStringProp(name, which)] = cssString(values?.[which] ?? '');
+    const total = this.originals?.total;
+    return { counterReset: `page ${this.index + 1}${total != null ? ` pages ${total}` : ''}`, props };
+  }
+
+  /**
+   * The page's chrome, drawn as the root draws it (`root.js`, `#chrome`): the page context and each margin box's `content` transliterated (`transliterateContent`, `counter(pages)` blank until the chain's total is known) dressed into the page's shadow, the page's counters (`page N`, `pages T`, the document's counters at its first word) and its named strings published on its host, each running element a page's box places cloned from the originals into the box, and the bands measured. Called at the end of every fill and again, with no refill, when the chain's total moves.
+   *
+   * @remarks
+   * A running element's clone is the page's own light child, slotted into its margin box directly (`runningPart`): `setMarginBox` takes a forwarding slot and the node it forwards, the root's chain, whose forwarding slot is a light child of a page inside the root's shadow tree. A page outside the root has no shadow tree above it to forward from, and a `<slot>` outside one does not draw what it holds (measured 2026-10-25 on the running fixture: the clone, the slot's child, laid out no box). So the clone stands for the forwarding slot itself, with an `assign` that does nothing, and the cell's slot is assigned the clone. A door in the engine would let `setMarginBox` take the node (docs/found.md).
+   */
+  drawChrome() {
+    const c = this.chrome;
+    if (!c) return;
+    const total = this.originals?.total ?? null;
+    const boxes = /** @type {Record<string, string>} */ (/** @type {any} */ (this.conditions).marginBoxes ?? {});
+    const plan = Object.entries(boxes).map(([box, value]) => /** @type {[string, ReturnType<typeof transliterateContent>]} */ ([box, transliterateContent(value, { pagesKnown: total != null })]));
+    const key = JSON.stringify([this.conditions.name, this.blank, plan, this.index, total, c.counters, c.strings, c.running]);
+    if (key === this.chromeKey) return;
+    this.chromeKey = key;
+    this.dom.dress(this.conditions.pageStyle ?? null, Object.fromEntries(plan.map(([box, t]) => [box, t && { before: t.before, after: t.after }])));
+    this.dom.setCounters(c.counters, { page: this.index + 1, pages: total });
+    this.dom.setStrings(c.strings);
+    for (const node of this.chromeNodes) node.remove();
+    this.chromeNodes.clear();
+    for (const box of this.boxesDrawn) if (!(box in boxes)) this.dom.setMarginBox(box, null);
+    for (const [box, t] of plan) this.dom.setMarginBox(box, t ? t.parts.map((part) => (typeof part === 'string' ? part : this.runningPart(c.running?.[part.element]?.[part.which], c.boxes))) : null);
+    this.boxesDrawn = Object.keys(boxes);
+    this.dom.layoutBands();
+  }
+
+  /**
+   * GCPM §1.2's `element()` on this page: a copy of the running element at `at` in the originals' list, marked a fragment and an artifact and hidden from assistive technology as the root marks its own (`#runningPart`), standing for the forwarding slot `setMarginBox` asks for (`drawChrome` says why).
+   * @param {number | null | undefined} at
+   * @param {{ el: Element }[]} boxes
+   */
+  runningPart(at, boxes) {
+    const source = at == null ? null : boxes[at]?.el;
+    if (!source) return '';
+    const clone = copyOf(source);
+    addWord(clone, FRAGMENT);
+    addWord(clone, ARTIFACT);
+    clone.setAttribute('aria-hidden', 'true');
+    // ponytail: the clone stands for the forwarding slot; `setMarginBox` taking a node is the engine's door (docs/found.md).
+    const slot = /** @type {any} */ (Object.assign(clone, { assign() {} }));
+    this.chromeNodes.add(clone);
+    return { slot, node: clone };
+  }
+
+  /**
+   * One turn of the driver's page cycle: render the slice of `doc` from `from` under the page's conditions, decide where the page ends, and answer it.
+   * @param {PMNode} doc
+   * @param {number} from
+   * @param {SliceRenderer} render
+   * @returns {Promise<FillResult>}
+   */
+  async cutOnce(doc, from, render) {
     this.to = null;
     this.observer.disconnect();
     this.heights.clear();
@@ -371,7 +491,7 @@ export class CiceroPage {
    */
   async measure(ctx, t, truncateLead, doc, from, start) {
     await this.present(t);
-    const container = ctx.measure([...t.trial.fragment.childNodes]);
+    const container = ctx.measure([...t.trial.fragment.childNodes], this.publish);
     t.container = container;
     await awaitFonts(this.doc);
     await awaitCloneImages(container);
@@ -656,9 +776,9 @@ export class CiceroPage {
     }
   }
 
-  /** The nodes the page was given. */
+  /** The nodes the page was given, less what its chrome added. */
   given() {
-    return [...this.dom.childNodes].filter((n) => n.nodeType === 1);
+    return [...this.dom.childNodes].filter((n) => n.nodeType === 1 && !this.chromeNodes.has(/** @type {Element} */ (n)));
   }
 
   /** @param {number} pos */
@@ -678,6 +798,7 @@ export class CiceroPage {
   }
 
   release() {
+    this.originals?.pages.delete(this);
     this.observer.disconnect();
     this.rendered = null;
     this.dom.setContent();
