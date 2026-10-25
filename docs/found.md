@@ -32,7 +32,7 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Layer**: the Cicero page, `src/cicero-page.js` (`trial` puts away what `isFixedBox` names, `grab`).
 - **Fix**: two parts, to be measured apart: check that `isFixedBox` on the law copy names a running element whose `position: running()` the rewrite moved into a custom property (the report's was drawn); and let the grab take an event with no in-flow box before it as the page's start, not its end, as the driver's "strictly after the page's start" means for a page whose start holds only out-of-flow boxes.
 - **State**: CLOSED 2026-10-24, f74a440 (the page's start) and 477f79d (the fixture), on `round/the-page-starts-at-its-first-box`. The put-away never missed: measured on all three demos under both schemas, the law copy is connected, the rewritten sheets reach it, `isFixedBox` names the element at any depth and the page draws it `display: none`. The page was named, and its grab's cursor read, at the running element or at the generic schema's leading whitespace leaf, so it was named `''` and ended at the cover's first child of another name; it now reads both at its first in-flow box (`inFlowStart`), and the report is 11 pages, the manual 7 and the showcase's page 1 the cover with the blank verso back (docs/results.md, "The page starts at its first in-flow box").
-- **Remains**: the running element is not placed in its margin box, the reads' work (phase 2).
+- **Remains**: nothing; since 2026-10-25 (3800dfb) the running element is placed in its margin box on every page, as the CLI places it ("No folios, running heads, strings or author counters", below).
 
 ### A facsimile is drawn at the browser's 150 px object height
 
@@ -41,12 +41,40 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Fix**: present the given content as the root presents its pieces, through the engine's presenter registry, before the trial is measured (the trial must measure the presented size too).
 - **State**: CLOSED 2026-10-25, 162760b (the page presents what it renders) and 61bf7ba (the fixture), on `round/the-page-presents-what-it-renders`. The factory takes the facsimile's intake when a slice first holds a PDF `<object>`, and the page presents the trial, the law copy and the shown slice through the engine's registry, so the demo is 6 pages against 6, every page the same, the two in-flow pages 229 × 304 and the landscape page 533 × 400 on both paths, and the facsimile fixture 5 against the CLI's 5 (docs/results.md, "The page presents what it renders").
 
-### No folios, running heads, page totals, cross-references or strings
+### No folios, running heads, strings or author counters
 
 - **Seen**: every demo: no folio and no running head on any page of the quiet press, the showcase's `counter(pages)` and its `target-counter()` references blank. On the showcase the first page that differs from the old path, page 25, is the one whose paragraph reads `string(family)` in the flow: the string is empty, the line is shorter, and the page holds 11 words more (256 against 245).
 - **Layer**: the Cicero page, phase 2 (reads and counters), `src/containers.js` and `src/cicero-page.js`.
-- **Fix**: phase 2 as planned.
-- **State**: OPEN (known, phase 1's "not done").
+- **Fix**: phase 2 as planned, its first round: the chrome the chain alone can answer.
+- **Measured 2026-10-25 before the fix**, against the CLI round through the harness: the showcase 74 pages against 76, 51 the same, first difference page 25 (245 words against the CLI's 222, then 166 against 189), no margin box on any view page. Under the studio's own schema the witness's page 25 is 256 against 245, as above.
+- **State**: CLOSED 2026-10-25, 3800dfb and 9b90285 on `round/the-page-wears-its-chrome`: the factory keeps one hidden rendering of the whole state per state (`Originals`, `src/originals.js`), the driver's intake read off it, and each page draws its chrome at the end of `fill` as the root does: the folio, `counter(pages)` once the chain is complete, the named strings in their four readings, the author's counters at the page's first word, the running elements copied into their boxes. The trial's measure container wears the page's number and strings, so `string()` in the flow is measured with its value. Every fixture and the specimen give the CLI's margin boxes, page for page, and the state behind them (each page's interval in the engine's word positions, its counters, strings and running elements); the showcase's first difference against the CLI moved from page 25 to page 50, the carried floats (docs/results.md, "The page wears its chrome").
+
+### `counter(pages)` in the flow is measured at its reservation until the chain is complete
+
+- **Seen**: by the build, 2026-10-25: a page's trial wears `page N` and, while no page has run to the document's end, no `pages`, so a flow site reading `counter(pages)` is laid out with `0`; when the chain completes every page's host is given `pages T` and the site draws the total without a refill, so its line is not measured again. The showcase's colophon ("This book has 74 pages") is the one such site in the demos; no line moved in any measured document.
+- **Layer**: this package, phase 2's third round, the layout facts (the second is the reads loop around the view).
+- **Fix**: the engine's answer, a site whose page's published values moved is measured again (`reads.js`, `pageFactsOf` and `linesOfSites`), the page refilled when its line moved.
+- **State**: OPEN, round 3's.
+
+### `target-counter()` and `target-text()` read nothing
+
+- **Seen**: the specimen under `--bare`, 2026-10-25: the 15 reads on its pages 1 to 3 (the contents' `p. N`, `Chapter II`) are blank on the view's pages and delivered on the CLI's; without `--bare` the CLI's delivery sheet, adopted on the document, reaches the view's elements too and they show the CLI's values. The showcase's two cross-references, the manual's contents.
+- **Layer**: this package, phase 2's third round, over the reads loop of its second (`settleReads` with `run` the view's chain).
+- **State**: OPEN, round 3's.
+
+### A page an edit does not refill keeps the chrome it was drawn with
+
+- **Seen**: by reading, 2026-10-25: the chrome is read when a page fills, and an edit refills only the pages the ripple reaches, so a page after them keeps the strings, counters and total it was drawn with. Retitling a chapter's heading on page 3 leaves the old title in the running heads of the pages after it until each refills; the total is the one fact redrawn without a refill (`Originals.settle`).
+- **Layer**: this package, phase 2's second round, the reads loop: a state whose reading moved a page's chrome dirties that page or redraws it.
+- **Fix**: on a new state, read each live page's state over its interval and redraw the pages whose state moved; the page knows its interval in the old document only, so the view's translated entries are the door (the factory's `entries` argument is the chain when the page was built).
+- **State**: OPEN.
+
+### The originals cost a keystroke more than the refill it serves
+
+- **Seen**: measured 2026-10-25 on the studio's showcase, five characters typed on page 3: the rendering of the whole state 1.9 to 5.6 ms and its reading 12.0 to 23.6 ms per transaction, inside `updateState`, so the chain settles in 24.1 to 46.5 ms where `main` settles in 7.6 to 22.8 ms (docs/results.md, "The page wears its chrome", the cost).
+- **Layer**: this package, `src/originals.js`.
+- **Fix**: proposed, not built: render and read per top-level node, keeping each unchanged node's element, index part and ops part by the node's identity (ProseMirror's nodes are persistent, so an untouched top-level node is the same object), through the engine's own door for kept parts (`indexBlocks` and `documentOpsOf` take a `Keep`, settled by `sheetReach`, *a resumed run keeps its reads*).
+- **State**: OPEN.
 
 ### A typed double space collapses on the page
 
@@ -147,6 +175,27 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Fix**: case it in the battery from the showcase's page 4 paragraph 8.
 - **State**: OPEN, seen on main too.
 
+### A margin box takes a running element only through a forwarding slot
+
+- **Seen**: the running fixture under the view, 2026-10-25: `setMarginBox(name, parts)` takes a running element as `{ slot, node }`, a forwarding slot it makes the page's light child and the node it assigns to it, the root's chain (the page stands in the root's shadow tree, the clone is the root's light child). A page outside the root has no shadow tree above it, and a `<slot>` outside one draws nothing: with the clone the slot's child, the harness read the clone's text and the clone laid out no box.
+- **Layer**: the engine, `src/chase.js` (`setMarginBox`).
+- **Fix**: let a part be a node, assigned to the cell's slot directly. Worked around in `src/cicero-page.js` (`runningPart`): the clone is the page's light child and stands for the forwarding slot, its `assign` a no-op, so the cell's slot is assigned the clone, which then draws as the root's does.
+- **State**: OPEN.
+
+### The intake's running elements are read off `doc.body`
+
+- **Seen**: by building the originals, 2026-10-25: `runningBoxes(doc)` and `topLevelBlocks(doc)` read `doc.body.children`, and `runningPosition`, the two lines that turn a running element's place into its assignment's position, is private to `driver.js`.
+- **Layer**: the engine, `src/driver.js`.
+- **Fix**: take the root the boxes stand in (a parameter defaulting to `doc.body`), and export `runningPosition`. Worked around in `src/originals.js`: both are asked of a stand-in whose `body` is the originals' holder, and `runningPosition` is written again.
+- **State**: OPEN.
+
+### A second host in the same document finds the margin boxes' `content` cleared
+
+- **Seen**: the harness, 2026-10-25: the root clears every margin box's `content` from the CSSOM when it presents (`neutralizeMarginBoxes`), and the table it captured before is the client's alone (`seam/client.js`, `presented.table`), so the view's factory, made in BelType's own page after the CLI's round, read a table with no margin boxes.
+- **Layer**: the engine, `seam/client.js` and `src/root.js`; met only by a page that holds both hosts.
+- **Fix**: expose the captured table on the handle, or let a host pass one in. Worked around in the harness: an init script records each `content` the root removes and the harness writes them back before the factory reads the table (`restoreMarginContent`).
+- **State**: OPEN (minor).
+
 ## The studio's wiring
 
 ### Roundtrip's re-parse check cannot hold under structured marks
@@ -190,3 +239,10 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Layer**: the studio, `src/verbs.js` through `src/fragmented.js`.
 - **Fix**: the stand-in focuses the view.
 - **State**: CLOSED, 19c06e2.
+
+### The showcase's page 25 paragraph has no `<code>` under the studio's schema
+
+- **Seen**: measured 2026-10-25, the showcase's paragraph "A string is not only for the margins…" on page 25: the source holds three `<code>` elements (`string()`, `::before`, `::after`), and so do the CLI's page and the view's page under the generic ground; the old path and `?view=fragmented&schema=studio` draw the paragraph without them, 74.69 px tall against 77.69. So the witness's page 25 holds 245 words where the CLI's holds 222, and the view gives 245 under the studio's schema and 222 under the generic ground. Page 13 differs between the witness and the CLI the same way (282 words against 284), not traced.
+- **Layer**: the studio's schema (`src/schema.js`) or its page serializer, not traced.
+- **Fix**: compare the witness against the CLI's pages before reading a difference from it as the view's.
+- **State**: OPEN.
