@@ -425,6 +425,27 @@ export async function keystrokes(pageNo, n) {
 
 
 /**
+ * The overtaken fill (docs/found.md, "A fill overtaken by a second transaction in the same task throws in the grab"): for each pair of neighbouring pages of the settled chain, both pages are filled from their own entry's `from` over the one document in the same task, so the first is suspended at its measurement when the second's trial begins. Each fill must answer the `to` its entry holds; a fill that throws is named with its message. Also the law holders still standing in the document once every fill has ended, which is none.
+ */
+export async function overtaken() {
+  const { view } = mounted;
+  const doc = view.state.doc;
+  const entries = view.entries.map((/** @type {any} */ { key, from, to }) => ({ key, from, to }));
+  /** @type {string[]} */
+  const failures = [];
+  for (let i = 0; i + 1 < entries.length; i++) {
+    const pair = [entries[i], entries[i + 1]];
+    const settled = await Promise.allSettled(pair.map((e) => view.containers.get(e.key).fill(doc, e.from, view.render)));
+    settled.forEach((r, k) => {
+      const e = pair[k];
+      if (r.status === 'rejected') failures.push(`page ${i + 1 + k} (with page ${i + 1 + (1 - k)}): threw ${String(r.reason?.message ?? r.reason)}`);
+      else if (r.value.to !== e.to) failures.push(`page ${i + 1 + k} (with page ${i + 1 + (1 - k)}): answered ${r.value.to}, the chain holds ${e.to}`);
+    });
+  }
+  return { pairs: entries.length - 1, failures, holders: document.querySelectorAll('[id^="__prosemirror-beltype-law"]').length };
+}
+
+/**
  * The sheets' reach as the engine reads it for this host's unit, a whole top-level box (`topLevelReach` over the originals' holder's children, with no boxes before, and again as after a change of shape, the first box new, with the rules that give the latter; the originals' timings carry each state's own), and for `patchBox`'s (`sheetReach`), with the rules that give the latter: each rule whose selector holds `:has(`, an `@container` rule, a sheet that cannot be read (reach 2), or a sibling combinator or `:nth-…(… of …)` (reach 1), with its sheet's address; the first few of each.
  */
 export function reachOf() {
@@ -457,4 +478,4 @@ export function reachOf() {
   return { topLevel: holder ? topLevelReach(document, boxes, []) : null, shaped: holder ? topLevelReach(document, boxes, boxes.slice(1)) : null, shapedRules: shapedRules.slice(0, 8), reach: sheetReach(document), two: out.two.length, one: out.one.length, first: [...out.two, ...out.one].slice(0, 8) };
 }
 
-Object.assign(window, { __prosemirrorBeltype: { wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount, tagChrome, untagChrome, cliLedger, viewPagesOf, readsOf, retitle, edit, stateOf, refillWhole, keystrokes, reachOf } });
+Object.assign(window, { __prosemirrorBeltype: { wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount, tagChrome, untagChrome, cliLedger, viewPagesOf, readsOf, retitle, edit, stateOf, refillWhole, keystrokes, reachOf, overtaken } });
