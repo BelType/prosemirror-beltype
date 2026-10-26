@@ -82,7 +82,7 @@ const TEXT_MECHANICS = ['whiteSpace', 'overflowWrap', 'fontVariantLigatures', 'f
  * @typedef {{ to: number | null, end?: number, shell?: Shell, pieces?: Piece[], next?: Start }} Cut
  */
 
-/** The hidden holder every page's law copy stands in: in the document, so its elements have a computed style, and outside the measure context, so the neutralizing sheet does not reach them. The shown page's slice is presented in another of the same kind (`show`). */
+/** The hidden holder a fill's law copy stands in: in the document, so its elements have a computed style, and outside the measure context, so the neutralizing sheet does not reach them. Each fill has its own (`fill`), since two fills of one document can be in flight at once and a holder they shared would be emptied and refilled under the one suspended at its measurement (docs/found.md, "A fill overtaken by a second transaction in the same task throws in the grab"). The shown page's slice is presented in another of the same kind (`show`). */
 function lawHolder(/** @type {Document} */ doc, id = '__prosemirror-beltype-law') {
   let holder = doc.getElementById(id);
   if (!holder) {
@@ -93,6 +93,9 @@ function lawHolder(/** @type {Document} */ doc, id = '__prosemirror-beltype-law'
   }
   return holder;
 }
+
+/** The fills that have begun, for each one's holder's id. */
+let fills = 0;
 
 export class CiceroPage {
   /**
@@ -194,13 +197,17 @@ export class CiceroPage {
    */
   async fill(doc, from, render) {
     this.chain?.began(this);
+    // The fill's own law holder, taken out of the document when the fill ends, normally or not; every trial of the fill writes it, one after another.
+    const holder = lawHolder(this.doc, `__prosemirror-beltype-law-${++fills}`);
     try {
-      const answer = await this.cutAndDraw(doc, from, render);
+      const answer = await this.cutAndDraw(doc, from, render, holder);
       this.chain?.filled(this, doc, answer);
       return answer;
     } catch (error) {
       this.chain?.failed(this, doc, error);
       throw error;
+    } finally {
+      holder.remove();
     }
   }
 
@@ -209,9 +216,10 @@ export class CiceroPage {
    * @param {PMNode} doc
    * @param {number} from
    * @param {SliceRenderer} render
+   * @param {Element} holder The fill's law holder.
    * @returns {Promise<FillResult>}
    */
-  async cutAndDraw(doc, from, render) {
+  async cutAndDraw(doc, from, render, holder) {
     // The hint the page before left at its last fill, which the view hands a page only when it builds it: a page refilled in a ripple is otherwise cut under the hint of the layout before the edit (docs/found.md, "A refilled page keeps the hint it was built with").
     const hint = this.chain?.hintFor(this);
     if (hint !== undefined && JSON.stringify(hint) !== JSON.stringify(this.hint)) {
@@ -220,7 +228,7 @@ export class CiceroPage {
       this.conditions = this.conditionsFor(hint.name ?? '');
     }
     const o = this.originals;
-    if (!o) return this.cutOnce(doc, from, render);
+    if (!o) return this.cutOnce(doc, from, render, holder);
     const t0 = performance.now();
     const state = o.of(doc, render);
     const start = o.wordAt(state, from);
@@ -235,7 +243,7 @@ export class CiceroPage {
     for (;;) {
       recuts++;
       this.publish = this.publishOf(facts.strings);
-      answer = await this.cutOnce(doc, from, render);
+      answer = await this.cutOnce(doc, from, render, holder);
       at = answer.to == null ? null : o.addressAt(state, answer.to);
       end = at?.pos ?? null;
       const truth = stateOfPage(state, start, this.blank ? start : end);
@@ -317,9 +325,10 @@ export class CiceroPage {
    * @param {PMNode} doc
    * @param {number} from
    * @param {SliceRenderer} render
+   * @param {Element} holder The fill's law holder, which every trial of this cut writes.
    * @returns {Promise<FillResult>}
    */
-  async cutOnce(doc, from, render) {
+  async cutOnce(doc, from, render, holder) {
     this.to = null;
     this.observer.disconnect();
     this.heights.clear();
@@ -347,10 +356,10 @@ export class CiceroPage {
     let first = from;
     for (let pours = 1; ; pours++) {
       end = this.boundAt(doc, from + span);
-      t = this.trial(doc, from, end, render, forced, start);
+      t = this.trial(doc, from, end, render, forced, start, holder);
       // The bound never falls inside a box whose layout reads its whole interior (the Cast-off's rule, `neverCutInside`): a monolith, a parallel flow, a table, a flex or grid container.
       const sealed = end == null ? null : this.sealedEnd(t, doc, end);
-      if (sealed !== end) t = this.trial(doc, from, (end = sealed), render, forced, start);
+      if (sealed !== end) t = this.trial(doc, from, (end = sealed), render, forced, start, holder);
       if (!ctx) {
         first = inFlowStart(doc, from, (pos) => { const el = nodeDom(t.lawRoot, t.law.positions, doc, pos); return !!el && isFixedBox(el); });
         // Entry N determines page N+1's conditions (C8): the name is the content's own at the page's start.
@@ -372,7 +381,7 @@ export class CiceroPage {
       eventName = this.nameAt(t, eventTo);
       // The feed is cut at the event, as the driver's grab cuts it, and measured again.
       end = openedAt(doc, eventTo);
-      t = this.trial(doc, from, end, render, forced, start);
+      t = this.trial(doc, from, end, render, forced, start, holder);
       ({ report, pageStart } = await this.measure(ctx, t, truncateLead, doc, from, start));
     }
 
@@ -456,9 +465,10 @@ export class CiceroPage {
    * @param {SliceRenderer} render
    * @param {boolean} forced The page begins at a forced break, which keeps the margin adjoining it.
    * @param {Start} start
+   * @param {Element} holder The fill's law holder, emptied and refilled by this trial; the fills of other pages have theirs.
    * @returns {Trial}
    */
-  trial(doc, from, end, render, forced, start) {
+  trial(doc, from, end, render, forced, start, holder) {
     const trial = render(doc, from, end);
     const law = render(doc, from, end);
     const tp = new Positions(trial.positions);
@@ -472,7 +482,7 @@ export class CiceroPage {
     const a = this.doc.createTreeWalker(trial.fragment, NodeFilter.SHOW_ELEMENT);
     const b = this.doc.createTreeWalker(law.fragment, NodeFilter.SHOW_ELEMENT);
     for (let x = a.nextNode(), y = b.nextNode(); x && y; x = a.nextNode(), y = b.nextNode()) lawOf.set(/** @type {Element} */ (x), /** @type {Element} */ (y));
-    const lawRoot = lawHolder(this.doc);
+    const lawRoot = holder;
     lawRoot.replaceChildren(law.fragment);
     for (const [x, y] of lawOf) {
       if (forced) { removeWord(x, ADJOIN); removeWord(y, ADJOIN); }

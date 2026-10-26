@@ -1092,3 +1092,36 @@ The studio was not edited. `fragview-pages.mjs --url` against the dev server res
 - **A tighter reading of the quiet press's rule**: the engine's (filed).
 - **A part per box below the top level**: the engine's question, still open.
 - **The clean pages' chrome read again on every state** (`Chain.rechrome`, 1.8 to 2.9 ms on the showcase), now the largest piece of a keystroke's update outside the fill; not filed as a fault, named here as what is left.
+
+## A law holder per fill
+
+Written 2026-10-25, on the branch `round/a-holder-per-fill`, for docs/found.md's "A fill overtaken by a second transaction in the same task throws in the grab". Run it again with `npm test` (45 tests) and `node scripts/specimen.mjs --overtaken`; the studio's lines below are with its dev server on `STUDIO_SCHEMA=studio STUDIO_VIEW=fragmented` (`studio-view`, port 48822), warmed once.
+
+### The defect
+
+`CiceroPage.trial` wrote the law copy into one holder for the whole document, `#__prosemirror-beltype-law`, emptying and refilling it. A fill suspended at its measurement found, when it resumed, the other fill's law copy in the holder: the engine's grab read `t.blocks`, the new children, against `t.law.positions`, the old elements, and `t.law.positions.get(event.el)` was undefined.
+
+### The case, before and after
+
+`harness/specimen.js`' `overtaken` fills each pair of neighbouring pages of the settled chain over the one document in one task (both `fill` calls before either answers), and compares each answer with the `to` its entry holds, each page's words and size before and after, and the law holders left standing. `--overtaken` on `scripts/specimen.mjs` mounts the view on `./test/specimen.md` and runs it:
+
+| | Pairs | Failures | Law holders left standing |
+| :--- | ---: | :--- | ---: |
+| `main` (826c662 and 4635b09 on it) | 8 | 6: page 3 threw `Cannot read properties of undefined (reading 'start')`; pages 1 and 2 answered 41 and 1071, the chain holding 135 and 308; page 2 answered 157 against 308; page 1 showed no words where it showed `Summary … Appendix`, page 2 `Table … Contents` where it showed `Table … Appendix` | 1 |
+| the fix (e03eebc) | 8 | 0 | 0 |
+
+### What was built
+
+`fill` makes the fill's holder (`lawHolder(this.doc, '__prosemirror-beltype-law-N')`, `N` counting the fills that have begun), hands it down `cutAndDraw`, `cutOnce` and `trial`, and takes it out of the document in a `finally`. The trials of one fill run one after another, so the fill's holder is emptied and refilled by each as before; `cutOnce`'s `replaceChildren()` at its end stays. The `staging` holder in `show` is filled and emptied synchronously and is the same one as before.
+
+### The studio
+
+- The reduction of the entry, the quiet press with two `insertText('A')` in one task in the long chapter: `main`, `page errors: Cannot read properties of undefined (reading 'start')`; the fix, `page errors: none`, `chain.settled(doc)` `{"complete":true,"why":null}` and `incremental == fresh: 30 pages, visible text, margin boxes and line geometry equal page for page`.
+- A fill of a released container (an insertion and `view.invalidate()` in one task, which releases every container while its fill is in flight): the view discards the answer, and `Chain.filled` stages a row only when the document is current. The fix: `incremental == fresh: 30 pages` and no page error; `main`: the same pages, the page error.
+- amendments: "the pane lists the rule, dressing 1 block" passes; no page error "reading 'start'". The run is `104 of 110 checks passed`, the six that do not are not this entry's (3b the chapter extent dresses 0 and the subsection spans no page, by place matches nothing; (s3) times out, (s6) `Position undefined out of range`, the layers' sheet-order check).
+- collab-undo: `collab-undo: all scenarios hold`, no page error. typing: 61 of 61 plans, 1 803 keystrokes, end `incremental == fresh: 30 pages`.
+
+### Not done
+
+- **The measure container**: one element per document that every fill shares across its fonts and images await; filed in docs/found.md.
+
