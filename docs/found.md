@@ -261,28 +261,28 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen**: the running fixture under the view, 2026-10-25: `setMarginBox(name, parts)` takes a running element as `{ slot, node }`, a forwarding slot it makes the page's light child and the node it assigns to it, the root's chain (the page stands in the root's shadow tree, the clone is the root's light child). A page outside the root has no shadow tree above it, and a `<slot>` outside one draws nothing: with the clone the slot's child, the harness read the clone's text and the clone laid out no box.
 - **Layer**: the engine, `src/chase.js` (`setMarginBox`).
 - **Fix**: let a part be a node, assigned to the cell's slot directly. Worked around in `src/cicero-page.js` (`runningPart`): the clone is the page's light child and stands for the forwarding slot, its `assign` a no-op, so the cell's slot is assigned the clone, which then draws as the root's does.
-- **State**: OPEN.
+- **State**: CLOSED 2026-10-28 by BelType's `round/the-four-doors` (e04c7d0, its battery f9bb84a: 26 of 26, the pin standing; CHANGELOG 2026-10-28, *Four small doors for a view*), adopted here on `round/the-four-doors`: `BeltypePage.setMarginBox` takes a part that is a node and assigns it to the cell's slot directly, so `CiceroPage.runningPart` returns the clone and the fake forwarding slot (`Object.assign(clone, { assign() {} })`) is dropped.
 
 ### The intake's running elements are read off `doc.body`
 
 - **Seen**: by building the originals, 2026-10-25: `runningBoxes(doc)` and `topLevelBlocks(doc)` read `doc.body.children`, and `runningPosition`, the two lines that turn a running element's place into its assignment's position, is private to `driver.js`.
 - **Layer**: the engine, `src/driver.js`.
 - **Fix**: take the root the boxes stand in (a parameter defaulting to `doc.body`), and export `runningPosition`. Worked around in `src/originals.js`: both are asked of a stand-in whose `body` is the originals' holder, and `runningPosition` is written again.
-- **State**: OPEN.
+- **State**: CLOSED 2026-10-28 by BelType's `round/the-four-doors` (e04c7d0, its battery f9bb84a: 26 of 26, the pin standing; CHANGELOG 2026-10-28, *Four small doors for a view*), adopted here on `round/the-four-doors`: `topLevelBlocks(doc, root)` and `runningBoxes(doc, keep, root)` take the element the boxes stand in and `runningPosition` is exported, so `src/originals.js` asks the holder directly and imports `runningPosition`; the stand-in document and its copy of the two lines are dropped.
 
 ### A second host in the same document finds the margin boxes' `content` cleared
 
 - **Seen**: the harness, 2026-10-25: the root clears every margin box's `content` from the CSSOM when it presents (`neutralizeMarginBoxes`), and the table it captured before is the client's alone (`seam/client.js`, `presented.table`), so the view's factory, made in BelType's own page after the CLI's round, read a table with no margin boxes.
 - **Layer**: the engine, `seam/client.js` and `src/root.js`; met only by a page that holds both hosts.
 - **Fix**: expose the captured table on the handle, or let a host pass one in. Worked around in the harness: an init script records each `content` the root removes and the harness writes them back before the factory reads the table (`restoreMarginContent`).
-- **State**: OPEN (minor).
+- **State**: CLOSED 2026-10-28 by BelType's `round/the-four-doors` (e04c7d0, its battery f9bb84a: 26 of 26, the pin standing; CHANGELOG 2026-10-28, *Four small doors for a view*), adopted here on `round/the-four-doors`: the engine's handle carries the intake's table (`window.__beltypeCicero.table`, a getter, null before an intake; the smaller of the two doors, since the handle and the table were already there and a table passed in would have crossed `run` and the root), and the harness hands it to the factory (`ciceroContainers(document, { table })`); the init script that recorded each `content` the root removed and `restoreMarginContent` are dropped.
 
 ### The loop checks a page site against the facts it handed the run, not the ones the page was cut under
 
 - **Seen**: the chrome fixture, 2026-10-25, `Strings` retitled on page 3 (docs/results.md, "The Ledger is state"): the view refilled page 3 with its new strings standing, since every page publishes its own interval's values on the trial; the loop, handed the Ledger's warm `facts`, compared the flow site on page 3 measured under the old string with the truth, found the line moved and sent a second run that refilled pages 2 and 3 to the same cuts. On load the same holds for every page with a page site (the first run is laid under no facts, as on the CLI, so both sides take 2 runs there).
 - **Layer**: the engine, `src/reads.js` (`settleReads`: `laidFacts` is the `facts` the loop handed the run).
 - **Fix**: let the run return the facts each page was laid out under (beside `account`), and compare the truth with those where given; the driver's own run returns the facts it was handed, so nothing changes for the CLI.
-- **State**: OPEN (a run's cost, no cut: the second run converges on the first run's cuts).
+- **State**: CLOSED 2026-10-28 by BelType's `round/the-four-doors` (e04c7d0, its battery f9bb84a: 26 of 26, the pin standing; CHANGELOG 2026-10-28, *Four small doors for a view*), adopted here on `round/the-four-doors`: the loop compares the truth with the `laidFacts` a run returns beside its `account`, and the `Chain`'s run returns them, each row carrying the page values its page's last cut was laid out under (`Row.laid`, the page's `publish`). The chrome fixture, `Strings` retitled on page 3: 1 run and 1 fill (page 3) where there were 2 runs and 3 fills (pages 3, 2, 3); on load both sides still take 2 runs, since the first run is laid under no page values, as on the CLI (docs/results.md, "The four doors").
 
 ### The sheets' reach is read per box, and this host replaces whole top-level boxes
 
