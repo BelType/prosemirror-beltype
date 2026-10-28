@@ -1125,3 +1125,57 @@ Written 2026-10-25, on the branch `round/a-holder-per-fill`, for docs/found.md's
 
 - **The measure container**: one element per document that every fill shares across its fonts and images await; filed in docs/found.md.
 
+
+## The four doors
+
+Written 2026-10-28, on the branch `round/the-four-doors`, for docs/found.md's four engine entries still open (the forwarding slot, the intake's root, the cleared `content`, the loop's facts), which BelType closed on its `round/the-four-doors` (e04c7d0, its battery f9bb84a: 26 of 26, the pin standing; its CHANGELOG of 2026-10-28, *Four small doors for a view*). Run it again with `npm test` (45 tests, in node), and `BELTYPE_ROOT=<BelType checkout> node scripts/specimen.mjs <absolute path>`: the script spawns the CLI of the checkout `BELTYPE_ROOT` names, and this package's `node_modules/@egildo/beltype-engine-cicero` is the engine the view runs, so the two sides run one engine only when they name the same checkout. For this round both were BelType's `round/the-four-doors` worktree.
+
+### What was dropped here
+
+- `CiceroPage.runningPart` returns the clone; the fake forwarding slot (`Object.assign(clone, { assign() {} })`) is gone, and `setMarginBox` is handed the node.
+- `Originals.of` asks the holder, `topLevelBlocks(d, holder)` and `runningBoxes(d, keep, holder)`, and imports the engine's `runningPosition`; the stand-in document and the two lines written again are gone.
+- The harness no longer puts the margin boxes' `content` back: the init script in `scripts/specimen.mjs` and `restoreMarginContent` in `harness/specimen.js` are gone, and the factory is handed `window.__beltypeCicero.table`, the table the CLI's intake captured. The chrome table no longer prints the count of boxes put back.
+- The `Chain`'s `run` returns `laidFacts`, one entry per row: the page values the row's page was last cut under. A `Row` carries them as `laid` (the page's `publish`).
+- `scripts/specimen.mjs` reads `BELTYPE_ROOT` (default the path it hardcoded) for the CLI it spawns and the port list it reads.
+
+### That the view ran the worktree's engine
+
+`node_modules` of the worktree is a directory of links to the main checkout's entries, except `@egildo/beltype-engine-cicero`, which links to the BelType worktree's `packages/engine-cicero`; Vite's cache is the worktree's own `node_modules/.vite` (a directory, not a link). A throwaway script started this package's Vite, loaded `harness/specimen.js` in Chromium and listed the page's resource entries: 27 engine modules, every one under `/@fs/Users/egildo/Privata/dev/beltype/.claude/worktrees/the-four-doors/packages/engine-cicero/` (`src/reads.js` among them), none under BelType's main checkout. The CLI's side is the worktree's too: the margin boxes agree on every page with no `content` put back, which is only possible if `window.__beltypeCicero.table` exists, and it does not on `main`. The first attempt at the *before* column showed the other direction: the worktree's `originals.js` under `main`'s engine fails to load (`runningPosition` is not exported there), so the page never mounts.
+
+### Door 1, before and after
+
+The reads loop's runs, counted two ways: the console's `the pages settled in N runs` on each side on load, and a settle's `reads.runs` after an edit (`readsOf()`). *Before* is `main` of both repositories (the engine's `a76ec341`, this package's `1b181cf`, exported with `git archive` into a scratch directory with its own `node_modules` of links); *after* is the two worktrees. The chrome fixture, the edits of the harness's list:
+
+| | Before | After |
+| :-- | ---: | ---: |
+| Load, CLI | 2 | 2 |
+| Load, view | 2 | 2 |
+| `Strings` retitled on page 3 | 2 runs, 3 fills (pages 3, 2, 3) | 1 run, 1 fill (page 3) |
+| `Folios` retitled to `Folia` | 1 | 1 |
+| `Folia` retitled to `Folios, retitled` | 2 | 1 |
+| `key:3` | 1 | 1 |
+| `delete:2` | 2, 21 fills | 1, 16 fills |
+| `paste`, `enter`, `start`, `end` | 1 each | 1 each |
+| Fills in the nine edits | 53 | 44 |
+
+The load stays at two on both sides: the first run is laid under no page values, as on the CLI. The cuts did not move: every edit below equals its fresh fill.
+
+### The harness, fixture by fixture
+
+First difference *none* on each of the nine fixtures under `fixtures/` (chrome, dressing, end-gap, facsimile, flow, multicol, row, running, tall) and on `./test/specimen.md`, normal and `--bare`, and every margin box the same where printed. The edits, each normal and `--bare`, each edit equal to the fresh fill on every page and every page's state, the originals' reading and the delivered reads (66 of 66 edit blocks):
+
+| Target | Edits | Pages | Result |
+| :-- | :-- | ---: | :-- |
+| `fixtures/chrome/chrome.md` | the three retitles, `key:3`, `delete:2`, `paste`, `enter`, `start`, `end` | 16 | equal, 9 of 9, both |
+| `./test/specimen.md` | `key:2`, `delete:2`, `paste`, `enter`, `start`, `end` | 9 | equal, 6 of 6, both |
+| `fixtures/running/running.md` | the same six | 13 | equal, 6 of 6, both |
+| the studio's quiet press | `key:3`, `delete:3`, `paste`, `enter`, `start`, `end` | 30 | equal, 6 of 6, both |
+| the studio's showcase | the same six | 74 | equal, 6 of 6, both |
+
+The showcase's first difference against the CLI is page 50, as recorded above (76 pages under the CLI, 74 under the view); it is the repeated header's, not this round's.
+
+### Not done
+
+- The other doors of docs/found.md (the six closures in `src/turn.js`, `presentTree`, the part's unit) are out of this round's scope.
+- Door 1 was counted before and after on the chrome fixture only, where the finding was seen. After the round the specimen settles in one run on both sides; it was not counted before, and the other fixtures read nothing the loop settles.
+- The studio itself was not run; it picks the doors up when both repositories' mains have them.

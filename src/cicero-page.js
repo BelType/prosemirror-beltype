@@ -277,7 +277,7 @@ export class CiceroPage {
    * The page's chrome, drawn as the root draws it (`root.js`, `#chrome`): the page context and each margin box's `content` transliterated (`transliterateContent`, `counter(pages)` blank until the chain's total is known) dressed into the page's shadow, the page's counters (`page N`, `pages T`, the document's counters at its first word) and its named strings published on its host, each running element a page's box places cloned from the originals into the box, and the bands measured. Called at the end of every fill and again, with no refill, when the chain's total moves.
    *
    * @remarks
-   * A running element's clone is the page's own light child, slotted into its margin box directly (`runningPart`): `setMarginBox` takes a forwarding slot and the node it forwards, the root's chain, whose forwarding slot is a light child of a page inside the root's shadow tree. A page outside the root has no shadow tree above it to forward from, and a `<slot>` outside one does not draw what it holds (measured 2026-10-25 on the running fixture: the clone, the slot's child, laid out no box). So the clone stands for the forwarding slot itself, with an `assign` that does nothing, and the cell's slot is assigned the clone. A door in the engine would let `setMarginBox` take the node (docs/found.md).
+   * A running element's clone is the page's own light child, slotted into its margin box directly (`runningPart`): `setMarginBox` takes the node itself as a part, which is the form for a page outside the root, since the root's chain forwards through a slot that is a light child of a page inside the root's shadow tree, and a `<slot>` outside one does not draw what it holds (measured 2026-10-25 on the running fixture: the clone, the slot's child, laid out no box). The cell's slot is assigned the clone.
    */
   drawChrome() {
     const c = this.chrome;
@@ -303,7 +303,7 @@ export class CiceroPage {
   }
 
   /**
-   * GCPM §1.2's `element()` on this page: a copy of the running element at `at` in the originals' list, marked a fragment and an artifact and hidden from assistive technology as the root marks its own (`#runningPart`), standing for the forwarding slot `setMarginBox` asks for (`drawChrome` says why).
+   * GCPM §1.2's `element()` on this page: a copy of the running element at `at` in the originals' list, marked a fragment and an artifact and hidden from assistive technology as the root marks its own (`#runningPart`), and the part `setMarginBox` takes (`drawChrome` says why).
    * @param {number | null | undefined} at
    * @param {{ el: Element }[]} boxes
    */
@@ -314,10 +314,8 @@ export class CiceroPage {
     addWord(clone, FRAGMENT);
     addWord(clone, ARTIFACT);
     clone.setAttribute('aria-hidden', 'true');
-    // ponytail: the clone stands for the forwarding slot; `setMarginBox` taking a node is the engine's door (docs/found.md).
-    const slot = /** @type {any} */ (Object.assign(clone, { assign() {} }));
     this.chromeNodes.add(clone);
-    return { slot, node: clone };
+    return clone;
   }
 
   /**

@@ -118,13 +118,6 @@ export function dressingOf(pages) {
 /** The sheets the document has adopted, each as its rule count and the start of its first rule. */
 export const adoptedSheets = () => [...document.adoptedStyleSheets].map((s) => `${s.cssRules.length} rules: ${(s.cssRules[0]?.cssText ?? '').replace(/\s+/g, ' ').slice(0, 90)}`);
 
-/** Put back the margin boxes' `content` the CLI's root took out of the CSSOM, as the init script recorded it. @returns {number} How many were put back. */
-export function restoreMarginContent() {
-  const removed = /** @type {any} */ (window).__marginContent ?? [];
-  for (const [style, value, priority] of removed) style.setProperty('content', value, priority);
-  return removed.length;
-}
-
 /**
  * Tag every page's chrome for the script's DOM snapshot, and read what the DOM holds: each generated margin box (`data-generated`) as `<side>:<page>:<box>` with the text of what is slotted into it (a running element), and each flow element whose `::before` or `::after` generates content as `<side>:<page>:f<k>`, with whether it is a `target-counter()` read (`findSites`, a rule whose `content` reads a `--beltype-read-` property). Every page is made `content-visibility: visible` while it is read, since a page the browser skips has no layout to read.
  * @param {Element[]} pages
@@ -248,8 +241,8 @@ export async function mount({ settleMs = 300, timeoutMs = 120000, bare = false, 
   const style = document.createElement('style');
   style.textContent = '#prosemirror-beltype-view .fragview { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 16px 0; outline: none; } #prosemirror-beltype-view beltype-page { box-shadow: 0 1px 4px rgba(0,0,0,.2); flex: none; }';
   document.head.appendChild(style);
-  const restored = restoreMarginContent();
-  const factory = ciceroContainers(document);
+  // The table the CLI's intake captured, margin boxes' `content` and all: the root has cleared them from the sheets by now (the engine's handle carries it).
+  const factory = ciceroContainers(document, { table: /** @type {any} */ (window).__beltypeCicero?.table ?? undefined });
   // `--reach N`: the memo settled under N whatever the sheets say, a measurement of what each reach keeps beside the engine's reading for a whole top-level box (`topLevelReach`).
   if (reach != null) factory.originals.reachOf = () => reach;
   const started = performance.now();
@@ -279,7 +272,7 @@ export async function mount({ settleMs = 300, timeoutMs = 120000, bare = false, 
   const ms = performance.now() - started - (settled ? settleMs : 0);
   const pages = view.fragments.map((/** @type {any} */ f) => f.container?.dom).filter(Boolean);
   viewPages = pages;
-  return { restored, total: factory.originals.total, originals: factory.originals.timings, ms, settled, entries: view.entries.map((/** @type {any} */ { from, to }) => ({ from, to })), fills, pages: readPages(pages), dressing: dressingOf(pages), removed, adopted: adoptedSheets(), docSize: doc.content.size, reads: readsOf(), counts: { ...factory.chain.counts } };
+  return { total: factory.originals.total, originals: factory.originals.timings, ms, settled, entries: view.entries.map((/** @type {any} */ { from, to }) => ({ from, to })), fills, pages: readPages(pages), dressing: dressingOf(pages), removed, adopted: adoptedSheets(), docSize: doc.content.size, reads: readsOf(), counts: { ...factory.chain.counts } };
 }
 
 /** What the reads loop did, settle by settle: each run's pages dirtied and cut, and the loop's own result. */

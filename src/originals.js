@@ -2,7 +2,7 @@
  * `Originals`, the chain's one rendering of the whole state: what the engine's intake reads off the source document, read off a hidden, connected rendering of the ProseMirror document by the view's own slice renderer, kept per top-level node across states.
  *
  * @remarks
- * Counters, named strings and running elements are CSS, so the state at a cut is a question about computed style: `counter-reset` on `body`, `string-set` on a heading, `position: running()` on a mark. The driver answers it at intake over the whole source with the source in its real ancestor chain (`driver.js`, `paginateOnce`, the document ops, string assignments and running assignments), and so does this object, over a rendering it keeps in a hidden holder that is a child of `body`, the holder's element children less fixed boxes and running elements the top-level blocks (`topLevelBlocks` and `runningBoxes`, asked of a stand-in document whose `body` is the holder), the engine's position index over them (`indexBlocks`), and `documentOpsOf` with the computed style, `html` and `body` as the ancestors (so a `body { counter-reset }` is in force on page one, the driver's own reading) and the running elements at the positions the driver logs them at (`runningPosition`, two lines written again here). From the log, `stringAssignmentsOf` and `runningAssignmentsOf`, once per state; a page asks `counterStateAt` at its first word and `namedStringsForPage` over its interval (`stateOfPage`).
+ * Counters, named strings and running elements are CSS, so the state at a cut is a question about computed style: `counter-reset` on `body`, `string-set` on a heading, `position: running()` on a mark. The driver answers it at intake over the whole source with the source in its real ancestor chain (`driver.js`, `paginateOnce`, the document ops, string assignments and running assignments), and so does this object, over a rendering it keeps in a hidden holder that is a child of `body`, the holder's element children less fixed boxes and running elements the top-level blocks (`topLevelBlocks` and `runningBoxes`, asked of the holder as the element the boxes stand in), the engine's position index over them (`indexBlocks`), and `documentOpsOf` with the computed style, `html` and `body` as the ancestors (so a `body { counter-reset }` is in force on page one, the driver's own reading) and the running elements at the positions the driver logs them at (`runningPosition`, the engine's own). From the log, `stringAssignmentsOf` and `runningAssignmentsOf`, once per state; a page asks `counterStateAt` at its first word and `namedStringsForPage` over its interval (`stateOfPage`).
  *
  * THE ORIGINALS KEEP THEIR PARTS (phase 2's third round, docs/results.md). The first state is rendered whole, `render(doc, 0, null)`. A later one is rendered per top-level node: ProseMirror's nodes are persistent, so a node a transaction did not touch is the same object in the new document, and the new document's children are matched to the last state's by identity (`matchNodes`: the common prefix and suffix, then a map for the middle). A kept node keeps its element and the slice it was rendered in; a changed or new node is rendered alone over its range, its own element put in the holder at its place; a removed node's element is taken out; every element put in or moved is reported to the engine's memo (`ForcingMemo.replaced`), and an element whose node is kept is never touched, so its object survives the edit. That is the one condition on which the engine's `keep` door works: the memo keeps each run-level walk's part per top-level box by the box's element (*a resumed run keeps its reads*). So the memo is settled once per state for this host's unit of replacement, a whole top-level box (docs/results.md, "The reach of a whole box"): `memo.settle(topLevelReach(document, boxes, memo.boxes), boxes)`, `boxes` the holder's element children in order and `memo.boxes` the ones it was settled with last, from which the engine works out what an insertion, a removal or a move changed (at 0 it keeps every part but the replaced and moved boxes', at 1 the parts of the boxes before the earliest change, at 2 nothing, and the console says so once, as the engine's `settledMemo` does); the walks over the state (`runningBoxes`, `indexBlocks`, `documentOpsOf`, `findPageSites` here, and the reads loop's in `Chain.settle`) take its `keep`, which the state carries. THE REBASE: a kept slice's position map holds the absolute positions of the document it was rendered from, in which its node started at `at`; the node starts at `base` now, so a model position is asked of the slice at `pos − base + at` (`rebased`), and a recorded start is answered at `start + base − at`. `forget` drops the rendering and the memo where the view's conditions moved (the chain hears the view's `invalidate()` as every page released), and the next state is rendered whole.
  *
@@ -18,7 +18,7 @@
  */
 
 import { pointAt } from 'prosemirror-fragview';
-import { topLevelBlocks, runningBoxes } from '@egildo/beltype-engine-cicero/src/driver.js';
+import { topLevelBlocks, runningBoxes, runningPosition } from '@egildo/beltype-engine-cicero/src/driver.js';
 import { indexBlocks } from '@egildo/beltype-engine-cicero/src/positions.js';
 import { documentOpsOf, counterStateAt, stringAssignmentsOf, runningAssignmentsOf, namedStringsForPage } from '@egildo/beltype-engine-cicero/src/document-state.js';
 import { findPageSites } from '@egildo/beltype-engine-cicero/src/reads.js';
@@ -254,18 +254,16 @@ export class Originals {
       console.info('prosemirror-beltype: a stylesheet uses :has(), an @container rule or a selector the engine cannot read, so the originals\' walks are read afresh on every state rather than kept per top-level node (the engine\'s `settledMemo` says the same of its runs). The pages are the same; an edit costs more.');
     }
     const tr = performance.now();
-    // The driver's intake, asked of a stand-in whose body is the holder: the blocks are its element children less fixed boxes and running elements, the running elements are found at any depth with where the flow resumed after each.
-    const stand = /** @type {any} */ ({ body: holder, defaultView: win });
-    const blocks = topLevelBlocks(stand);
-    const boxes = runningBoxes(stand, keep);
+    // The driver's intake, asked of the holder: the blocks are its element children less fixed boxes and running elements, the running elements are found at any depth with where the flow resumed after each.
+    const blocks = topLevelBlocks(d, holder);
+    const boxes = runningBoxes(d, keep, holder);
     const t2 = performance.now();
     const index = indexBlocks(blocks, undefined, undefined, keep);
     const t3 = performance.now();
     const ops = documentOpsOf(blocks, index, {
       styleOf: (el) => win.getComputedStyle(el),
       ancestors: [d.documentElement, d.body],
-      // `driver.js`' `runningPosition`: the first word after where the element was written.
-      running: boxes.map((b) => ({ name: b.name, pos: index.bases[b.block] + (b.next ? index.wordsBefore(b.next) : 0) })),
+      running: boxes.map((b) => ({ name: b.name, pos: runningPosition(b, index) })),
       keep
     });
     const t4 = performance.now();

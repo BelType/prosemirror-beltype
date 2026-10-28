@@ -28,6 +28,7 @@ import { parityAt } from './turn.js';
  * @property {Record<string, Record<string, number | null>>} running Each running element's four readings, the index in the originals' list.
  * @property {number | null} end The page's end in the engine's word positions, null where it runs to the document's end; a blank page ends where it starts.
  * @property {number | null} block The top-level block the end stands in, the engine's `cut.path[0]`.
+ * @property {{ counterReset: string, props: Record<string, string> } | null} laid The page values the page's last cut was laid out under (the page's `publish`), which the chain's run hands the reads loop as `laidFacts`; null where none were published.
  * @property {number} contentW
  * @property {number} contentH
  * @property {Record<string, any> | null} next The hint the fill left for the page after it.
