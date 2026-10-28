@@ -153,7 +153,7 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen**: the showcase, pages 10 and 11 both in view: a drag from page 10's last lines to page 11's first, or a click on page 10 then Shift+click on page 11, leaves the model's head at 6269, the first position of page 10, and nothing of page 11 selected. Shift+ArrowDown across the same break works (anchor 6990, head 7431, two highlight ranges), and so do ArrowDown and ArrowRight. The act "select across three pages and delete" was done with the keyboard: 1 126 positions over pages 10 to 12, deleted, 76 pages to 75, every page after them refilled.
 - **Layer**: the view, `src/fragmented-view.js`: the pointer is the browser's (the `mousedown` handler only forgets the drawn anchor; `readSelection` takes what the browser drew). With the content given to a `<beltype-page>` and slotted into its shadow tree, Chromium does not extend a selection from one page's content into another's; `OverflowBox` has no shadow tree, which is why the parity acts passed.
 - **Fix**: the view owns the pointer, as the studio's `selection.js` did: on `mousedown` (and Shift+`mousedown`) and on `mousemove` with the button held, `posAtCoords` and a `TextSelection` from the model's anchor, with auto-scroll near the scroller's edges.
-- **State**: OPEN.
+- **State**: OPEN. fixed on prosemirror-fragview fix/the-view-bugs 4c688d2, not merged
 
 ### Home and End scroll the pages instead of moving the caret
 
@@ -181,7 +181,7 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen**: by its header; the studio wired it before the acts, so Enter at a page's foot (the showcase, page 7) left the caret in view on page 8.
 - **Layer**: the view, `src/fragmented-view.js` (`scrollIntoView` is in its "does not do yet" list).
 - **Fix**: after `update`, when the transaction `scrolledIntoView`, scroll the head's `coordsAtPos` into its scrolling ancestor's view.
-- **State**: OPEN. The studio does it in its wiring for now (`src/fragmented.js`, the `apply` wrapper, commit 19c06e2).
+- **State**: OPEN. The studio does it in its wiring for now (`src/fragmented.js`, the `apply` wrapper, commit 19c06e2). fixed on prosemirror-fragview fix/the-view-bugs e2b2187, not merged
 
 ### The renderer has no door for the host's page serializer
 
@@ -195,7 +195,7 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen**: the showcase, part of two paragraphs inside a section's header copied: the HTML is `<section class="family" id="running-heads-section"><header><p class="lead">…</p><p>…</p></header></section>`, the open ancestors written whole with their `id`, and no `data-pm-slice`. Pasted back into the studio it fits (the studio's paste verb strips ids and the parser's context places it); pasted into another editor it brings a section and its `id`. The studio's old path wrote the saved document's markup with `data-pm-slice`.
 - **Layer**: the view, `src/fragmented-view.js`, `onCopy`.
 - **Fix**: honour `someProp('clipboardSerializer')` and write `data-pm-slice` with the slice's `openStart` and `openEnd`, as `prosemirror-view`'s clipboard does.
-- **State**: OPEN (minor).
+- **State**: OPEN (minor). fixed on prosemirror-fragview fix/the-view-bugs 3add6d6, not merged
 
 ### A refill redraws the model's selection over a click not yet read
 
@@ -203,7 +203,7 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Layer**: the view, `src/fragmented-view.js` (`update`).
 - **Fix**: read the DOM's selection before drawing the model's when a transaction set no selection (or skip `selectionToDOM` for a transaction that changed neither the document nor the selection and left the selection's fragments in place). Not needed once the page stops refilling, but any refill during a click would lose it the same way.
 - **Since 2026-10-25** the Cicero page no longer refills while nobody types (its entry above is closed), and the three clicks of `scripts/spaces.mjs` land: the defect is latent until a legitimate late `moved` (an image arriving, a face loading) lands between a click's `mouseup` and its `selectionchange`.
-- **State**: OPEN.
+- **State**: OPEN. fixed on prosemirror-fragview fix/the-view-bugs 8ac7248, not merged
 
 ### A container is handed its hint only when it is built
 
@@ -231,7 +231,7 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen**: 2026-10-25, the studio's checks-see-the-view round, `scripts/selection.mjs` 1.1 under the switch ("selection 12123..12123, expected 11905..12123", a drag inside one page), then reduced: the quiet press, a button pressed at position 10290, the pages' pane scrolled 94 px by script, the pointer moved 200 px in six steps and released: the model's selection is 10708..10708, collapsed where the pointer ended. With no scroll the same drag gives 10290..10385; on the old path, scroll or not, 10290..10708 and 10290..10385. The selection, marks and lists checks scroll a target into view between `mousedown` and the move, as a reader's wheel would.
 - **Layer**: the view, `src/fragmented-view.js`: the pointer is the browser's (the entry above on a selection leaving its page).
 - **Fix**: the same as the entry above: the view owns the pointer, the anchor the model's position at `mousedown`, so a scroll under the held button moves only the head.
-- **State**: OPEN.
+- **State**: OPEN. fixed on prosemirror-fragview fix/the-view-bugs 4c688d2, not merged
 
 ### ArrowDown and ArrowUp stop in a textblock that only generated content fills
 
@@ -245,7 +245,7 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen**: 2026-10-25, the studio's checks-see-the-view round, `scripts/facsimile-check.mjs` (C) under `?view=fragmented&schema=studio`, the facsimile demo (6 pages, the landscape attachment on a page of its own): ArrowRight at the end of the last paragraph before the page of its own leaves the head where it was ("one press crosses it: {"right":2807,"heading":2814,"before":2807}"), and ArrowLeft from the heading after it goes one position past the paragraph's end (2806 where 2807 is wanted); a click on each of the three facsimiles lands in a heading, where the old path puts it in the figure's caption, the nearest text ("a click on a figure's page lands in its caption, the nearest text: ["heading","heading","heading"]"). The old path passes all three (`caret.js` takes the arrows across a box no caret can enter, and its click finds the nearest text).
 - **Layer**: the view, `src/fragmented-view.js`: the arrows and the pointer are the browser's, and a page whose one box is an atom (an `<object>` drawn `contenteditable="false"`) gives the browser no place to move the caret into.
 - **Fix**: the view takes the arrow across a fragment that holds no caret position (the next position the model has, as `leftAcrossCut` does across a cut), and a click on an atom's box goes to the nearest textblock position, or selects the atom.
-- **State**: OPEN.
+- **State**: OPEN. fixed on prosemirror-fragview fix/the-view-bugs 4f69ffe, not merged
 
 ## The engine (BelType)
 
