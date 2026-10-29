@@ -9,6 +9,8 @@
  * @packageDocumentation
  */
 
+import { placeAt } from '@egildo/beltype-engine-cicero/src/positions.js';
+
 /** @import { Node as PMNode } from 'prosemirror-model' */
 /** @import { ContainerHint } from 'prosemirror-fragview/src/fragmentainer.js' */
 /** @import { Shell, Piece } from './shells.js' */
@@ -83,7 +85,7 @@ export function enter(doc, pos) {
  * The text point a word of the Gauge's begins at, a character into it: the Gauge numbers a box's words over its joined text (`fragments.js`' `joinedWords` is the same tokenization, clone side), and a Class B cut resumes at the first piece on the line after the cut, a word and, where the line begins inside it, a character.
  *
  * @param {{ parts: { node: { data: string }, start: number, end: number, engine?: boolean }[] }[]} words The box's words, `joinedWords(box.el)`.
- * @param {{ word: number, char: number }} at The place, `placeAt` over the Gauge's pieces.
+ * @param {{ word: number, char: number }} at The place, the engine's `placeAt` over the Gauge's pieces.
  * @returns {{ node: any, offset: number } | null} Null when the place is past the box's last word.
  */
 export function wordPoint(words, { word, char }) {
@@ -97,16 +99,6 @@ export function wordPoint(words, { word, char }) {
     rest -= length;
   }
   return null;
-}
-
-/**
- * Where a line stack resumes after line `line`: the first piece of the Gauge's on that line or below, a word and a character, or the place after the last word. The driver's own `placeAt`, a closure inside `paginateOnce` that no module exports; it is two lines, written again here, and named as a door in docs/results.md.
- * @param {{ line: number, index: number, char: number }[]} pieces `report.wordsOf(box)`.
- * @param {number} line
- */
-export function placeAt(pieces, line) {
-  const p = pieces.find((x) => x.line >= line);
-  return p ? { word: p.index, char: p.char } : { word: pieces.length ? pieces[pieces.length - 1].index + 1 : 0, char: 0 };
 }
 
 /**

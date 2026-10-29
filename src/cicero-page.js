@@ -30,14 +30,14 @@ import { openedAt, pointAt, posAt } from 'prosemirror-fragview';
 import { addWord, AWAY, ADJOIN, ARTIFACT, END, FRAGMENT, SPLIT, hasWord, removeWord } from '@egildo/beltype-engine-cicero/src/data-beltype.js';
 import { createMeasureContext, awaitFonts, awaitCloneImages } from '@egildo/beltype-engine-cicero/src/measure.js';
 import { takeReport } from '@egildo/beltype-engine-cicero/src/gauge.js';
-import { adjudicate, reachesBelowTheEdge, isOutOfFlow, neverCutInside } from '@egildo/beltype-engine-cicero/src/stonehand.js';
-import { forcingIndexOf } from '@egildo/beltype-engine-cicero/src/driver.js';
+import { adjudicate, reachesBelowTheEdge, isOutOfFlow, neverCutInside, processionBottoms, fitsPage } from '@egildo/beltype-engine-cicero/src/stonehand.js';
+import { forcingIndexOf, gapAbove, pageNameDownFrom } from '@egildo/beltype-engine-cicero/src/driver.js';
 import { effectivePageName, transliterateContent } from '@egildo/beltype-engine-cicero/src/capture.js';
 import { encodeStringProp, STRING_KEYWORDS } from '@egildo/beltype-engine-cicero/src/gcpm-encoding.js';
 import { cssString } from '@egildo/beltype-engine-cicero/src/reads.js';
 import { pathOf, normalizePath, extensionPx, divides } from '@egildo/beltype-engine-cicero/src/positions.js';
 import { joinedWords } from '@egildo/beltype-engine-cicero/src/fragments.js';
-import { blockChildrenOf, copyOf, isFixedBox, noteSource } from '@egildo/beltype-engine-cicero/src/word-space.js';
+import { copyOf, isFixedBox, noteSource } from '@egildo/beltype-engine-cicero/src/word-space.js';
 import { presentation } from '@egildo/beltype-engine-cicero/src/presenters.js';
 import '@egildo/beltype-engine-cicero/src/chase.js';
 import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition, wholeAfter, advances, inFlowStart } from './turn.js';
@@ -385,12 +385,8 @@ export class CiceroPage {
 
     const contentH = this.conditions.contentH;
     const sourceOf = this.sourceOf(t);
-    let inFlowBottom = pageStart;
-    for (const box of report.processionOf()) {
-      const law = sourceOf(box.el);
-      if (!(law && isOutOfFlow(getComputedStyle(law)))) inFlowBottom = Math.max(inFlowBottom, box.rect.bottom);
-    }
-    const fits = inFlowBottom - pageStart <= contentH + EPS;
+    const { inFlowBottom } = processionBottoms({ report, pageStart, parallel: (box) => { const law = sourceOf(box.el); return !!law && isOutOfFlow(getComputedStyle(law)); } });
+    const fits = fitsPage({ inFlowBottom, pageStart, contentHeight: contentH, eps: EPS });
 
     // A page that fits ends at the forced event, or at the document's end; the trial loop leaves no bounded trial that fits, as the driver's check leaves none.
     /** @type {number | null} */
@@ -512,7 +508,7 @@ export class CiceroPage {
   }
 
   /**
-   * The bound moved past the outermost box the trial cuts off at `end` that the driver's bound never cuts inside (`neverCutInside`), read off the law copy, or `end` where there is none. The boxes the slice cuts off at its end are the ancestors of `end`, outermost first, each one element with `split` and no `end`.
+   * The bound moved past the outermost box the trial cuts off at `end` that the driver's bound never cuts inside (`neverCutInside`), read off the law copy, or `end` where there is none. The engine's predicate and this package's chain: the driver's rule is `forcingIndexOf`'s `sealedBy`, an index over the whole intake that `boundAt` asks of a cursor, and no function of a box chain, so the part kept here is the finding of the outermost sealed ancestor of one position. The boxes the slice cuts off at its end are the ancestors of `end`, outermost first, each one element with `split` and no `end`.
    * @param {Trial} t
    * @param {PMNode} doc
    * @param {number} end
@@ -563,7 +559,7 @@ export class CiceroPage {
   }
 
   /**
-   * The spent extent at the head of a continuation, the driver's `spentLeadOf` (a closure inside `paginateOnce`, written again here and named as a door in docs/results.md): where the page resumes inside a top-level block, the smallest gap that stands above the boxes it resumes at and is not their containers' own border and padding, read off this page's report (a table's border-spacing or its collapsed border above the row the page resumes at, a grid's spent track). Zero where the page begins at a block's start, and where it resumes a painted shell, whose box is pulled above the page on purpose. The driver's branch for a repeated table header is not written: this package repeats none.
+   * The spent extent at the head of a continuation, the driver's `spentLeadOf`: where the page resumes inside a top-level block, the smallest gap that stands above the boxes it resumes at and is not their containers' own border and padding (the engine's `gapAbove`), read off this page's report (a table's border-spacing or its collapsed border above the row the page resumes at, a grid's spent track). Zero where the page begins at a block's start, and where it resumes a painted shell, whose box is pulled above the page on purpose. The places are this package's (a shell and a row's pieces, where the driver reads its cursor), and so is the quarter pixel below which a gap is none. This package repeats no header, so the engine's branch for a repeated header's copy is never taken.
    * @param {Trial} t
    * @param {ReturnType<typeof takeReport>} report
    * @param {PMNode} doc
@@ -585,12 +581,7 @@ export class CiceroPage {
     for (const el of places) {
       const box = el ? report.boxOf(el) : null;
       if (!box) return 0;
-      let gap = 0;
-      for (let child = box, a = box.parent; a; child = a, a = a.parent) {
-        const cs = win.getComputedStyle(a.el);
-        gap += child.rect.top - (a.rect.top + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.paddingTop) || 0));
-      }
-      lead = Math.min(lead, gap);
+      lead = Math.min(lead, gapAbove(box, report, win));
     }
     return lead > EPS ? lead : 0;
   }
@@ -660,21 +651,16 @@ export class CiceroPage {
   }
 
   /**
-   * The effective page name at a position, as the driver's `nameAt` reads it: the box the page begins in, or, at a box's start, the deepest in-flow block that begins there.
+   * The effective page name at a position, as the driver's `nameAt` reads it: the box the page begins in, or, at a box's start, the deepest in-flow block that begins there (the engine's `pageNameDownFrom`, with a line before a child read off the law copy's text, where the driver reads its word index).
    * @param {Trial} t
    * @param {number} pos
    */
   nameAt(t, pos) {
-    let { el, inside } = this.boxAt(t, pos);
+    const { el, inside } = this.boxAt(t, pos);
     const win = /** @type {Window} */ (this.doc.defaultView);
-    if (!inside && el !== t.lawRoot) {
-      for (;;) {
-        const next = blockChildrenOf(el).find((c) => !isOutOfFlow(win.getComputedStyle(c)));
-        if (!next || /\S/.test(textBefore(el, next))) break;
-        el = next;
-      }
-    }
-    return el === t.lawRoot ? '' : effectivePageName(el);
+    if (el === t.lawRoot) return '';
+    // The descent is the engine's (`pageNameDownFrom`); a line before a child is read off the law copy's text, since this package holds no word index over it.
+    return inside ? effectivePageName(el) : pageNameDownFrom(el, { styleOf: (c) => win.getComputedStyle(c), runBefore: (parent, child) => /\S/.test(textBefore(parent, child)) });
   }
 
   /**
