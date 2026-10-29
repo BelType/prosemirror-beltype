@@ -17,8 +17,9 @@ import { EditorState } from 'prosemirror-state';
 import { FragmentedView } from 'prosemirror-fragview';
 import * as g from 'beltype-studio-experiment/src/schema-generic.js';
 import { ciceroContainers, ledger, ledgerKey } from '../src/index.js';
-import { findSites } from '@egildo/beltype-engine-cicero/src/reads.js';
-import { sheetReach, topLevelReach } from '@egildo/beltype-engine-cicero/src/capture.js';
+import { findSites } from '@beltype/cicero/internal/reads';
+import { sheetReach } from '@beltype/cicero/internal/capture';
+import { topLevelReach } from '@beltype/cicero/fragmentation';
 
 /** The Gauge's word: a maximal run of what a breaking space does not divide. */
 const WORD = /[\S  ﻿]+/g;

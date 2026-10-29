@@ -9,7 +9,7 @@
  * @packageDocumentation
  */
 
-import { placeAt } from '@egildo/beltype-engine-cicero/src/positions.js';
+import { placeAt } from '@beltype/cicero/fragmentation';
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
 /** @import { ContainerHint } from 'prosemirror-fragview/src/fragmentainer.js' */

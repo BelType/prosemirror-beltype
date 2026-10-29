@@ -13,10 +13,10 @@
  * @packageDocumentation
  */
 
-import { readGeometryTable, registerGcpmProperties } from '@egildo/beltype-engine-cicero/src/capture.js';
-import { ensureContinuationDressing, ensureDressing } from '@egildo/beltype-engine-cicero/src/dressing.js';
-import { assertRenderConditions } from '@egildo/beltype-engine-cicero/src/measure.js';
-import { present } from '@egildo/beltype-engine-cicero/src/presenters.js';
+import { readGeometryTable, registerGcpmProperties } from '@beltype/cicero/fragmentation';
+import { ensureContinuationDressing, ensureDressing } from '@beltype/cicero/fragmentation';
+import { assertRenderConditions } from '@beltype/cicero/fragmentation';
+import { present } from '@beltype/cicero/fragmentation';
 import { CiceroPage } from './cicero-page.js';
 import { Originals } from './originals.js';
 import { Chain } from './chain.js';
@@ -50,7 +50,7 @@ export function ciceroContainers(document = globalThis.document, { table, relaxD
 /** The selector of the elements the facsimile presents, as the one-round host's intake asks it (`seam/client.js`, `PDF_OBJECT`). */
 const PDF_OBJECT = 'object[type="application/pdf"]';
 
-/** The facsimile module, once its presenter is registered in this package's registry. One per module instance, as the registry is. @type {Promise<typeof import('@egildo/beltype-engine-cicero/seam/facsimile.js')> | null} */
+/** The facsimile module, once its presenter is registered in this package's registry. One per module instance, as the registry is. @type {Promise<typeof import('@beltype/cicero/facsimile')> | null} */
 let facsimile = null;
 
 /**
@@ -64,7 +64,7 @@ let facsimile = null;
 export async function takeFacsimile(doc) {
   if (!doc.querySelector(PDF_OBJECT)) return;
   const first = !facsimile;
-  facsimile ??= import('@egildo/beltype-engine-cicero/seam/facsimile.js').then(
+  facsimile ??= import('@beltype/cicero/facsimile').then(
     async (module) => { await module.install(doc, present); return module; },
     (error) => { throw new Error(`BelType/Cicero: the document embeds a PDF and the module that draws it did not load (${error?.message ?? error})`); }
   );

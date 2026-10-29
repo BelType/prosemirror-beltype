@@ -12,7 +12,7 @@
  */
 
 import { readFileSync, realpathSync } from 'node:fs';
-import { ciceroEngine } from '@egildo/beltype-engine-cicero/seam/index.js';
+import { ciceroEngine } from '@beltype/cicero';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
@@ -35,5 +35,5 @@ const pdfjs = {
 export default {
   plugins: [pdfjs],
   resolve: { dedupe: ['prosemirror-model', 'prosemirror-state', 'prosemirror-transform'] },
-  server: { cors: true, fs: { allow: [root, linked('beltype-studio-experiment'), linked('@egildo/beltype-engine-cicero'), linked('prosemirror-fragview')] } },
+  server: { cors: true, fs: { allow: [root, linked('beltype-studio-experiment'), linked('@beltype/cicero'), linked('prosemirror-fragview')] } },
 };
