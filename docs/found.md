@@ -247,6 +247,13 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Fix**: the view takes the arrow across a fragment that holds no caret position (the next position the model has, as `leftAcrossCut` does across a cut), and a click on an atom's box goes to the nearest textblock position, or selects the atom.
 - **State**: OPEN. fixed on prosemirror-fragview fix/the-view-bugs 4f69ffe, not merged. Egildo ruled 2026-10-29 that the view keeps ProseMirror's atom selection, and the studio's check follows it (studio commit 1e57e0d on `studio/facsimile-selected`, parked for review).
 
+### A node selection between two sections is read back as a caret at the document's start
+
+- **Seen**: 2026-10-29, the studio's facsimile check (`scripts/facsimile-check.mjs` (C) on `studio/facsimile-selected`, under `?view=fragmented&schema=studio`, 31 of 33): from the end of the last paragraph before the facsimile's page of its own (2807) ArrowRight dispatches `NodeSelection 2810-2811`, then a `selectionchange` arrives and `readSelection` dispatches `TextSelection 2-2`, the document's first heading; ArrowLeft from 2814 does the same. Inside a figure the same arrows behave as `EditorView`'s. Every time, in 5 of 5 fresh pages.
+- **Layer**: the view, `src/fragmented-view.js`, `readSelection` (it read the browser's selection with no reason to distrust it), though the trigger is in the page: about two frames after the view wrote a range around the `<object>`, Chromium cleared it and put a caret at the start of the editing host, with no `Selection` call or mutation in between; taking the canvas the presenter resizes out of the object stops it (measured), so the page's own DOM is part of the cause. It does not reproduce without Cicero.
+- **Fix**: a `selectionchange` with the model on a node selection, the browser's selection no longer the drawn one and no input since the draw is the browser's own: the view reads nothing from the browser's selection until its next draw or a press of the pointer (`noteDrop`). Drawing the range again is dropped again. `EditorView` reads such a drop too, so there is nothing to port.
+- **State**: fixed on prosemirror-fragview fix/node-selection-readback e252d30, not merged. The studio's facsimile check goes from 31 of 33 to 33 of 33 with it.
+
 ## The engine (BelType)
 
 ### The showcase does not print, on either path
