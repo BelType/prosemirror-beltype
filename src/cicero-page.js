@@ -27,19 +27,19 @@
  */
 
 import { openedAt, pointAt, posAt } from 'prosemirror-fragview';
-import { addWord, AWAY, ADJOIN, ARTIFACT, END, FRAGMENT, SPLIT, hasWord, removeWord } from '@egildo/beltype-engine-cicero/src/data-beltype.js';
-import { createMeasureContext, awaitFonts, awaitCloneImages } from '@egildo/beltype-engine-cicero/src/measure.js';
-import { takeReport } from '@egildo/beltype-engine-cicero/src/gauge.js';
-import { adjudicate, reachesBelowTheEdge, isOutOfFlow, neverCutInside, processionBottoms, fitsPage } from '@egildo/beltype-engine-cicero/src/stonehand.js';
-import { forcingIndexOf, gapAbove, pageNameDownFrom } from '@egildo/beltype-engine-cicero/src/driver.js';
-import { effectivePageName, transliterateContent } from '@egildo/beltype-engine-cicero/src/capture.js';
-import { encodeStringProp, STRING_KEYWORDS } from '@egildo/beltype-engine-cicero/src/gcpm-encoding.js';
-import { cssString } from '@egildo/beltype-engine-cicero/src/reads.js';
-import { pathOf, normalizePath, extensionPx, divides } from '@egildo/beltype-engine-cicero/src/positions.js';
-import { joinedWords } from '@egildo/beltype-engine-cicero/src/fragments.js';
-import { copyOf, isFixedBox, noteSource } from '@egildo/beltype-engine-cicero/src/word-space.js';
-import { presentation } from '@egildo/beltype-engine-cicero/src/presenters.js';
-import '@egildo/beltype-engine-cicero/src/chase.js';
+import { addWord, AWAY, ADJOIN, ARTIFACT, END, FRAGMENT, SPLIT, hasWord, removeWord } from '@beltype/cicero/fragmentation';
+import { createMeasureContext, awaitFonts, awaitCloneImages } from '@beltype/cicero/fragmentation';
+import { takeReport } from '@beltype/cicero/fragmentation';
+import { adjudicate, reachesBelowTheEdge, isOutOfFlow, neverCutInside, processionBottoms, fitsPage } from '@beltype/cicero/fragmentation';
+import { forcingIndexOf, gapAbove, pageNameDownFrom } from '@beltype/cicero/fragmentation';
+import { effectivePageName, transliterateContent } from '@beltype/cicero/fragmentation';
+import { encodeStringProp, STRING_KEYWORDS } from '@beltype/cicero/fragmentation';
+import { cssString } from '@beltype/cicero/fragmentation';
+import { pathOf, normalizePath, extensionPx, divides } from '@beltype/cicero/fragmentation';
+import { joinedWords } from '@beltype/cicero/fragmentation';
+import { copyOf, isFixedBox, noteSource } from '@beltype/cicero/fragmentation';
+import { presentation } from '@beltype/cicero/fragmentation';
+import '@beltype/cicero/internal/chase';
 import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition, wholeAfter, advances, inFlowStart } from './turn.js';
 import { Positions, nodeDom, nodeStart, continueAsShell, endAsShell, seatPieces, shellsOf, endsOf, pinTracks } from './shells.js';
 import { stateOfPage, runningPlaced, sameElements } from './originals.js';

@@ -18,8 +18,8 @@
  * @packageDocumentation
  */
 
-import { settleReads } from '@egildo/beltype-engine-cicero/src/reads.js';
-import { pageIntervals, pageContaining, elAt } from '@egildo/beltype-engine-cicero/src/positions.js';
+import { settleReads } from '@beltype/cicero/fragmentation';
+import { pageIntervals, pageContaining, elAt } from '@beltype/cicero/fragmentation';
 import { fragmentsKey, dirtied } from 'prosemirror-fragview';
 import { ledgerKey, keyOf, accountOf } from './ledger.js';
 import { stateOfPage, runningPlaced, sameElements } from './originals.js';

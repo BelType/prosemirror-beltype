@@ -7,7 +7,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const src = fileURLToPath(new URL('../src/', import.meta.url));
-const ALLOWED = /^(prosemirror-(fragview|model|state|transform)|@egildo\/beltype-engine-cicero(\/.*)?|\.\/.*)$/;
+const ALLOWED = /^(prosemirror-(fragview|model|state|transform)|@beltype\/cicero(\/.*)?|\.\/.*)$/;
 
 test('every import under src/ is ProseMirror, the view, the engine or a sibling', () => {
   for (const file of readdirSync(src).filter((f) => f.endsWith('.js'))) {

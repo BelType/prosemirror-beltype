@@ -15,9 +15,9 @@
  * @packageDocumentation
  */
 
-import { mutateToContinuation, mutateToFirstFragment, pinTrack } from '@egildo/beltype-engine-cicero/src/fragments.js';
-import { noteSource } from '@egildo/beltype-engine-cicero/src/word-space.js';
-import { ADJOIN, AWAY, END, SHELL, SPLIT, START, hasWord, removeWord } from '@egildo/beltype-engine-cicero/src/data-beltype.js';
+import { mutateToContinuation, mutateToFirstFragment, pinTrack } from '@beltype/cicero/fragmentation';
+import { noteSource } from '@beltype/cicero/fragmentation';
+import { ADJOIN, AWAY, END, SHELL, SPLIT, START, hasWord, removeWord } from '@beltype/cicero/fragmentation';
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
 /** @import { RenderedSlice, Span } from 'prosemirror-fragview/src/fragmentainer.js' */

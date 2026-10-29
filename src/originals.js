@@ -18,17 +18,17 @@
  */
 
 import { pointAt } from 'prosemirror-fragview';
-import { topLevelBlocks, runningBoxes, runningPosition } from '@egildo/beltype-engine-cicero/src/driver.js';
-import { indexBlocks } from '@egildo/beltype-engine-cicero/src/positions.js';
-import { documentOpsOf, counterStateAt, stringAssignmentsOf, runningAssignmentsOf, namedStringsForPage } from '@egildo/beltype-engine-cicero/src/document-state.js';
-import { findPageSites } from '@egildo/beltype-engine-cicero/src/reads.js';
-import { ForcingMemo } from '@egildo/beltype-engine-cicero/src/forcing-memo.js';
-import { topLevelReach } from '@egildo/beltype-engine-cicero/src/capture.js';
-import { BREAKING_SPACE, isInlineBox, isFixedBox, isLineBreak } from '@egildo/beltype-engine-cicero/src/word-space.js';
+import { topLevelBlocks, runningBoxes, runningPosition } from '@beltype/cicero/fragmentation';
+import { indexBlocks } from '@beltype/cicero/fragmentation';
+import { documentOpsOf, counterStateAt, stringAssignmentsOf, runningAssignmentsOf, namedStringsForPage } from '@beltype/cicero/fragmentation';
+import { findPageSites } from '@beltype/cicero/fragmentation';
+import { ForcingMemo } from '@beltype/cicero/fragmentation';
+import { topLevelReach } from '@beltype/cicero/fragmentation';
+import { BREAKING_SPACE, isInlineBox, isFixedBox, isLineBreak } from '@beltype/cicero/fragmentation';
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
 /** @import { SliceRenderer, RenderedSlice } from 'prosemirror-fragview/src/fragmentainer.js' */
-/** @import { Keep } from '@egildo/beltype-engine-cicero/src/forcing-memo.js' */
+/** @import { Keep } from '@beltype/cicero/fragmentation' */
 
 /** The holder's id: a body child, so its elements have a computed style, and hidden, so it lays nothing out. */
 const HOLDER = '__prosemirror-beltype-originals';
