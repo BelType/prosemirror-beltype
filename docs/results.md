@@ -125,7 +125,7 @@ Each was left out once and the measurement run again, 2026-10-24.
 
 None blocked the phase. Each is a place where this package wrote a few lines the engine or the view already has, or could not reach something:
 
-- **`placeAt`** (`driver.js`, a closure inside `paginateOnce`): two lines, written again in `turn.js`. Opening: export it from `positions.js`, beside the address it reads into.
+- **`placeAt`** (`driver.js`, a closure inside `paginateOnce`): two lines, written again in `turn.js`. Opening: export it from `positions.js`, beside the address it reads into. (Closed 2026-10-29, "The driver's doors" below.)
 - **`nameAt`** (the same closure): the descent from a box down its first in-flow child chain while no word stands before the child, written again in `CiceroPage.nameAt` over `blockChildrenOf` and `effectivePageName`. Opening: a `nameAt(el, styleOf)` exported from `capture.js` beside `effectivePageName`.
 - **The `fits` test** (the same closure): the in-flow procession's bottom against the content height, six lines written again. Opening: a `fitsPage({ report, sourceOf, pageStart, contentHeight })` in `stonehand.js` beside `reachesBelowTheEdge`, its one reader of the same predicates.
 - **The repeated header** (`fragments.js`' `liftRepeatedHeader` and `repeatedGroup`, internal; `decideRepeats`, a closure in `paginateOnce`): no counterpart. Opening: an exported function that, given a table element whose body a fragment resumes and the page's content height, decides whether its header repeats and returns the copy to seat, marked `artifact`; the renderer's shallow `thead` is where it would go.
@@ -173,6 +173,8 @@ A row item's own verdict is read as the page's is (`cutOf` on the item's verdict
 The hint reaches a page once, when the view builds it (`build`), and a container refilled from another `from` keeps the hint it was built with; so a page reads `shell` and `row` only when `at` is its own `from`, and a stale one is ignored rather than applied to the wrong slice. A door owed in the view (below).
 
 ### Closures of the driver's, written again
+
+Closed 2026-10-29 but for the third, "The driver's doors" below.
 
 Besides `placeAt`, `nameAt` and `fits` (phase 1), the shells needed three more, each the smallest copy that answers and each named as a door:
 
@@ -1176,6 +1178,54 @@ The showcase's first difference against the CLI is page 50, as recorded above (7
 
 ### Not done
 
-- The other doors of docs/found.md (the six closures in `src/turn.js`, `presentTree`, the part's unit) are out of this round's scope.
+- The other doors of docs/found.md (the six closures in `src/turn.js`, `presentTree`, the part's unit) are out of this round's scope. (The closures: "The driver's doors", below.)
 - Door 1 was counted before and after on the chrome fixture only, where the finding was seen. After the round the specimen settles in one run on both sides; it was not counted before, and the other fixtures read nothing the loop settles.
 - The studio itself was not run; it picks the doors up when both repositories' mains have them.
+
+
+## The driver's doors
+
+Written 2026-10-29, on the branch `round/the-driver-doors`, for the six closures of the driver's that this package wrote again (the lists above, "Doors missing" and "Closures of the driver's, written again"), which BelType opened on its `round/the-driver-doors` (engine commit 9934b8c2, its battery 17d5a495: 26 of 26 in 10.6 minutes, `--check-pin` ok; its CHANGELOG of 2026-10-28, *The driver's closures are doors*). Run it again as the four doors' section says, with `BELTYPE_ROOT` naming the BelType worktree and `node_modules/@egildo/beltype-engine-cicero` linked to its `packages/engine-cicero`, and give the script an absolute path for a fixture (it spawns the CLI in BelType's directory, where `./fixtures/...` does not exist). `npm test` is 45 of 45.
+
+### What was dropped here, and what was kept
+
+Each copy was read against its original line by line first. None was drifted on purpose except where said.
+
+| The copy here | Its original | Identical? | Now |
+| :-- | :-- | :-- | :-- |
+| `placeAt` in `src/turn.js` | the closure in `paginateOnce` | the same two lines | dropped; `turn.js` imports the engine's `placeAt` (`positions.js`) and `src/index.js` no longer exports it, since nothing here or in the studio asked it |
+| the descent in `CiceroPage.nameAt` | the closure `nameAt` | the same walk: first in-flow block child, out-of-flow skipped, then `effectivePageName`. It differs in one read: whether a run of words stands before the child. The driver compares `index.wordsBefore` over its position index; a trial's law copy has no word index, so this package tests `/\S/` over the text before the child (`textBefore`, fixed boxes skipped) | the descent dropped; `pageNameDownFrom(el, { styleOf, runBefore })` is called with the text read as `runBefore`. The guard (`inside`, the root) stays here |
+| the loop and the test in `fill` | `inFlowBottom`'s loop and `fits` in `paginateOnce` | the same arithmetic; the original reads the top-level item a box stands in to say whether the box is parallel, this package the box's own source, which differs only for a block item in a top-level inline container that is itself out of flow | both dropped; `processionBottoms` and `fitsPage` are called, `parallel` being this package's reading |
+| the gap loop in `CiceroPage.spentLead` | `gapAbove`, inside the closure `spentLeadOf` | the same sum of how far each child stands below its container's content edge, without the branch for a repeated header's copy (`artifact`) that this package's pages never hold | the loop dropped; the engine's `gapAbove(box, report, win)` is called. The places the lead is read at, and the quarter pixel, stay here (the driver reads its cursor, this package a shell and a row's pieces) |
+| `pinTracks` and `pinTable` in `src/shells.js` | `pinTracks` and `pinTable` in `fragments.js` | the same writes, but the original reads a row and a cell by computed display (`sourceStyle`), which this package's slice cannot be asked, and handles a header lifted into the caption, which it never holds | `pinTable` dropped; `pinTracks` keeps its own loop, which finds a box by the position of its node, and calls the engine's `pinTrack(el, t, byTag)` with a display function by tag |
+| `sealedEnd` (the bound that never cuts inside a box `neverCutInside` names) | `forcingIndexOf`'s `sealedBy` and `boundAt` | **Not the same, and kept.** The driver's rule is an index over the whole intake (each event records the outermost sealing box it stands in) that `boundAt` asks of a cursor; there is no function of a box chain to lift. This package asks it of one trial's end position and finds the outermost sealed ancestor of it. The predicate is the engine's (`neverCutInside`, imported, as the record said) and the walk differs by representation: the driver then moves to the first in-flow box after the sealed subtree, skipping a float; this package ends the trial at the position after the sealed box | kept; its comment now says why. A change to share it would rewrite the driver's walk, which is not additive |
+
+`src/turn.js` is 188 lines (196), `src/shells.js` 242 (265), `src/cicero-page.js` 883 (897). `test/turn.test.js` loses the one assertion of `placeAt`, which is the engine's to pin (`test/driver-doors.test.js` in BelType); the count of tests is the same, 45.
+
+### That the view ran the worktree's engine
+
+`node_modules` of this worktree is a directory of links to the main checkout's entries, except `@egildo/beltype-engine-cicero`, which links to the BelType worktree's `packages/engine-cicero`; Vite's cache is the worktree's own `node_modules/.vite`. A throwaway script started this package's Vite, loaded `harness/specimen.js` in Chromium after the CLI's round and listed the page's resource entries: 27 engine modules, every one under `/@fs/Users/egildo/Privata/dev/beltype/.claude/worktrees/the-driver-doors/packages/engine-cicero/` (`driver.js`, `fragments.js`, `positions.js`, `stonehand.js` and `reads.js` among them), none from BelType's main checkout. The page also mounts only if the new exports exist, since `cicero-page.js` imports `gapAbove` and `pageNameDownFrom` from `driver.js` by name.
+
+### The harness, fixture by fixture
+
+First difference *none* on each of the nine fixtures under `fixtures/` and on `./test/specimen.md`, normal and `--bare`: chrome 16 pages, dressing 11, end-gap 6, facsimile 5, flow 26, multicol 6, row 13, running 13, tall 10, specimen 9, the same on both sides. The edits, each normal and `--bare`, each edit equal to the fresh fill on every page and every page's state:
+
+| Target | Edits | Pages | Result |
+| :-- | :-- | ---: | :-- |
+| `fixtures/chrome/chrome.md` | the three retitles, `key:3`, `delete:2`, `paste`, `enter`, `start`, `end` | 16 | equal, 9 of 9, both |
+| `./test/specimen.md` | `key:2`, `delete:2`, `paste`, `enter`, `start`, `end` | 9 | equal, 6 of 6, both (see below) |
+| `fixtures/running/running.md` | the same six | 13 | equal, 6 of 6, both |
+| the studio's quiet press | `key:3`, `delete:3`, `paste`, `enter`, `start`, `end` | 30 | equal, 6 of 6, both |
+| the studio's showcase | the same six | 74 | equal, 6 of 6, both |
+
+The specimen's first normal run read the `enter` edit as 8 of 9 pages, page 1's flow text empty, with the harness logging `the snapshot misses 4 tagged element(s) on the view side` three times: the DOM snapshot flake that `scripts/specimen.mjs` already names (page 1 of the specimen, 2026-10-25). The words and the page's state agreed. Three more runs of the same edits read 6 of 6 at 9 of 9 each.
+
+### The showcase
+
+The showcase's difference from the CLI is what it was: 76 pages under the CLI against 74 under the view, first difference page 50, normal and `--bare`. Run before and after in one sitting (*before* the two mains, this package's exported with `git archive` into a scratch directory with links, BelType's checkout as the CLI and the engine; *after* the two worktrees), the per-page table of 228 rows is identical, and the six edits are equal to the fresh fill on 74 of 74 pages in both. The copies decide cuts, and nothing the showcase draws moved.
+
+### Not done
+
+- `sealedEnd` is kept (above), and `presentTree`, the repeated header's one function and the part's unit are other doors, not this round's.
+- The studio itself was not run; it picks the doors up when both repositories' mains have them.
+- The branch was cut from `ae6e9d5`; `main` has since taken two commits that touch `docs/found.md` only.

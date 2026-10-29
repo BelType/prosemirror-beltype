@@ -312,6 +312,20 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Fix**: match a `:is()` or `:where()` argument as it stands instead of taking it out, or ask the right side of a `+` or `~` too (a top-level box must be able to match it for the rule to relate two top-level boxes). The engine's to decide. The cost on the quiet press is not seen: its keys are bound by the frame on both sides (a character a third in, 32 ms against 32.8, settled in 13.9 against 14.3).
 - **State**: CLOSED 2026-10-28 by the engine, BelType's merge a76ec341 (its CHANGELOG, *the reach reads a plain wrapper as it stands*): `topLevelReach` keeps a `:is()`, `:where()` or `:not()` whose argument is plain compounds and matches it as it stands; a wrapper holding a pseudo-class or a combinator is still taken out. The quiet press reads 0 for a whole top-level box (`sheetReach` stays 1). `scripts/specimen.mjs` on the quiet press with `--edits 'key:3;delete:3;paste;enter;start;end'`, normal and `--bare`: 30 pages under the CLI and the view, no difference; every edit equal to a fresh fill on 30 of 30 pages and states; a keystroke now keeps 7 of the 8 boxes' parts (the Enter at 182 read 1 and still equalled the fresh fill; which rule gave that 1 is not traced).
 
+### The driver's closures are written again here
+
+- **Seen**: the phases 1 and 2 of the page (docs/results.md, "Doors missing" and "Closures of the driver's, written again"): `placeAt`, the `nameAt` descent, the `fits` test, the bound `neverCutInside` names, `spentLeadOf` and `pinTracks` are closures or internals of `driver.js` and `fragments.js`, and `src/turn.js`, `src/cicero-page.js` and `src/shells.js` held a copy of each.
+- **Layer**: the engine, `src/driver.js`, `src/positions.js`, `src/stonehand.js` and `src/fragments.js`.
+- **Fix**: lift each to module level with the driver passing what its closure read from its scope, and export it; the driver computes what it computed.
+- **State**: CLOSED 2026-10-29 for five of the six by BelType's `round/the-driver-doors` (9934b8c2, its battery 17d5a495: 26 of 26, the pin standing; CHANGELOG 2026-10-28, *The driver's closures are doors*), adopted here on `round/the-driver-doors`: `placeAt`, `pageNameDownFrom` (with this package's own `runBefore`, a text read in place of the driver's word index), `gapAbove`, `processionBottoms` with `fitsPage` (with this package's own `parallel`), and `pinTrack` (with a display function by tag). Every fixture equal to the CLI and every edit equal to a fresh fill; the showcase's table identical before and after (docs/results.md, "The driver's doors"). The sixth is kept, below.
+
+### The bound that never cuts inside a box is written again here, and the engine's form cannot serve
+
+- **Seen**: the round *the driver's doors*, 2026-10-29: `CiceroPage.sealedEnd` finds the outermost box of a chain that `neverCutInside` names and moves the trial's end past it. The driver's rule is `forcingIndexOf`'s `sealedBy`, one index over the whole intake that `boundAt` asks of a cursor.
+- **Layer**: the engine, `src/driver.js` (`forcingIndexOf`), and this package, `src/cicero-page.js` (`sealedEnd`).
+- **Fix**: none that is additive: the engine's rule is no function of a box chain, and the driver moves to the first in-flow box after the sealed subtree, skipping a float, where this package ends the trial at the position after the sealed box. A function of a chain that the driver's index is built from would rewrite its walk; the predicate, `neverCutInside`, is already shared.
+- **State**: OPEN, kept on purpose; not seen to differ from the driver on any fixture.
+
 ### The unit of a kept part is the top-level box, and a Markdown document has few
 
 - **Seen**: the round *the originals keep their parts*, 2026-10-25: BelType's body articulates as nested `<section>` elements, so a document's top-level boxes are its outermost sections: the chrome fixture has 2 top-level nodes (its running element and one section), the specimen 7, the showcase 14 (13 blocks and a running element). A keystroke renders and reads again the whole chapter it stands in, under any reach.
