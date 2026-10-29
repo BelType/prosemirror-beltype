@@ -39,7 +39,7 @@ import { pathOf, normalizePath, extensionPx, divides } from '@beltype/cicero/fra
 import { joinedWords } from '@beltype/cicero/fragmentation';
 import { copyOf, isFixedBox, noteSource } from '@beltype/cicero/fragmentation';
 import { presentation } from '@beltype/cicero/fragmentation';
-import '@beltype/cicero/internal/chase';
+import '@beltype/cicero/page';
 import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition, wholeAfter, advances, inFlowStart } from './turn.js';
 import { Positions, nodeDom, nodeStart, continueAsShell, endAsShell, seatPieces, shellsOf, endsOf, pinTracks } from './shells.js';
 import { stateOfPage, runningPlaced, sameElements } from './originals.js';
