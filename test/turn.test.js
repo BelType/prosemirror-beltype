@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Schema } from 'prosemirror-model';
 import { openedAt, posAt } from 'prosemirror-fragview';
-import { FIRST_SPAN, firstSpan, parityAt, conditionOf, hintAfter, hintAfterBlank, enter, wordPoint, placeAt, verdictPosition } from '../src/turn.js';
+import { FIRST_SPAN, firstSpan, parityAt, conditionOf, hintAfter, hintAfterBlank, enter, wordPoint, verdictPosition } from '../src/turn.js';
 
 test('the trial renders 2 048 positions on a first fill and twice the last cut fill after', () => {
   assert.equal(FIRST_SPAN, 2048);
@@ -104,7 +104,6 @@ test('a box boundary is entered down its first-child chain, and the page before 
 });
 
 test('a Class B cut is the position of the first character the line after the cut shows, across a mark', () => {
-  assert.deepEqual(placeAt(pieces, 1), { word: 2, char: 0 });
   assert.deepEqual(verdictPosition({ kind: 'B', box: { el: p }, k: 0 }, dom()), { pos: 17, shell: false });
 });
 

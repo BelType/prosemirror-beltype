@@ -15,7 +15,7 @@
  * @packageDocumentation
  */
 
-import { mutateToContinuation, mutateToFirstFragment, spanWidths } from '@egildo/beltype-engine-cicero/src/fragments.js';
+import { mutateToContinuation, mutateToFirstFragment, pinTrack } from '@egildo/beltype-engine-cicero/src/fragments.js';
 import { noteSource } from '@egildo/beltype-engine-cicero/src/word-space.js';
 import { ADJOIN, AWAY, END, SHELL, SPLIT, START, hasWord, removeWord } from '@egildo/beltype-engine-cicero/src/data-beltype.js';
 
@@ -220,8 +220,11 @@ export const shellsOf = (start) => [...(start.pieces ?? []).flatMap((p) => (p.sh
  */
 export const endsOf = (end) => [...(end.pieces ?? []).flatMap((p) => (p.end ? [p.end] : [])), ...(end.shell ? [end.shell] : [])];
 
+/** The display a table's elements have by their tags, which is what `pinTrack` is asked for a page's slice. */
+const byTag = (/** @type {Element} */ el) => ({ TR: 'table-row', TD: 'table-cell', TH: 'table-cell', THEAD: 'table-header-group', TBODY: 'table-row-group', TFOOT: 'table-footer-group' })[el.tagName] ?? '';
+
 /**
- * Write the tracks the trial laid each divided table and grid out at on the page's own pieces of them, the engine's `pinTracks` and `pinTable` (internal to `fragments.js`, written again here and named as a door in docs/results.md; *the fragment lays out under the feed's conditions*): a page holds a table with the rows outside its interval left out, and a table that reads its rows for its column widths is not the table the trial measured. A grid takes its column list; a table its width, `table-layout: fixed`, and each cell of its first displayed row the width of the columns it spans (`spanWidths`), or nothing where the cells do not cover the columns. Read by tag rather than by computed display, since the page's slice is not in the document yet. Only a box the page divides (`split`): a whole one lays out as the trial laid it.
+ * Write the tracks the trial laid each divided table and grid out at on the page's own pieces of them, with the engine's `pinTrack` (*the fragment lays out under the feed's conditions*): a page holds a table with the rows outside its interval left out, and a table that reads its rows for its column widths is not the table the trial measured. The boxes are found here, by the position of their node, since the engine finds them by an address in the account. A row and a cell are read by tag (`byTag`) rather than by computed display, the engine's default, since the page's slice is not in the document yet and its elements are registered with no source. Only a box the page divides (`split`): a whole one lays out as the trial laid it.
  * @param {Element | DocumentFragment} root
  * @param {{ get(node: Node): Span | undefined }} positions
  * @param {PMNode} doc
@@ -234,32 +237,6 @@ export function pinTracks(root, positions, doc, tracks, opened) {
     const at = nodeStart(el, positions, doc, opened);
     const t = at == null ? null : tracks.get(at);
     if (!t) continue;
-    if (t.kind === 'grid') /** @type {HTMLElement} */ (el).style.gridTemplateColumns = /** @type {string} */ (t.columns);
-    else if (t.kind === 'table') pinTable(/** @type {HTMLElement} */ (el), /** @type {number[]} */ (t.columns), /** @type {number} */ (t.width));
+    pinTrack(/** @type {HTMLElement} */ (el), t, byTag);
   }
-}
-
-/** @param {HTMLElement} table @param {number[]} columns @param {number} width */
-function pinTable(table, columns, width) {
-  const shown = (/** @type {Element} */ e) => !hasWord(e, AWAY);
-  /** @type {Element | null} */
-  let row = null;
-  (function find(/** @type {Element} */ parent) {
-    for (const child of parent.children) {
-      if (row || !shown(child)) continue;
-      if (child.tagName === 'TR') row = child;
-      else if (/^T(HEAD|BODY|FOOT)$/.test(child.tagName)) find(child);
-    }
-  })(table);
-  if (!row) return;
-  const cells = /** @type {HTMLTableCellElement[]} */ ([...row.children].filter((c) => shown(c) && /^T[DH]$/.test(c.tagName)));
-  const widths = spanWidths(columns, cells.map((c) => c.colSpan || 1));
-  if (!widths) return;
-  table.style.tableLayout = 'fixed';
-  table.style.boxSizing = 'border-box';
-  table.style.width = `${width}px`;
-  cells.forEach((cell, i) => {
-    cell.style.boxSizing = 'border-box';
-    cell.style.width = `${widths[i]}px`;
-  });
 }
