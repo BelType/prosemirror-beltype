@@ -1,5 +1,5 @@
 /**
- * Vite's configuration for the harness: the engine and the studio's generic schema are imported from linked dev dependencies, and the harness module is loaded into a page another server serves (BelType's dev server, `scripts/specimen.mjs`).
+ * Vite's configuration for the harness: the engine and the fragmented view are dev dependencies, and the studio's generic schema is read from its checkout when one is on disk (`BELTYPE_STUDIO`), and the harness module is loaded into a page another server serves (BelType's dev server, `scripts/specimen.mjs`).
  *
  * @remarks
  * The links resolve to folders outside this root (the engine's package in BelType's repository, the studio's, the fragmented view's), so the server is allowed to read them. Their bare imports would otherwise resolve against their own `node_modules`, a second copy of `prosemirror-model` whose nodes the state and the view here would not recognize: the three pure libraries are deduplicated to this package's copies, as the fragmented view's own configuration does.
@@ -11,12 +11,16 @@
  * @packageDocumentation
  */
 
-import { readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { ciceroEngine } from '@beltype/cicero';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 const linked = (/** @type {string} */ name) => realpathSync(new URL(`node_modules/${name}`, import.meta.url));
+
+/** The studio's checkout, which the specimen harness reads its generic schema from. It is private and no dependency: a clone without it installs and tests, and only the harness needs it. */
+const studio = process.env.BELTYPE_STUDIO ?? '/Users/egildo/Privata/dev/beltype-studio-experiment';
+const studioFound = existsSync(studio);
 
 const pdfjsFiles = ciceroEngine.vendorAssets().files;
 const pdfjs = {
@@ -34,6 +38,6 @@ const pdfjs = {
 
 export default {
   plugins: [pdfjs],
-  resolve: { dedupe: ['prosemirror-model', 'prosemirror-state', 'prosemirror-transform'] },
-  server: { cors: true, fs: { allow: [root, linked('beltype-studio-experiment'), linked('@beltype/cicero'), linked('prosemirror-fragview')] } },
+  resolve: { alias: studioFound ? { 'beltype-studio-experiment': studio } : {}, dedupe: ['prosemirror-model', 'prosemirror-state', 'prosemirror-transform'] },
+  server: { cors: true, fs: { allow: [root, ...(studioFound ? [studio] : []), linked('@beltype/cicero'), linked('prosemirror-fragview')] } },
 };

@@ -14,7 +14,8 @@
   ],
   "scripts": {
     "test": "node --test test/*.test.js",
-    "specimen": "node scripts/specimen.mjs"
+    "specimen": "node scripts/specimen.mjs",
+    "demo": "vite demo --config vite.config.js --port 48799 --strictPort"
   },
   "peerDependencies": {
     "prosemirror-fragview": "*",
@@ -29,10 +30,9 @@
   "author": "Egildo Tagliareni",
   "private": true,
   "devDependencies": {
-    "@beltype/cicero": "git+ssh://git@codeberg.org/BelType/cicero.git#v0.1.2",
-    "beltype-studio-experiment": "file:../../../../Users/egildo/Privata/dev/beltype-studio-experiment",
+    "@beltype/cicero": "0.1.4",
     "playwright": "1.63.0",
-    "prosemirror-fragview": "file:../prosemirror-fragview",
+    "prosemirror-fragview": "git+https://codeberg.org/egildo/prosemirror-fragview.git#77574d52cab72899dea322c98f8dd9dce82dd0ec",
     "prosemirror-history": "1.5.1",
     "prosemirror-model": "1.25.12",
     "prosemirror-state": "1.4.4",
