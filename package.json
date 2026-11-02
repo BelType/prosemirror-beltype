@@ -14,8 +14,7 @@
   ],
   "scripts": {
     "test": "node --test test/*.test.js",
-    "specimen": "node scripts/specimen.mjs",
-    "demo": "vite demo --config vite.config.js --port 48799 --strictPort"
+    "specimen": "node scripts/specimen.mjs"
   },
   "peerDependencies": {
     "prosemirror-fragview": "*",

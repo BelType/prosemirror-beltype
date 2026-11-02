@@ -2,7 +2,7 @@
 
 BelType's fragmentainer for [prosemirror-fragview](https://codeberg.org/egildo/prosemirror-fragview): Cicero's page implementing `fill` over the engine's own objects, with every gap between a one-round host and an editor's view filled the ProseMirror way. The engine is not changed to do this and never learns ProseMirror's name; the view never learns the engine's. This package imports both.
 
-Install and try it: `npm install` takes the engine from npm (`@beltype/cicero`) and the fragmented view from Codeberg at a pinned commit, so a clone needs nothing else on disk. `npm run demo` serves `demo/` on port 48799: a ProseMirror editor whose pages are Cicero's, typed into, split, undone and repaginated as you go. The specimen harness (`npm run specimen`) is the one part that needs local checkouts, BelType's (`BELTYPE_ROOT`) and the studio's (`BELTYPE_STUDIO`), whose generic schema it reads.
+Install and try it: `npm install` takes the engine from npm (`@beltype/cicero`) and the fragmented view from Codeberg at a pinned commit, so a clone needs nothing else on disk. An editor built on it lives in its own repository, [prosemirror-beltype-venue](https://gitlab.com/aicof-design-team/prosemirror-beltype-venue): a six-page pagination specimen whose pages are cut as you type, installed from what is published. The specimen harness (`npm run specimen`) is the one part that needs local checkouts, BelType's (`BELTYPE_ROOT`) and the studio's (`BELTYPE_STUDIO`), whose generic schema it reads.
 
 The plan and its phases are in [docs/plan.md](docs/plan.md). The rule it builds under is BelType's decision record [*the engine knows no view*](https://github.com/egildo/beltype/blob/main/.claude/decisions/project/the-engine-knows-no-view.md).
 
