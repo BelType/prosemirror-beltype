@@ -17,6 +17,7 @@
     "specimen": "node scripts/specimen.mjs"
   },
   "peerDependencies": {
+    "@beltype/cicero": "^0.1.6",
     "prosemirror-fragview": "*",
     "prosemirror-model": "^1.25.0",
     "prosemirror-state": "^1.4.0",
@@ -29,7 +30,7 @@
   "author": "Egildo Tagliareni",
   "private": true,
   "devDependencies": {
-    "@beltype/cicero": "0.1.4",
+    "@beltype/cicero": "0.1.6",
     "playwright": "1.63.0",
     "prosemirror-fragview": "git+https://codeberg.org/egildo/prosemirror-fragview.git#a4ac0a532f14a6dc72b36b46596181bf48ee8fe4",
     "prosemirror-history": "1.5.1",
