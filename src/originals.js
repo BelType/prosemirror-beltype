@@ -34,6 +34,12 @@ import { BREAKING_SPACE, isInlineBox, isFixedBox, isLineBreak } from '@beltype/c
 const HOLDER = '__prosemirror-beltype-originals';
 
 /**
+ * Takes the ids off a drawing's insides in the holder's rendering. An SVG's gradients, patterns, clips and filters are named by `url(#…)`, which resolves to the first element in the document with that id: the holder's, since it is body's first child, and Chrome paints nothing from a paint server inside a hidden element (measured 2026-11-04 on the specimen mostra: its road section drew none of its four layers). The copies on the pages keep their ids, and are found instead. The reads loop's targets are the author's elements, not a drawing's insides; the `<svg>` itself keeps its id.
+ * @param {Element | DocumentFragment} root
+ */
+const unnamed = (root) => { for (const el of root.querySelectorAll('svg [id]')) el.removeAttribute('id'); };
+
+/**
  * The words of `block` wholly before a DOM point inside it, tokenized as the engine's `indexBlock` tokenizes (a word is a maximal run of what a breaking space does not divide, continuing across inline seams; a fixed box or a running element is skipped whole; a non-inline boundary and an author's `<br>` end a word), and a point inside a word counted as that word's.
  * @param {any} block
  * @param {{ node: any, offset: number }} point
@@ -309,6 +315,7 @@ export class Originals {
       const byStart = new Map();
       for (const el of whole.fragment.children) { const span = whole.positions.get(el); if (span) byStart.set(span.start, el); }
       entries = nodes.map((node, i) => ({ node, el: byStart.get(bases[i]) ?? null, positions: whole.positions, at: bases[i], base: bases[i], rank: -1 }));
+      unnamed(whole.fragment);
       holder.replaceChildren(whole.fragment);
       rendered = nodes.length;
       memo.clear();
@@ -321,6 +328,7 @@ export class Originals {
         // The node's range alone: its own element, whole, after the shallow siblings the renderer writes for the nodes before it, which stand for no position.
         const slice = render(doc, bases[j], bases[j] + node.nodeSize);
         const el = [...slice.fragment.children].find((c) => slice.positions.has(c)) ?? null;
+        if (el) unnamed(el);
         return { node, el, positions: slice.positions, at: bases[j], base: bases[j], rank: -1 };
       });
       const kept = new Set(from);

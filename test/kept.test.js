@@ -40,6 +40,7 @@ class El {
   insertBefore(/** @type {any} */ n, /** @type {any} */ ref) { n.remove(); this.childNodes.splice(ref ? this.childNodes.indexOf(ref) : this.childNodes.length, 0, n); n.parentNode = this; return n; }
   appendChild(/** @type {any} */ n) { return this.insertBefore(n, null); }
   prepend(/** @type {any} */ n) { this.insertBefore(n, this.firstChild); }
+  querySelectorAll() { return []; }
   replaceChildren(/** @type {any} */ frag) { for (const c of [...this.childNodes]) c.remove(); for (const c of [...frag.childNodes]) this.appendChild(c); }
 }
 const text = (/** @type {string} */ data) => ({ nodeType: 3, data, parentNode: null, remove() {} });
