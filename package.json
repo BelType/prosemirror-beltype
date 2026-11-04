@@ -1,8 +1,22 @@
 {
   "name": "prosemirror-beltype",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "BelType's fragmentainer for prosemirror-fragview: Cicero's page implementing fill over the engine's own objects, with the gaps filled the ProseMirror way.",
   "type": "module",
+  "license": "MIT",
+  "author": "Egildo Tagliareni",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BelType/prosemirror-beltype.git"
+  },
+  "homepage": "https://codeberg.org/BelType/prosemirror-beltype",
+  "bugs": {
+    "url": "https://codeberg.org/BelType/prosemirror-beltype/issues"
+  },
+  "packageManager": "pnpm@10.34.9",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "src/index.js",
   "exports": {
     ".": "./src/index.js"
@@ -23,12 +37,6 @@
     "prosemirror-state": "^1.4.0",
     "prosemirror-transform": "^1.12.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://codeberg.org/egildo/prosemirror-beltype.git"
-  },
-  "author": "Egildo Tagliareni",
-  "private": true,
   "devDependencies": {
     "@beltype/cicero": "0.1.6",
     "playwright": "1.63.0",
