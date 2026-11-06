@@ -68,6 +68,49 @@ export function hintAfter({ index, name, forced = false, parity = null }) {
 export const hintAfterBlank = (hint) => ({ name: hint.name ?? '', forced: true });
 
 /**
+ * A piece or a shell with its positions moved by `by`.
+ * @param {any} part
+ * @param {number} by
+ */
+function shifted(part, by) {
+  const out = { ...part, pos: part.pos + by };
+  if (part.from != null) out.from = part.from + by;
+  if (part.to != null) out.to = part.to + by;
+  if (part.shell) out.shell = shifted(part.shell, by);
+  if (part.end) out.end = shifted(part.end, by);
+  return out;
+}
+
+/**
+ * What a hint carries besides the page name: the shell and the row pieces the next page begins with, their positions relative to the cut.
+ *
+ * @remarks
+ * Relative, because the page before stays clean through an edit before it, and its hint with it, while the next page's `from` is mapped: every position a hint carries lies inside what the page before read, so a clean page before means the shift is uniform. It also lets the view compare two hints as values, since a mere shift leaves them equal.
+ * @param {number} to The cut.
+ * @param {{ shell?: any, pieces?: any[] } | undefined} next
+ * @returns {{ shell?: any, row?: { items: any[] } }}
+ */
+export function carriedHint(to, next) {
+  return {
+    ...(next?.shell ? { shell: shifted(next.shell, -to) } : {}),
+    ...(next?.pieces?.length ? { row: { items: next.pieces.map((p) => shifted(p, -to)) } } : {}),
+  };
+}
+
+/**
+ * What a page begins with, read off the hint the page before left, at the page's own `from` (`carriedHint`'s reverse).
+ * @param {{ shell?: any, row?: { items: any[] } }} hint
+ * @param {number} from
+ * @returns {{ shell?: any, pieces?: any[] }}
+ */
+export function startFrom(hint, from) {
+  return {
+    ...(hint.shell ? { shell: shifted(hint.shell, from) } : {}),
+    ...(hint.row?.items ? { pieces: hint.row.items.map((p) => shifted(p, from)) } : {}),
+  };
+}
+
+/**
  * The position a cut before a box stands at: the position before the box's node, entered down its first-child chain as far as a node that holds content goes.
  *
  * @remarks

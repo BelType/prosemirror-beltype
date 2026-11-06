@@ -41,7 +41,7 @@ import { joinedWords } from '@beltype/cicero/fragmentation';
 import { copyOf, isFixedBox, noteSource } from '@beltype/cicero/fragmentation';
 import { presentation } from '@beltype/cicero/fragmentation';
 import '@beltype/cicero/page';
-import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition, wholeAfter, advances, inFlowStart } from './turn.js';
+import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition, wholeAfter, advances, inFlowStart, carriedHint, startFrom } from './turn.js';
 import { Positions, nodeDom, nodeStart, continueAsShell, endAsShell, seatPieces, shellsOf, endsOf, pinTracks } from './shells.js';
 import { stateOfPage, runningPlaced, sameElements } from './originals.js';
 
@@ -338,9 +338,9 @@ export class CiceroPage {
       return { to: from, next: hintAfterBlank(this.hint) };
     }
     const forced = !!this.hint.forced;
-    // What the page begins with besides its slice: a shell, a row's pieces. The view hands a page its hint once, when it builds it, so the hint is read only for the position it was left for.
+    // What the page begins with besides its slice: a shell, a row's pieces, relative to the cut the page begins at.
     /** @type {Start} */
-    const start = this.hint.at === from ? { shell: this.hint.shell, pieces: this.hint.row?.items } : {};
+    const start = startFrom(this.hint, from);
     // §5.2: a page that begins after an unforced break truncates the margin adjoining it; the document's start and a forced break keep it (the driver's `truncateLead`).
     const truncateLead = this.index > 0 && !forced;
     const size = doc.content.size;
@@ -448,7 +448,7 @@ export class CiceroPage {
       this.observer.observe(node);
     }
     const byEvent = event && to === eventTo;
-    const next = to == null ? undefined : { ...hintAfter({ index: this.index, name: nextName, forced: !!byEvent, parity: byEvent ? event.parity : null }), ...shellHint(to, cut?.next) };
+    const next = to == null ? undefined : { ...hintAfter({ index: this.index, name: nextName, forced: !!byEvent, parity: byEvent ? event.parity : null }), ...carriedHint(to, cut?.next) };
     this.account = { from, to, name: this.conditions.name, forced, cls: verdict?.cls ?? (byEvent ? 'A' : null), kind: whole ? 'whole' : verdict?.kind ?? (byEvent ? (event.namedSwitch ? 'name' : 'forced') : 'terminal'), y: verdict?.y ?? null, pageStart, usedPx, extPx, next };
     return next ? { to, next, reach } : { to, reach };
   }
@@ -868,16 +868,6 @@ export class CiceroPage {
     this.rendered = null;
     this.dom.setContent();
   }
-}
-
-/**
- * What the hint a cut leaves carries besides the page name: the position it was left for, and the shell and the row pieces the next page begins with.
- * @param {number} to
- * @param {Start | undefined} next
- */
-function shellHint(to, next) {
-  if (!next || (!next.shell && !next.pieces?.length)) return {};
-  return { at: to, ...(next.shell ? { shell: next.shell } : {}), ...(next.pieces?.length ? { row: { items: next.pieces } } : {}) };
 }
 
 /**

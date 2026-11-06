@@ -256,10 +256,10 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 
 ### A page that begins with a shell stops the ripple
 
-- **Seen**: by the `tail` edit, 2026-11-06. On `fixtures/tall`, `tail:1` refills pages 1 and 2, and page 2 answers the same `to`, so the ripple stops, while a fresh fill has a page more (4 of 10 pages agree). `fixtures/end-gap` gives 4 of 6 on `tail:1` and on `delete:2`, `fixtures/row` 11 of 13 on `delete:2`, and `fixtures/tall` 8 of 10 on `delete:2`. The `delete:2` numbers are the same on the pin a4ac0a5.
-- **Layer**: the view's ripple stops when `to` is equal and does not compare the next page's hint, and this package's hints carry raw positions. Read from the fills on `tall` only; the other two fixtures are not traced.
-- **Fix**: the integration review's two findings on the ripple and on the hints.
-- **State**: OPEN.
+- **Seen**: by the `tail` edit, 2026-11-06. On `fixtures/tall`, `tail:1` refilled pages 1 and 2, and page 2 answered the same `to`, so the ripple stopped, while a fresh fill had a page more (4 of 10 pages agreed). `fixtures/end-gap` gave 4 of 6 on `tail:1` and on `delete:2`, `fixtures/row` 11 of 13 on `delete:2`, and `fixtures/tall` 8 of 10 on `delete:2`.
+- **Layer**: the view's ripple stopped when `to` was equal and did not compare the next page's hint, and this package's hints carried raw positions, so a page dropped a hint a mere shift had moved.
+- **Fix**: the view fills the next fragment when the hint changes (fragview), and a hint carries its positions relative to the cut (`carriedHint`, `startFrom`).
+- **State**: CLOSED 2026-11-06; every case above now agrees with a fresh fill.
 
 ### The last page is filled about twenty times after an edit
 
