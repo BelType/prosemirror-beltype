@@ -177,7 +177,12 @@ export function ledger() {
       chain = /** @type {any} */ (view).someProp?.('containers')?.chain ?? null;
       chain?.attach(view);
       return {
-        update: (v) => chain?.update(v),
+        update: (v) => {
+          // `setProps` with a new factory makes a new chain, and no new plugin view.
+          const now = /** @type {any} */ (v).someProp?.('containers')?.chain ?? null;
+          if (now !== chain) { chain?.detach(); chain = now; chain?.attach(v); }
+          chain?.update(v);
+        },
         destroy: () => chain?.detach()
       };
     }

@@ -88,3 +88,19 @@ test('the key holds what a cut reads besides the address, and parity only where 
   const shell = { pos: 40, remaining: 12, paint: 30 };
   assert.deepEqual(keyOf({ index: 1, cls: 'E', next: { name: '', at: 40, shell } }).carried, { shell, row: null });
 });
+
+test('the Ledger follows the chain when the view is given a new factory', () => {
+  const chainOf = () => { const calls = []; return { calls, attach() { calls.push('attach'); }, detach() { calls.push('detach'); }, update() { calls.push('update'); }, takeRows: () => [] }; };
+  const first = chainOf(), second = chainOf();
+  let current = first;
+  const plugin = ledger();
+  const view = { someProp: (name) => (name === 'containers' ? { chain: current } : undefined) };
+  const seat = plugin.spec.view(view);
+  seat.update(view);
+  current = second;
+  seat.update(view);
+  assert.deepEqual(first.calls, ['attach', 'update', 'detach']);
+  assert.deepEqual(second.calls, ['attach', 'update']);
+  seat.destroy();
+  assert.deepEqual(second.calls, ['attach', 'update', 'detach']);
+});

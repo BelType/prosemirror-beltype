@@ -32,6 +32,8 @@ import { BREAKING_SPACE, isInlineBox, isFixedBox, isLineBreak } from '@beltype/c
 
 /** The holder's id: a body child, so its elements have a computed style, and hidden, so it lays nothing out. */
 const HOLDER = '__prosemirror-beltype-originals';
+/** How many renderings' costs are kept for the measurement. */
+const TIMINGS_KEPT = 64;
 
 /**
  * Takes the ids off a drawing's insides in the holder's rendering. An SVG's gradients, patterns, clips and filters are named by `url(#…)`, which resolves to the first element in the document with that id: the holder's, since it is body's first child, and Chrome paints nothing from a paint server inside a hidden element (measured 2026-11-04 on the specimen mostra: its road section drew none of its four layers). The copies on the pages keep their ids, and are found instead. The reads loop's targets are the author's elements, not a drawing's insides; the `<svg>` itself keeps its id.
@@ -225,7 +227,7 @@ export class Originals {
     this.memo = new ForcingMemo();
     /** The sheets' reach the memo is settled under, the engine's reading for a whole top-level box (`topLevelReach`); a measurement may put another in its place. @type {(d: Document, boxes: Element[], before: Element[]) => 0 | 1 | 2} */
     this.reachOf = topLevelReach;
-    /** Each rendering's cost, for the measurement: the milliseconds, the elements, the nodes rendered and kept, the sheets' reach and what the memo kept per walk. @type {any[]} */
+    /** Each rendering's cost, for the measurement: the milliseconds, the nodes rendered and kept, the sheets' reach and what the memo kept per walk. @type {any[]} */
     this.timings = [];
   }
 
@@ -278,7 +280,8 @@ export class Originals {
     for (const e of entries) if (e.el) byEl.set(e.el, e);
     const sites = (findPageSites(d, blocks, keep) ?? []).map((s) => this.positionOf(holder, byEl, s.el)).filter((p) => p != null).sort((a, b) => a - b);
     const t5 = performance.now();
-    this.timings.push({ render: t1 - t0, read: t5 - t1, nodes: holder.getElementsByTagName('*').length, rendered, kept: entries.length - rendered, reach, parts: { reach: tr - t1, blocks: t2 - tr, index: t3 - t2, ops: t4 - t3, sites: t5 - t4 }, tally: memo.tally });
+    if (this.timings.length >= TIMINGS_KEPT) this.timings.shift();
+    this.timings.push({ render: t1 - t0, read: t5 - t1, rendered, kept: entries.length - rendered, reach, parts: { reach: tr - t1, blocks: t2 - tr, index: t3 - t2, ops: t4 - t3, sites: t5 - t4 }, tally: memo.tally });
     this.state = { doc, entries, blocks, blockIndex: new Map(blocks.map((el, b) => [el, b])), index, ops, strings: stringAssignmentsOf(ops), running: runningAssignmentsOf(ops), boxes, sites, keep, ms: { render: t1 - t0, read: t5 - t1 } };
     return this.state;
   }

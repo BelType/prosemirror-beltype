@@ -139,6 +139,8 @@ try {
     process.exit(r.failures.length || r.holders ? 1 : 0);
   }
   const viewChrome = await chromeOf('view', 'window.__prosemirrorBeltype.viewPagesOf()');
+  const copies = await page.evaluate(() => window.__prosemirrorBeltype.runningCopies());
+  console.log(`Running copies in the view's margin boxes: ${copies.count}, of them inert and not editable: ${copies.closed}`);
   const lateTruth = await page.evaluate(() => window.__lateTruth);
 
   const n = Math.max(reference.length, view.pages.length);
@@ -212,7 +214,7 @@ try {
     console.log(`| ${i + 1} | ${c?.pos ?? (c ? 'end' : '·')} | ${f ? `${f.start}–${f.end ?? 'end'}` : '·'}${ends ? '' : ' **≠**'} | ${cs ? 'same' : `**${JSON.stringify(c?.counters)} / ${JSON.stringify(f?.counters)}**`} | ${ss ? 'same' : `**${JSON.stringify(c?.strings)} / ${JSON.stringify(f?.strings)}**`} | ${rs ? 'same' : `**${JSON.stringify(c?.running)} / ${JSON.stringify(f?.running)}**`} | ${f?.recuts ?? '·'} |`);
   }
   console.log(`\nFirst state difference: ${firstState == null ? 'none' : `page ${firstState + 1}`}`);
-  console.log(`The originals rendered ${view.originals.length} time(s): ${view.originals.map((t) => `render ${t.render.toFixed(1)} ms, read ${t.read.toFixed(1)} ms over ${t.nodes} elements`).join('; ')}`);
+  console.log(`The originals rendered ${view.originals.length} time(s): ${view.originals.map((t) => `render ${t.render.toFixed(1)} ms, read ${t.read.toFixed(1)} ms`).join('; ')}`);
   if (!view.settled) console.log(`\n**The view's chain did not settle**: ${view.fills.filter((f) => f.error).map((f) => `page ${f.index + 1}: ${f.error}`).join('; ') || 'timed out'}`);
   console.log(`\nFills:\n${view.fills.map((f) => `  ${f.index + 1}: ${Math.round(f.ms)} ms ${JSON.stringify({ from: f.from, to: f.to, kind: f.kind, cls: f.cls, y: f.y && Math.round(f.y * 100) / 100, pageStart: f.pageStart, usedPx: f.usedPx && Math.round(f.usedPx * 100) / 100, extPx: f.extPx && Math.round(f.extPx * 100) / 100, next: f.next })}`).join('\n')}`);
   const unique = (xs) => [...new Set(xs)];

@@ -68,6 +68,12 @@ export function hintAfter({ index, name, forced = false, parity = null }) {
 export const hintAfterBlank = (hint) => ({ name: hint.name ?? '', forced: true });
 
 /**
+ * Whether a feed that stopped short of the document's end decided nothing: it fit, or the walk found no boundary in it, with no forced event and no fallback taken. The driver throws here, and a page would otherwise take the rest of the document and close the chain.
+ * @param {{ to: number | null, end: number | null, cut: object | null, whole: object | null }} a
+ */
+export const endsNowhere = ({ to, end, cut, whole }) => to == null && end != null && !cut && !whole;
+
+/**
  * A piece or a shell with its positions moved by `by`.
  * @param {any} part
  * @param {number} by
