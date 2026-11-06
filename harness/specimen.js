@@ -325,6 +325,22 @@ function editOf(view, kind, arg = '') {
     return { tr: view.state.tr.split(at, 1, [{ type: doc.contentMatchAt(index + 1).defaultType }]), at };
   }
   if (kind === 'start') { const at = blocks[0].pos + 1; return { tr: view.state.tr.insertText('x', at), at }; }
+  // The cases of a cut's own reading (`reach`, docs/results.md), all at the first cut from page `arg` on that divides a paragraph: `tail` deletes the paragraph past the first word after the cut, so its tail on the next page is one line; `past` types in the first textblock after that paragraph, which the page's decision reads no further than; `beyond` types in the textblock after that one, which it does not read.
+  if (kind === 'tail' || kind === 'past' || kind === 'beyond') {
+    const e = view.entries.slice(Number(arg) - 1).find((/** @type {any} */ x) => x.to != null && doc.resolve(x.to).parent.isTextblock && doc.resolve(x.to).parentOffset > 0 && doc.resolve(x.to).parent.content.size - doc.resolve(x.to).parentOffset > 40);
+    if (!e) throw new Error(`no cut divides a paragraph from page ${arg} on`);
+    const $to = doc.resolve(e.to);
+    if (kind === 'tail') {
+      const rest = $to.parent.textBetween($to.parentOffset, $to.parent.content.size, undefined, '\ufffc');
+      const space = rest.indexOf(' ');
+      return { tr: view.state.tr.delete(e.to + space, $to.end()), at: e.to + space };
+    }
+    const i = blocks.findIndex((b) => b.pos > $to.before());
+    const b = blocks[i + (kind === 'past' ? 0 : 1)];
+    if (!b) throw new Error(`no textblock ${kind} the cut at ${e.to}`);
+    const at = b.pos + 1;
+    return { tr: view.state.tr.insertText('x', at), at };
+  }
   if (kind === 'end') { const b = /** @type {any} */ (blocks.at(-1)); const at = b.pos + 1 + b.node.content.size; return { tr: view.state.tr.insertText('x', at), at }; }
   throw new Error(`no edit named "${kind}"`);
 }

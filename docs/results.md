@@ -1229,3 +1229,45 @@ The showcase's difference from the CLI is what it was: 76 pages under the CLI ag
 - `sealedEnd` is kept (above), and `presentTree`, the repeated header's one function and the part's unit are other doors, not this round's.
 - The studio itself was not run; it picks the doors up when both repositories' mains have them.
 - The branch was cut from `ae6e9d5`; `main` has since taken two commits that touch `docs/found.md` only.
+
+# The page answers how far it read
+
+The integration review of 2026-11-04 found that a page's cut reads more than the first word after it, while the view dirtied the page only for that word. Shortening the tail of a divided paragraph left the page before it with the old cut and a one-line widow on the next page, until something else dirtied it. `prosemirror-fragview` now takes a fill's `reach`, and this round makes `CiceroPage` answer it.
+
+## The rule
+
+*The Cast-off bounds the feed* already states what a verdict depends on: every box that can stand on the page, and the first in-flow box that cannot. So `reachOf` asks the engine's `firstBelowTheEdge` for that box and answers the end of its first textblock, because the box's interior moves nothing above it. Where the box stands inside something whose layout reads its whole interior (`neverCutInside`), the whole of that ancestor counts. A feed that holds no such box answers its own bound: the forced event, or null at the document's end.
+
+The whole trial would also be a correct answer, but the trial runs about a page past the cut, so nearly every key would refill two pages. This answer costs a second fill only for a key in the divided paragraph's tail or in the first textblock after it.
+
+## The numbers
+
+The flow fixture's tail (`tail:1`), with `prosemirror-fragview` at e005070, agreeing with a fresh fill:
+
+| | Pages agreeing | Fills |
+| :--- | :--- | :--- |
+| Before this round | 23 of 26 | 2 (pages 2, 3) |
+| After | 26 of 26 | 2 (pages 1, 2) |
+
+The controls on the same run: `beyond:1`, a key in the textblock after the one the page reads, refills only its own page; `key:3` is one fill, as before.
+
+Single edits, each on a fresh mount, this round with fragview e005070 against the pin a4ac0a5:
+
+| Fixture | Edit | Pin | This round |
+| :--- | :--- | :--- | :--- |
+| `end-gap` | `tail:1` | 0 of 6 | 4 of 6 |
+| `end-gap` | `past:1` | 6 of 6 | 6 of 6 |
+| `end-gap` | `delete:2` | 4 of 6 | 4 of 6 |
+| `row` | `tail:1` | 11 of 13 | 13 of 13 |
+| `row` | `past:1` | 13 of 13 | 13 of 13 |
+| `row` | `delete:2` | 11 of 13 | 11 of 13 |
+| `tall` | `tail:1` | 2 of 10 | 4 of 10 |
+| `tall` | `past:1` | 10 of 10 | 10 of 10 |
+| `tall` | `delete:2` | 8 of 10 | 8 of 10 |
+
+No edit got worse. What is left on those three fixtures is a page that begins with a shell or row pieces, filed in found.md. The chained runs over the nine fixtures and the specimen show the same faults on `tall`, `end-gap` and `row`, and every edit on the other fixtures agrees with a fresh fill. `tail`, `past` and `beyond` find no divided paragraph on `facsimile` and `multicol`. `enter` stops the chained run on seven fixtures, which have no top-level textblock to press it in, so `enter` and the `end` after it ran only on `chrome`, `running` and the specimen. `npm test` 45 of 45.
+
+## Not done
+
+The pin stays at a4ac0a5 until fragview is pushed, so a checkout of this package does not see `reach` take effect yet; these runs swapped fragview into `node_modules` by hand. `firstBelowTheEdge` comes from `@beltype/cicero/internal/stonehand`, since the `fragmentation` face does not export it: a door owed. Late truth still dirties only its own page.
+
