@@ -254,6 +254,19 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Fix**: a `selectionchange` with the model on a node selection, the browser's selection no longer the drawn one and no input since the draw is the browser's own: the view reads nothing from the browser's selection until its next draw or a press of the pointer (`noteDrop`). Drawing the range again is dropped again. `EditorView` reads such a drop too, so there is nothing to port.
 - **State**: CLOSED 2026-10-29 by prosemirror-fragview's merge 77574d5 (fix/node-selection-readback e252d30). The studio's facsimile check goes from 31 of 33 to 33 of 33 with it.
 
+### A page that begins with a shell stops the ripple
+
+- **Seen**: by the `tail` edit, 2026-11-06. On `fixtures/tall`, `tail:1` refills pages 1 and 2, and page 2 answers the same `to`, so the ripple stops, while a fresh fill has a page more (4 of 10 pages agree). `fixtures/end-gap` gives 4 of 6 on `tail:1` and on `delete:2`, `fixtures/row` 11 of 13 on `delete:2`, and `fixtures/tall` 8 of 10 on `delete:2`. The `delete:2` numbers are the same on the pin a4ac0a5.
+- **Layer**: the view's ripple stops when `to` is equal and does not compare the next page's hint, and this package's hints carry raw positions. Read from the fills on `tall` only; the other two fixtures are not traced.
+- **Fix**: the integration review's two findings on the ripple and on the hints.
+- **State**: OPEN.
+
+### The last page is filled about twenty times after an edit
+
+- **Seen**: on `fixtures/flow`, 2026-11-06, after a `paste`, the `enter`, `start` and `end` edits fill page 24 19 or 20 times, the page's `from` and answer unchanged. Every result agrees with a fresh fill. The pin a4ac0a5 does the same.
+- **Layer**: not traced.
+- **State**: OPEN.
+
 ## The engine (BelType)
 
 ### The showcase does not print, on either path
@@ -339,6 +352,13 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Layer**: the engine, `src/forcing-memo.js` (`keep` takes the top-level box) and the walks that ask it per top-level block; and this package, which renders per top-level node.
 - **Fix**: a part per box at a depth the host names, the engine's question; this package's per-node rendering would follow it down.
 - **State**: OPEN, a question for a later round.
+
+### `firstBelowTheEdge` is not on the engine's face
+
+- **Seen**: by `reachOf`, 2026-11-06, which imports it from `@beltype/cicero/internal/stonehand`.
+- **Layer**: the engine's `fragmentation` face, which exports `reachesBelowTheEdge`, the same function asked whether there is one.
+- **Fix**: export it beside `reachesBelowTheEdge`, and change the import here.
+- **State**: OPEN.
 
 ## The studio's wiring
 

@@ -31,6 +31,7 @@ import { addWord, AWAY, ADJOIN, ARTIFACT, END, FRAGMENT, SPLIT, hasWord, removeW
 import { createMeasureContext, awaitFonts, awaitCloneImages } from '@beltype/cicero/fragmentation';
 import { takeReport } from '@beltype/cicero/fragmentation';
 import { adjudicate, reachesBelowTheEdge, isOutOfFlow, neverCutInside, processionBottoms, fitsPage } from '@beltype/cicero/fragmentation';
+import { firstBelowTheEdge } from '@beltype/cicero/internal/stonehand';
 import { forcingIndexOf, gapAbove, pageNameDownFrom } from '@beltype/cicero/fragmentation';
 import { effectivePageName, transliterateContent } from '@beltype/cicero/fragmentation';
 import { encodeStringProp, STRING_KEYWORDS } from '@beltype/cicero/fragmentation';
@@ -434,6 +435,7 @@ export class CiceroPage {
       const at = read ? this.nodeOf(doc, t, box.el) : null;
       if (at != null) tracks.set(at, read);
     }
+    const reach = to == null ? null : this.reachOf(doc, t, report, pageStart, end);
     ctx.dispose();
 
     this.show(this.page(doc, from, render, t, start, cut ?? { to }, tracks), forced);
@@ -448,7 +450,37 @@ export class CiceroPage {
     const byEvent = event && to === eventTo;
     const next = to == null ? undefined : { ...hintAfter({ index: this.index, name: nextName, forced: !!byEvent, parity: byEvent ? event.parity : null }), ...shellHint(to, cut?.next) };
     this.account = { from, to, name: this.conditions.name, forced, cls: verdict?.cls ?? (byEvent ? 'A' : null), kind: whole ? 'whole' : verdict?.kind ?? (byEvent ? (event.namedSwitch ? 'name' : 'forced') : 'terminal'), y: verdict?.y ?? null, pageStart, usedPx, extPx, next };
-    return next ? { to, next } : { to };
+    return next ? { to, next, reach } : { to, reach };
+  }
+
+  /**
+   * How far the page's decision read, for the fill's `reach`: a change up to there can move its cut, and one past it cannot.
+   *
+   * @remarks
+   * *The Cast-off bounds the feed* states the invariant: the verdict depends on every box that can stand on the page and on the first in-flow box that cannot. That box's interior moves nothing above it, so its first textblock is counted and the rest is not. Where it stands inside a box whose layout reads its whole interior (`neverCutInside`: a table's column widths, a flex or grid container), that whole box is counted. A feed that holds no such box was fed as far as it needed: to the forced event that bounded it, or to the document's end (null).
+   * @param {PMNode} doc
+   * @param {Trial} t
+   * @param {any} report
+   * @param {number} pageStart
+   * @param {number | null} end The feed's bound.
+   * @returns {number | null}
+   */
+  reachOf(doc, t, report, pageStart, end) {
+    const sourceOf = this.sourceOf(t);
+    const box = firstBelowTheEdge({ report, sourceOf, limit: pageStart + this.conditions.contentH, eps: EPS, sourced: true });
+    const law = box && sourceOf(box.el);
+    const span = law && t.law.positions.get(law);
+    if (!span) return end;
+    let at = span.start;
+    let node = doc.nodeAt(at);
+    while (node && !node.isTextblock && node.firstChild) { at += 1; node = node.firstChild; }
+    let reach = at + (node?.nodeSize ?? 0);
+    const win = /** @type {Window} */ (this.doc.defaultView);
+    for (let el = law; el && el !== t.lawRoot; el = el.parentElement) {
+      const sealed = neverCutInside(el, win.getComputedStyle(el)) ? t.law.positions.get(el) : null;
+      if (sealed) reach = Math.max(reach, sealed.end);
+    }
+    return reach;
   }
 
   /**
