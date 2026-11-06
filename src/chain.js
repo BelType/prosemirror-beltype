@@ -38,6 +38,8 @@ export class Overtaken extends Error {
   }
 }
 
+/** How many settles the chain keeps for the measurement. */
+const SETTLES_KEPT = 64;
 const same = (/** @type {unknown} */ a, /** @type {unknown} */ b) => JSON.stringify(a) === JSON.stringify(b);
 
 export class Chain {
@@ -81,6 +83,8 @@ export class Chain {
     this.counts = { redrawn: 0, dirtied: 0, fills: 0 };
     /** @type {any[]} */
     this.settles = [];
+    /** The pages whose last fill threw, by index, with the document it threw on. @type {Map<number, { doc: PMNode, why: string }>} */
+    this.failures = new Map();
     /** The last settle's promise, for a reader that awaits it. @type {Promise<any> | null} */
     this.settling = null;
     /** @type {Map<string, boolean>} */
@@ -116,6 +120,7 @@ export class Chain {
    */
   filled(page, doc, _answer) {
     this.inflight--;
+    this.failures.delete(page.index);
     this.counts.fills++;
     // A fill of a document a newer one overtook is the view's to discard, and so is its row.
     if (!this.view || doc !== this.doc) return;
@@ -127,15 +132,14 @@ export class Chain {
   }
 
   /**
-   * A page's fill threw: the view records nothing, so the chain stops here.
+   * A page's fill threw. The page has already answered, so the view goes on to the pages after it, but the chain stands incomplete for this document until the page fills.
    * @param {CiceroPage} page
    * @param {PMNode} doc
    * @param {any} error
    */
   failed(page, doc, error) {
     this.inflight--;
-    const why = `page ${page.index + 1}'s fill threw: ${error?.message ?? error}`;
-    this.waiters = this.waiters.filter((w) => (w.doc === doc ? (w.resolve({ complete: false, why }), false) : true));
+    this.failures.set(page.index, { doc, why: `page ${page.index + 1}'s fill threw: ${error?.message ?? error}` });
   }
 
   /**
@@ -248,9 +252,10 @@ export class Chain {
     const entries = fragmentsKey.getState(view.state)?.entries ?? [];
     const done = entries.length > 0 && !entries.some((e) => e.dirty) && entries[entries.length - 1].to == null && !this.owed;
     const stopped = !done && !this.owed && this.inflight === 0;
+    const failure = [...this.failures.values()].find((f) => f.doc === doc);
     this.waiters = this.waiters.filter((w) => {
       if (w.doc !== doc) w.reject(new Overtaken());
-      else if (done) w.resolve({ complete: true, why: null });
+      else if (done) w.resolve(failure ? { complete: false, why: failure.why } : { complete: true, why: null });
       else if (stopped) w.resolve({ complete: false, why: 'the view filled no dirty entry after its update: the window policy left it unbuilt, or the browser is composing' });
       else return true;
       return false;
@@ -398,8 +403,9 @@ export class Chain {
     const value = ledgerKey.getState(view.state);
     const reason = this.reason;
     this.reason = null;
-    const record = { doc, started: performance.now(), runs: /** @type {any[]} */ ([]), ms: 0, result: /** @type {any} */ (null), overtaken: false };
+    const record = { started: performance.now(), runs: /** @type {any[]} */ ([]), ms: 0, result: /** @type {any} */ (null), overtaken: false };
     this.settles.push(record);
+    if (this.settles.length > SETTLES_KEPT) this.settles.shift();
     this.settling = settleReads(this.document, {
       run: (laid) => this.run(doc, /** @type {any} */ (laid), record, reason),
       blocksOf: () => state.blocks,

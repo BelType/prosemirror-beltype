@@ -106,3 +106,10 @@ test('a run a provider wrote is never rewritten: a space typed after it is promo
   assert.equal(text(type(make(p.create(null, schema.text('a\n  b')), 5), ' ')), `a\n  ${NB}b`);
   assert.equal(text(type(make(p.create(null, schema.text('word ')), 5), 'x')), 'wordx ');
 });
+
+test('a run of spaces typed at a line\'s end, then a word: the run alternates as if it had been inserted at once, so the words do not bind', () => {
+  const typed = (block, at, keys) => text(type(make(block, at), keys));
+  assert.equal(typed(p.create(null, schema.text('word')), 5, '  next'), `word ${NB}next`);
+  assert.equal(typed(p.create(null, schema.text('word')), 5, '   next'), `word ${NB} next`);
+  assert.equal(typed(p.create(), 1, '  next'), `${NB} next`);
+});

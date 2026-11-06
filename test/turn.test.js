@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Schema } from 'prosemirror-model';
 import { openedAt, posAt } from 'prosemirror-fragview';
-import { FIRST_SPAN, firstSpan, parityAt, conditionOf, hintAfter, hintAfterBlank, enter, wordPoint, verdictPosition, carriedHint, startFrom } from '../src/turn.js';
+import { FIRST_SPAN, firstSpan, parityAt, conditionOf, hintAfter, hintAfterBlank, enter, wordPoint, verdictPosition, carriedHint, startFrom, endsNowhere } from '../src/turn.js';
 
 test('the trial renders 2 048 positions on a first fill and twice the last cut fill after', () => {
   assert.equal(FIRST_SPAN, 2048);
@@ -176,4 +176,12 @@ test('a hint that carries nothing starts a page bare and adds nothing', () => {
   assert.deepEqual(carriedHint(100, undefined), {});
   assert.deepEqual(carriedHint(100, {}), {});
   assert.deepEqual(startFrom({ name: 'chapter', forced: true }, 100), {});
+});
+
+test('a bounded feed that decided nothing has no answer, where the driver would throw', () => {
+  assert.equal(endsNowhere({ to: null, end: 400, cut: null, whole: null }), true);
+  assert.equal(endsNowhere({ to: null, end: null, cut: null, whole: null }), false, 'the feed reached the document\'s end');
+  assert.equal(endsNowhere({ to: 90, end: 400, cut: null, whole: null }), false, 'a forced event ended it');
+  assert.equal(endsNowhere({ to: null, end: 400, cut: { to: null }, whole: null }), false, 'a box that runs to the document\'s end');
+  assert.equal(endsNowhere({ to: null, end: 400, cut: null, whole: { to: null } }), false, 'taken whole');
 });

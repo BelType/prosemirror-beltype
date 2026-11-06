@@ -4,7 +4,7 @@
  * @remarks
  * The rule is about the document after every transaction, not about typing, and it looks only where the transaction changed something: the inserted text and the one character on each side of every change, and at each only on the side the change touched, so a run of whitespace a provider wrote is never rewritten. There, left to right, a U+0020 becomes U+00A0 when the character before it is a collapsible space (U+0020, a tab, a line feed) or a line's start, when the character after it is a line's end, or when it was inserted and the character after it is a collapsible space the transaction did not insert (so a space typed before a space promotes itself, not its neighbour). A run of spaces inserted at once alternates, space, U+00A0, space, U+00A0, so a line can still break inside it, as CKEditor does with a paste. A line's start and end are a textblock's and a `<br>`'s.
  *
- * A deletion that brings two spaces together is promoted the same way, since the rule reads the document after the step. The inverse is narrower: a U+00A0 becomes U+0020 again only when the change put ink on both its sides and, before the transaction, it stood beside a space or at a line's edge, where it was standing in for a space that collapsed (a space typed at a paragraph's end, then a word). A U+00A0 an author or a provider wrote between two words is never demoted, and one the transaction inserted is kept as it came.
+ * A deletion that brings two spaces together is promoted the same way, since the rule reads the document after the step. The inverse is narrower: a U+00A0 becomes U+0020 again only when the change put ink after it (a run of them alternates, from a space after ink) and, before the transaction, it stood beside a space or at a line's edge, where it was standing in for a space that collapsed (a space typed at a paragraph's end, then a word). A U+00A0 an author or a provider wrote between two words is never demoted, and one the transaction inserted is kept as it came.
  *
  * Left alone: a textblock whose node spec says `code` (`pre` under the studio's generic schema, where `white-space: pre` keeps every space), a transaction marked `addToHistory: false` (a collaborator's steps, received through `prosemirror-collab`, are that client's to promote, and a host's bookkeeping is not an edit), and tabs and line feeds, which are never written over. The promotion is one appended transaction, which `prosemirror-history` folds into the event of the transaction it follows, so one undo takes the typed character and its promotion together; a collaboration authority receives it as one more step in the same submission.
  *
@@ -103,7 +103,21 @@ export function collapsedSpaces() {
           let ch = null;
           if (c.ch === SPACE) {
             if ((open && collapsible(before)) || (close && next === EDGE) || (inserted(c.pos) && after && COLLAPSIBLE.has(/** @type {string} */ (next)) && !inserted(after.pos))) ch = NBSP;
-          } else if (c.ch === NBSP && !inserted(c.pos) && ink(before) && ink(next) && besideSpace(oldState.doc, back.map(c.pos, 1))) ch = SPACE;
+          } else if (c.ch === NBSP && !inserted(c.pos) && ink(next)) {
+            // Ink landed after a run of U+00A0 that stood in for spaces at a line's edge: the run alternates, from a space after ink, as the same run inserted at once does.
+            let first = k;
+            while (first > 0 && chars[first - 1].ch === NBSP && !inserted(chars[first - 1].pos)) first--;
+            const run = chars.slice(first, k + 1);
+            if (run.every((r) => besideSpace(oldState.doc, back.map(r.pos, 1)))) {
+              const startsSpace = ink(first ? chars[first - 1].ch : EDGE);
+              run.forEach((r, i) => {
+                const want = (i % 2 === 0) === startsSpace ? SPACE : NBSP;
+                if (r.ch === want) return;
+                r.ch = want;
+                tr.replaceWith(r.pos, r.pos + 1, state.schema.text(want, /** @type {import('prosemirror-model').Node} */ (doc.nodeAt(r.pos)).marks));
+              });
+            }
+          }
           if (ch == null) continue;
           c.ch = ch;
           tr.replaceWith(c.pos, c.pos + 1, state.schema.text(ch, /** @type {import('prosemirror-model').Node} */ (doc.nodeAt(c.pos)).marks));

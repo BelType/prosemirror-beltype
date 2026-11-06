@@ -1,0 +1,4 @@
+/* The clipped fixture's sheet: what a page's foot cuts off with no later page to show it, which the page must say (`clipped` in its account). A float that starts on the page and runs below the cut, and a rule scoped to the view's own host, which the shown page wears and the trial, under the body, does not. */
+@page { size: 110mm 150mm; margin: 14mm 12mm; }
+.plate { float: right; width: 30mm; height: 200mm; background: #ccc; }
+#prosemirror-beltype-view p.taller { line-height: 3; }

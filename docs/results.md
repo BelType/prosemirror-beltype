@@ -1313,3 +1313,50 @@ A chain of ten edits (`start;key:2;key:3;key:4;end;delete:2;key:2;end;paste;key:
 
 A page still answers one range of positions, so a key in a page's painted shell dirties by `reach` and not by what it shows (the review's finding on shells and row cuts). The pin stays at a4ac0a5 until fragview is pushed.
 
+# The silent faults
+
+The integration review's faults in this package that give a wrong page or a wrong document with no sign of it. Each was seen failing first, on the old code, except the bounded feed, which no fixture reaches.
+
+## Spaces
+
+Typing `word`, two spaces, `next` at a paragraph's end left two U+00A0 in the saved document and bound the words. Only a lone U+00A0 was demoted, so a run stayed. A run that stood in for spaces at a line's edge now alternates when ink lands after it, from a space after ink: `word`, U+0020, U+00A0, `next`, as the same text inserted at once gives. Whether the plugin should write into the document at all stays Egildo's ruling.
+
+## A fill that throws
+
+The rejected fill left its entry dirty and the chain stopped there. `CiceroPage.failSafe` now shows the node at the page's start unmeasured and unclipped and answers past it, with the account's `kind` set to `failed`. `chain.settled(doc)` answers incomplete, naming the page, until the page fills. A host must not print while it is so.
+
+`fixtures/flow`, `--edits throw:3`, whose page 3 throws on every fill:
+
+| | Settled | Fills |
+| :--- | :--- | :--- |
+| Before | no, after 119 723 ms | pages 2, 3, 3 |
+| After | yes, 11 ms | pages 2, 3, 4, 5, 6, 7 |
+
+The fragmented view itself still stops at a fill that rejects: this package's page no longer rejects. The facsimile intake still reads the whole host document, so one PDF with no alt fails every page, each now showing one node. Whether the editor warns there and refuses only at print is Egildo's ruling, and so are timeouts on the image and font waits.
+
+## What the foot cuts off
+
+`clippedBy` compares the shown tree's bottom with the flow's foot after `show()`, which catches the shown tree standing taller than the trial, whatever the cause. `parallelBelow` reads a float or absolute box that starts on the page and crosses the cut, which this page does not carry. A page says so once and keeps `clipped` in its account. A page that ends in, or begins with, a shell or a row is cut there on purpose and is not asked. Nothing lowers the cut: this only stops the loss being silent.
+
+`fixtures/clipped`, a float 200 mm tall and a rule scoped to the view's own host:
+
+| Page | `flow` | `parallel` |
+| ---: | ---: | ---: |
+| 2 | 0 | 455 |
+| 3 | 108 | 0 |
+| 4 | 267 | 0 |
+
+On the other nine fixtures and the specimen, `clipped` never fired. The first reading did fire on a node put away, whose rect is all zeros and whose bottom reads below a page scrolled above the viewport, so a node with no height is skipped.
+
+## The rest
+
+The bounded feed that decides nothing takes the node at the page's start whole, with a warning. `endsNowhere` is tested alone; no fixture reaches the branch. The running copies are `inert`, `contenteditable="false"` and `spellcheck="false"`: on `fixtures/running`, 26 of 26. The Ledger reattaches when `setProps` makes a new chain. `Chain.settles` and `Originals.timings` keep 64 records, the settle record drops its document, and the per-state element count is gone.
+
+## The numbers
+
+Each fixture under `--strict` with `start;key:2;delete:2;end;paste`, and the specimen with `key:3;delete:2;paste;enter;start;end`: every edit agrees with a fresh fill. Forty keys on the flow fixture's page 3, median over two runs each: 5.2 and 6.3 ms now, 6.5 and 6.7 ms before, so the checks cost nothing measurable. `npm test` 51 of 51.
+
+## Not done
+
+The cut is not lowered and a float is not carried. Two paginated editors in one document still share a holder, which waits on a ruling. The measure container is still one per document, for the Cicero round. `user-select: none` on the bands and the margin cells is the engine's.
+

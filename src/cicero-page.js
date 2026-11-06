@@ -13,7 +13,7 @@
  * 6. The page. The slice from `from` to the cut's own end (`openedAt(doc, to)`, or past `to` to the end of a box the page shows whole) is rendered into the page (`setContent`), the row pieces seated, the shells made, the tables and grids the page divides pinned to the tracks the trial laid them out at (`pinTracks`), the flow given the lead, the extent the verdict used and the extension a divided box takes (`setFlow`, `extensionPx`), and the answer is `{ to, next }` (`hintAfter`).
  * 7. The chrome, as the root draws it (`drawChrome`, `root.js`' `#chrome`): the page's state read off the chain's one rendering of the whole state (`Originals`, `originals.js`) over the page's interval in the engine's word positions, its counters at its first word, its strings and running elements in their four readings; the margin boxes' `content` transliterated and dressed, `setCounters` with `page N` and, once the chain is complete, `pages T`, `setStrings`, each running element a copy of the originals' slotted into its box, and the bands measured. The trial is measured wearing what the page publishes (`publish`), and a page whose strings a flow site reads is cut again when its interval reads them otherwise (`fill`).
  *
- * The page never throws (*the build cannot fail*, C2). A verdict that maps to no position (a cut inside a leaf, which a schema's atom has none of) or to the page's own start with nothing entered or shrunk (`advances`) is an uncuttable run at the page's start: the node there is taken whole (`wholeAfter`), rendered as it is, its overflow clipped by the page as the engine's own page clips it, and the console says so once, with the page and the node's type.
+ * The page never throws (*the build cannot fail*, C2), and a fill that throws all the same shows the node at its start unmeasured and answers past it (`failSafe`). A verdict that maps to no position (a cut inside a leaf, which a schema's atom has none of) or to the page's own start with nothing entered or shrunk (`advances`) is an uncuttable run at the page's start: the node there is taken whole (`wholeAfter`), rendered as it is, its overflow clipped by the page as the engine's own page clips it, and the console says so once, with the page and the node's type.
  *
  * Where this departs from the driver's loop, each is a finding recorded in docs/results.md: the Cast-off's word estimate is the view's span; a parallel flow carried across a cut (a float, an absolutely positioned box) has no place in a position; a nested row cut inside a row item is taken whole; and the root's parity demand on the first page is not read. The page settles no reads of its own: the engine's reads loop runs around the whole chain (`Chain`, `chain.js`), which delivers `target-counter()` and `target-text()`, checks the flow sites that read a page fact against the chain's own facts, and redraws or dirties a page an edit left unfilled; the page tells it when a fill begins and ends, and takes at every fill the hint the page before it left last, since the view hands a container its hint only when it builds it.
  *
@@ -41,7 +41,7 @@ import { joinedWords } from '@beltype/cicero/fragmentation';
 import { copyOf, isFixedBox, noteSource } from '@beltype/cicero/fragmentation';
 import { presentation } from '@beltype/cicero/fragmentation';
 import '@beltype/cicero/page';
-import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition, wholeAfter, advances, inFlowStart, carriedHint, startFrom } from './turn.js';
+import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition, wholeAfter, advances, inFlowStart, carriedHint, startFrom, endsNowhere } from './turn.js';
 import { Positions, nodeDom, nodeStart, continueAsShell, endAsShell, seatPieces, shellsOf, endsOf, pinTracks } from './shells.js';
 import { stateOfPage, runningPlaced, sameElements } from './originals.js';
 
@@ -205,11 +205,39 @@ export class CiceroPage {
       this.chain?.filled(this, doc, answer);
       return answer;
     } catch (error) {
+      const answer = this.failSafe(doc, from, render, error);
       this.chain?.failed(this, doc, error);
-      throw error;
+      return answer;
     } finally {
       holder.remove();
     }
+  }
+
+  /**
+   * A fill that threw: the page shows the node at its start whole and unclipped, unmeasured, and answers past it, so one page cannot blank every page after it. The account says `failed`, for a host that must not print the page, and the chain stands incomplete (`Chain.failed`).
+   * @param {PMNode} doc
+   * @param {number} from
+   * @param {SliceRenderer} render
+   * @param {any} error
+   * @returns {FillResult}
+   */
+  failSafe(doc, from, render, error) {
+    console.error(`prosemirror-beltype: page ${this.index + 1}'s fill threw; the node at ${from} is shown unmeasured and the chain goes on.`, error);
+    const { to } = wholeAfter(doc, from);
+    const rendered = render(doc, from, to == null ? null : openedAt(doc, to));
+    this.to = to;
+    this.observer.disconnect();
+    this.heights.clear();
+    try {
+      this.show(rendered);
+    } catch {
+      // Presenting is what threw (a facsimile with no alt): the rendering goes in as it stands.
+      this.dom.setContent(...lawHolder(this.doc, '__prosemirror-beltype-staging').childNodes);
+    }
+    this.dom.setFlow({});
+    const next = to == null ? undefined : { name: '' };
+    this.account = { from, to, name: this.conditions.name, forced: false, cls: null, kind: 'failed', error: String(error?.message ?? error), next };
+    return next ? { to, next } : { to };
   }
 
   /**
@@ -315,6 +343,10 @@ export class CiceroPage {
     addWord(clone, FRAGMENT);
     addWord(clone, ARTIFACT);
     clone.setAttribute('aria-hidden', 'true');
+    // It stands in the view's editing host as a light child of the page, and it is no text of the document: no caret, no selection, no spellcheck in it (*an artifact is never read*).
+    clone.setAttribute('contenteditable', 'false');
+    clone.setAttribute('spellcheck', 'false');
+    clone.setAttribute('inert', '');
     this.chromeNodes.add(clone);
     return clone;
   }
@@ -422,6 +454,15 @@ export class CiceroPage {
       }
     }
 
+    if (endsNowhere({ to, end, cut, whole })) {
+      whole = wholeAfter(doc, from);
+      console.warn(`prosemirror-beltype: page ${this.index + 1} decided no cut on a feed that stops at ${end}, where the driver would throw; the ${whole.node?.type.name ?? 'content'} at ${from} is taken whole`);
+      to = whole.to;
+      nextName = to == null ? '' : this.nameAt(t, to);
+      usedPx = Math.max(contentH, report.flowBottom - pageStart);
+      cost = 0;
+    }
+
     const startCut = this.addressAt(t, first);
     const endCut = to == null ? null : this.addressAt(t, to);
     // A page that ends in a shell takes no extension, nor one that resumes a painted shell (`extensionPx`, *the end gap takes no extension*); a row's divided items reach the foot.
@@ -436,6 +477,8 @@ export class CiceroPage {
       if (at != null) tracks.set(at, read);
     }
     const reach = to == null ? null : this.reachOf(doc, t, report, pageStart, end);
+    const flowPx = usedPx + extPx + (extPx > 0 ? cost : 0);
+    const parallel = to == null ? 0 : this.parallelBelow(report, t, pageStart + flowPx, to);
     ctx.dispose();
 
     this.show(this.page(doc, from, render, t, start, cut ?? { to }, tracks), forced);
@@ -447,10 +490,57 @@ export class CiceroPage {
       this.heights.set(node, node.getBoundingClientRect().height);
       this.observer.observe(node);
     }
+    const clipped = whole || cut?.shell || cut?.pieces?.length || start.shell || start.pieces?.length ? null : this.clippedBy(flowPx, parallel);
     const byEvent = event && to === eventTo;
     const next = to == null ? undefined : { ...hintAfter({ index: this.index, name: nextName, forced: !!byEvent, parity: byEvent ? event.parity : null }), ...carriedHint(to, cut?.next) };
-    this.account = { from, to, name: this.conditions.name, forced, cls: verdict?.cls ?? (byEvent ? 'A' : null), kind: whole ? 'whole' : verdict?.kind ?? (byEvent ? (event.namedSwitch ? 'name' : 'forced') : 'terminal'), y: verdict?.y ?? null, pageStart, usedPx, extPx, next };
+    this.account = { from, to, name: this.conditions.name, forced, cls: verdict?.cls ?? (byEvent ? 'A' : null), kind: whole ? 'whole' : verdict?.kind ?? (byEvent ? (event.namedSwitch ? 'name' : 'forced') : 'terminal'), y: verdict?.y ?? null, pageStart, usedPx, extPx, next, ...(clipped ? { clipped } : {}) };
     return next ? { to, next, reach } : { to, reach };
+  }
+
+  /**
+   * How far below the cut a parallel flow runs that starts on the page, read while the law copy is standing. The geometry first: only a box that crosses the cut has its style read.
+   * @param {any} report
+   * @param {Trial} t
+   * @param {number} cutY
+   * @param {number} to
+   */
+  parallelBelow(report, t, cutY, to) {
+    let below = 0;
+    for (const box of report.boxes()) {
+      if (box.rect.top >= cutY || box.rect.bottom <= cutY + 1) continue;
+      const law = t.lawOf.get(box.el);
+      if (!law || !isOutOfFlow(getComputedStyle(law))) continue;
+      const start = t.law.positions.get(law)?.start;
+      if (start != null && start < to) below = Math.max(below, box.rect.bottom - cutY);
+    }
+    return below;
+  }
+
+  /**
+   * What the page's foot cuts off with no later page to show it, in pixels, or null: the shown tree standing taller than the trial it was measured as (a different tree, `docs/found.md`), and a parallel flow that starts on the page and runs below the cut, which this page does not carry. A page ending in a shell or a row is cut there on purpose and is not asked. Said once per page, and kept in the account.
+   * @param {number} usedPx The flow's height at the foot.
+   * @param {number} parallel What `parallelBelow` read.
+   * @returns {{ flow: number, parallel: number } | null}
+   */
+  clippedBy(usedPx, parallel) {
+    const host = this.dom.getBoundingClientRect();
+    const scale = host.height / (this.dom.offsetHeight || host.height) || 1;
+    const foot = host.top + (this.conditions.margins.top + usedPx) * scale;
+    const range = this.doc.createRange();
+    let bottom = -Infinity;
+    for (const node of this.given()) {
+      range.selectNode(node);
+      const rect = range.getBoundingClientRect();
+      if (rect.height > 0) bottom = Math.max(bottom, rect.bottom); // a node put away has no box
+    }
+    const flow = bottom === -Infinity ? 0 : Math.max(0, (bottom - foot) / scale);
+    if (flow <= 1 && parallel <= 1) return null;
+    const clipped = { flow: Math.round(flow), parallel: Math.round(parallel) };
+    if (!this.warnedClip) {
+      this.warnedClip = true;
+      console.warn(`prosemirror-beltype: page ${this.index + 1} cuts off what no page shows: ${clipped.flow} px of the flow, ${clipped.parallel} px of a parallel flow`);
+    }
+    return clipped;
   }
 
   /**

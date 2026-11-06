@@ -341,6 +341,14 @@ function editOf(view, kind, arg = '') {
     const at = b.pos + 1;
     return { tr: view.state.tr.insertText('x', at), at };
   }
+  // A key on page `arg`, whose fill throws from now on: the pages after it must still be reached. The comparison's fresh fill makes new pages, so the stub goes with it.
+  if (kind === 'throw') {
+    const f = view.fragments[Number(arg) - 1];
+    f.container.cutAndDraw = async () => { throw new Error('the harness threw'); };
+    const b = /** @type {any} */ (blocks.find((x) => x.pos >= f.from && x.node.textContent.length > 8));
+    const at = b.pos + 1;
+    return { tr: view.state.tr.insertText('x', at), at };
+  }
   // The first page from page `arg` on that begins with a shell or row pieces, dirtied by the same transaction that types a character on page one: the page before it stays clean and its hint with it, and the page reads that hint at a `from` the character moved. One transaction, because the comparison's fresh fill after each edit would otherwise renew every hint.
   if (kind === 'carried') {
     const pages = view.fragments;
@@ -368,6 +376,12 @@ export function stateOf() {
   };
 }
 
+/** The running copies the pages hold, and how many of them are shut to the caret. */
+export function runningCopies() {
+  const copies = viewPagesOf().flatMap((/** @type {any} */ page) => [...page.children].filter((/** @type {any} */ el) => /\bartifact\b/.test(el.getAttribute('data-beltype') ?? '')));
+  return { count: copies.length, closed: copies.filter((/** @type {any} */ el) => el.getAttribute('contenteditable') === 'false' && el.hasAttribute('inert')).length };
+}
+
 /**
  * Edit by a transaction on the view (`editOf`), and wait for the chain and the loop: the counts of pages redrawn without a refill, dirtied for a flow site, and fills, before and after, the pages read, and the state read (`stateOf`).
  * @param {string} kind
@@ -382,7 +396,7 @@ export async function edit(kind, arg) {
   const settled = await quiet(view, factory, { started: t0 });
   const after = { ...factory.chain.counts, fills: fills.length };
   const refilled = fills.slice(before.fills).map((/** @type {any} */ f) => f.index + 1);
-  const detail = fills.slice(before.fills).map((/** @type {any} */ f) => ({ page: f.index + 1, from: f.from, to: f.to, name: f.name, forced: f.forced, kind: f.kind, cls: f.cls, pageStart: f.pageStart && Math.round(f.pageStart * 100) / 100 }));
+  const detail = fills.slice(before.fills).map((/** @type {any} */ f) => ({ page: f.index + 1, from: f.from, to: f.to, name: f.name, forced: f.forced, kind: f.kind, cls: f.cls, pageStart: f.pageStart && Math.round(f.pageStart * 100) / 100, ...(f.clipped ? { clipped: f.clipped } : {}) }));
   viewPages = view.fragments.map((/** @type {any} */ f) => f.container?.dom).filter(Boolean);
   return { at, settled, ms: performance.now() - t0 - 300, redrawn: after.redrawn - before.redrawn, dirtied: after.dirtied - before.dirtied, refilled, detail, pages: readPages(viewPages), reads: readsOf(), state: stateOf(), originals: factory.originals.timings.at(-1) };
 }
@@ -408,7 +422,7 @@ export async function refillWhole() {
   const late = fills.slice(quietAt).map((/** @type {any} */ f) => f.index + 1);
   const pages = view.fragments.map((/** @type {any} */ f) => f.container?.dom).filter(Boolean);
   viewPages = pages;
-  const detail = fills.slice(before).map((/** @type {any} */ f) => ({ page: f.index + 1, from: f.from, to: f.to, name: f.name, forced: f.forced, kind: f.kind, cls: f.cls, pageStart: f.pageStart && Math.round(f.pageStart * 100) / 100 }));
+  const detail = fills.slice(before).map((/** @type {any} */ f) => ({ page: f.index + 1, from: f.from, to: f.to, name: f.name, forced: f.forced, kind: f.kind, cls: f.cls, pageStart: f.pageStart && Math.round(f.pageStart * 100) / 100, ...(f.clipped ? { clipped: f.clipped } : {}) }));
   return { settled, fills: fills.length - before, late, detail, pages: readPages(pages), reads: readsOf(), state: stateOf(), originals: factory.originals.timings.at(-1) };
 }
 
@@ -428,12 +442,11 @@ export async function keystrokes(pageNo, n) {
   });
   const out = [];
   for (let i = 0; i < n; i++) {
-    const settles = factory.chain.settles.length;
     const t0 = performance.now();
     view.dispatch(view.state.tr.insertText('x', /** @type {number} */ (at) + i));
     const update = view.lastUpdateMs;
     await quiet(view, factory, { started: t0, settleMs: 100 });
-    const s = factory.chain.settles[settles];
+    const s = factory.chain.settles.at(-1);
     const r1 = (/** @type {number} */ x) => Math.round(x * 10) / 10;
     out.push({ ms: Math.round((performance.now() - t0 - 100) * 10) / 10, update: Math.round(update * 10) / 10, rechrome: r1(factory.chain.timing.rechrome), settleSync: r1(factory.chain.timing.settle), reads: r1(performance.getEntriesByName('cicero:reads').at(-1)?.duration ?? 0), settle: s ? Math.round(s.ms * 10) / 10 : null, runs: s?.runs.length ?? null, originals: factory.originals.timings.at(-1) });
   }
@@ -499,4 +512,4 @@ export function reachOf() {
   return { topLevel: holder ? topLevelReach(document, boxes, []) : null, shaped: holder ? topLevelReach(document, boxes, boxes.slice(1)) : null, shapedRules: shapedRules.slice(0, 8), reach: sheetReach(document), two: out.two.length, one: out.one.length, first: [...out.two, ...out.one].slice(0, 8) };
 }
 
-Object.assign(window, { __prosemirrorBeltype: { wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount, tagChrome, untagChrome, cliLedger, viewPagesOf, readsOf, retitle, edit, stateOf, refillWhole, keystrokes, reachOf, overtaken } });
+Object.assign(window, { __prosemirrorBeltype: { runningCopies, wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount, tagChrome, untagChrome, cliLedger, viewPagesOf, readsOf, retitle, edit, stateOf, refillWhole, keystrokes, reachOf, overtaken } });
