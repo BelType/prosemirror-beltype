@@ -14,7 +14,7 @@
  */
 
 import { EditorState } from 'prosemirror-state';
-import { FragmentedView } from 'prosemirror-fragview';
+import { FragmentedView, dirtied } from 'prosemirror-fragview';
 import * as g from 'beltype-studio-experiment/src/schema-generic.js';
 import { ciceroContainers, ledger, ledgerKey } from '../src/index.js';
 import { findSites } from '@beltype/cicero/internal/reads';
@@ -340,6 +340,13 @@ function editOf(view, kind, arg = '') {
     if (!b) throw new Error(`no textblock ${kind} the cut at ${e.to}`);
     const at = b.pos + 1;
     return { tr: view.state.tr.insertText('x', at), at };
+  }
+  // The first page from page `arg` on that begins with a shell or row pieces, dirtied by the same transaction that types a character on page one: the page before it stays clean and its hint with it, and the page reads that hint at a `from` the character moved. One transaction, because the comparison's fresh fill after each edit would otherwise renew every hint.
+  if (kind === 'carried') {
+    const pages = view.fragments;
+    const i = pages.findIndex((/** @type {any} */ f, /** @type {number} */ n) => n + 1 >= Number(arg || 1) && (pages[n - 1]?.container?.account?.next?.shell || pages[n - 1]?.container?.account?.next?.row));
+    if (i < 0) throw new Error(`no page from ${arg} on begins with a shell or row pieces`);
+    return { tr: dirtied(view.state.tr.insertText('x', blocks[0].pos + 1), pages[i].key), at: pages[i].from };
   }
   if (kind === 'end') { const b = /** @type {any} */ (blocks.at(-1)); const at = b.pos + 1 + b.node.content.size; return { tr: view.state.tr.insertText('x', at), at }; }
   throw new Error(`no edit named "${kind}"`);

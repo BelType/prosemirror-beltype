@@ -1271,3 +1271,45 @@ No edit got worse. What is left on those three fixtures is a page that begins wi
 
 The pin stays at a4ac0a5 until fragview is pushed, so a checkout of this package does not see `reach` take effect yet; these runs swapped fragview into `node_modules` by hand. `firstBelowTheEdge` comes from `@beltype/cicero/internal/stonehand`, since the `fragmentation` face does not export it: a door owed. Late truth still dirties only its own page.
 
+# A hint is a value, relative to its cut
+
+Two faults the integration review named, and that the `tail` edit showed: the ripple stopped at an equal `to` though the next page had been cut under another hint, and a shell's or row's positions were absolute, so an edit before them made a page drop its hint as if it were left for another slice.
+
+## The fix
+
+The view (`prosemirror-fragview`) compares a fill's hint with the last one, by its JSON, and fills the next fragment when it moved. This package's hint holds its positions relative to the cut (`carriedHint`), and a page reads them at its own `from` (`startFrom`), which replaces the guard `hint.at === from`. Relative is what makes the view's comparison mean something: an absolute position changes with every shift.
+
+The shift is uniform because the page before is clean: every position a hint carries lies inside what that page read, so with `reach` a change to any of them would have dirtied it. A page fills only after the pages before it, so the page before is clean when the hint is read.
+
+## The numbers
+
+Pages agreeing with a fresh fill, with fragview's comparison in both columns:
+
+| Fixture | Edit | Absolute hints | Relative hints |
+| :--- | :--- | :--- | :--- |
+| `row` | `carried:1` | 5 of 13 | 13 of 13 |
+| `row` | `carried:5` | 5 of 13 | 13 of 13 |
+| `tall` | `carried:1` | 5 of 11 | 10 of 10 |
+| `tall` | `carried:5` | 5 of 12 | 10 of 10 |
+| `end-gap` | `carried:1` | 2 of 6 | 6 of 6 |
+| `end-gap` | `carried:5` | 4 of 6 | 6 of 6 |
+
+`carried` types on page one and dirties a page that begins with a shell or row pieces in one transaction. One transaction, because the comparison's fresh fill after each edit renews every hint: **a chained `--edits` list is not cumulative**, and no chain of edits can show a fault that needs two edits in a row with no fill between. This hid the fault through the first three tries at a red case, and the harness's other chains have the same limit.
+
+Against the pin a4ac0a5, the cases of the last section, each on a fresh mount:
+
+| Fixture | Edit | Pin | Now |
+| :--- | :--- | :--- | :--- |
+| `end-gap` | `tail:1` | 0 of 6 | 6 of 6 |
+| `end-gap` | `delete:2` | 4 of 6 | 5 of 5 |
+| `row` | `tail:1` | 11 of 13 | 13 of 13 |
+| `row` | `delete:2` | 11 of 13 | 13 of 13 |
+| `tall` | `tail:1` | 2 of 10 | 9 of 9 |
+| `tall` | `delete:2` | 8 of 10 | 9 of 9 |
+
+A chain of ten edits (`start;key:2;key:3;key:4;end;delete:2;key:2;end;paste;key:3`) agrees on every page of all nine fixtures, under `--strict`. The specimen with `key:3;delete:2;paste;enter;start;end` gave 9 of 9 on all six edits in three runs of four; the fourth had one edit at 8 of 9, the harness's known snapshot flake, not traced further. `npm test` 47 of 47.
+
+## Not done
+
+A page still answers one range of positions, so a key in a page's painted shell dirties by `reach` and not by what it shows (the review's finding on shells and row cuts). The pin stays at a4ac0a5 until fragview is pushed.
+

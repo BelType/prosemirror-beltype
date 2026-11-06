@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Schema } from 'prosemirror-model';
 import { openedAt, posAt } from 'prosemirror-fragview';
-import { FIRST_SPAN, firstSpan, parityAt, conditionOf, hintAfter, hintAfterBlank, enter, wordPoint, verdictPosition } from '../src/turn.js';
+import { FIRST_SPAN, firstSpan, parityAt, conditionOf, hintAfter, hintAfterBlank, enter, wordPoint, verdictPosition, carriedHint, startFrom } from '../src/turn.js';
 
 test('the trial renders 2 048 positions on a first fill and twice the last cut fill after', () => {
   assert.equal(FIRST_SPAN, 2048);
@@ -160,4 +160,20 @@ test('a page begins at its first in-flow box: an unshown leaf and a box with no 
   assert.equal(inFlowStart(d, 4, away), 5, 'inside the section, past the nested mark');
   assert.equal(inFlowStart(d, 3, away), 3, 'an in-flow box at the start is the start; the name lookup descends into it');
   assert.equal(inFlowStart(d, 0, () => false), 1, 'with nothing away, only the whitespace leaf is passed over');
+});
+
+test('a hint carries its shell and row pieces relative to the cut, so a shift of the document moves no part of it', () => {
+  const next = { shell: { pos: 90, remaining: 40, paint: 12 }, pieces: [{ pos: 80, from: 85, to: 99, shell: { pos: 80, remaining: 3, paint: null }, end: { pos: 80, remaining: 2, paint: 1 } }, { pos: 95, empty: true }] };
+  const hint = carriedHint(100, next);
+  assert.deepEqual(carriedHint(107, { shell: { ...next.shell, pos: 97 }, pieces: [{ ...next.pieces[0], pos: 87, from: 92, to: 106, shell: { pos: 87, remaining: 3, paint: null }, end: { pos: 87, remaining: 2, paint: 1 } }, { pos: 102, empty: true }] }), hint, 'the same cut seven positions on');
+  assert.deepEqual(startFrom(hint, 100), next, 'read at the cut it was left for');
+  const shifted = startFrom(hint, 107);
+  assert.equal(shifted.shell.pos, 97);
+  assert.deepEqual([shifted.pieces[0].pos, shifted.pieces[0].from, shifted.pieces[0].to, shifted.pieces[0].shell.pos, shifted.pieces[0].end.pos, shifted.pieces[1].pos], [87, 92, 106, 87, 87, 102]);
+});
+
+test('a hint that carries nothing starts a page bare and adds nothing', () => {
+  assert.deepEqual(carriedHint(100, undefined), {});
+  assert.deepEqual(carriedHint(100, {}), {});
+  assert.deepEqual(startFrom({ name: 'chapter', forced: true }, 100), {});
 });
