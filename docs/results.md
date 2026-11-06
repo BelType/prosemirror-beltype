@@ -1360,3 +1360,11 @@ Each fixture under `--strict` with `start;key:2;delete:2;end;paste`, and the spe
 
 The cut is not lowered and a float is not carried. Two paginated editors in one document still share a holder, which waits on a ruling. The measure container is still one per document, for the Cicero round. `user-select: none` on the bands and the margin cells is the engine's.
 
+# The guard: the words of two hosts' pages
+
+The integration review of 2026-11-04 found that the PDF comes from a second pagination nobody compares with the editor's pages. `wordsOf`, the reader the harness already used on both sides, moved into the package as `src/compare.js`, beside `firstDifference`, which names the first page where two hosts' words part. A host calls them before it writes a PDF, and what it does with a difference is its own. No host calls them yet: the studio takes this package from npm.
+
+`scripts/specimen.mjs` now prints the guard's line. On the showcase it reads 74 pages against 76, first difference on page 50, which is the per-page table's answer. On `fixtures/clipped` it reads 7 against 7, first difference on page 3.
+
+Running it found a fault of this package's own. `clippedBy` computed the foot from the margin and the used height and left out the lead, so it warned on 43 of the showcase's 74 pages, on words that no page had lost. It now reads the flow box's bottom, and the showcase warns on three: page 49, a float crossing the cut (80 px of the flow, 91 of a parallel flow); page 52, a table's foot (11 px); and page 62, a `<pre>` (9 px). Those three were not traced further.
+

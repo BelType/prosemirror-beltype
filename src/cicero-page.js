@@ -490,7 +490,7 @@ export class CiceroPage {
       this.heights.set(node, node.getBoundingClientRect().height);
       this.observer.observe(node);
     }
-    const clipped = whole || cut?.shell || cut?.pieces?.length || start.shell || start.pieces?.length ? null : this.clippedBy(flowPx, parallel);
+    const clipped = whole || cut?.shell || cut?.pieces?.length || start.shell || start.pieces?.length ? null : this.clippedBy(parallel);
     const byEvent = event && to === eventTo;
     const next = to == null ? undefined : { ...hintAfter({ index: this.index, name: nextName, forced: !!byEvent, parity: byEvent ? event.parity : null }), ...carriedHint(to, cut?.next) };
     this.account = { from, to, name: this.conditions.name, forced, cls: verdict?.cls ?? (byEvent ? 'A' : null), kind: whole ? 'whole' : verdict?.kind ?? (byEvent ? (event.namedSwitch ? 'name' : 'forced') : 'terminal'), y: verdict?.y ?? null, pageStart, usedPx, extPx, next, ...(clipped ? { clipped } : {}) };
@@ -518,14 +518,13 @@ export class CiceroPage {
 
   /**
    * What the page's foot cuts off with no later page to show it, in pixels, or null: the shown tree standing taller than the trial it was measured as (a different tree, `docs/found.md`), and a parallel flow that starts on the page and runs below the cut, which this page does not carry. A page ending in a shell or a row is cut there on purpose and is not asked. Said once per page, and kept in the account.
-   * @param {number} usedPx The flow's height at the foot.
    * @param {number} parallel What `parallelBelow` read.
    * @returns {{ flow: number, parallel: number } | null}
    */
-  clippedBy(usedPx, parallel) {
+  clippedBy(parallel) {
     const host = this.dom.getBoundingClientRect();
     const scale = host.height / (this.dom.offsetHeight || host.height) || 1;
-    const foot = host.top + (this.conditions.margins.top + usedPx) * scale;
+    const foot = /** @type {Element} */ (/** @type {ShadowRoot} */ (this.dom.shadowRoot).querySelector('.flow')).getBoundingClientRect().bottom;
     const range = this.doc.createRange();
     let bottom = -Infinity;
     for (const node of this.given()) {
