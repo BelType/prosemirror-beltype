@@ -160,6 +160,8 @@ try {
     wordsSame[i] = same && a.count === b.count;
     console.log(`| ${i + 1} | ${cell(a?.first)} | ${cell(a?.last)} | ${a?.count ?? '·'} | ${cell(b?.first)} | ${cell(b?.last)} | ${b?.count ?? '·'} | ${e ? `${e.from}–${e.to ?? 'end'}` : '·'} | ${fill ? `${fill.kind ?? ''}${fill.cls ? ` ${fill.cls}` : ''} ${fill.name || '(unnamed)'}${fill.next?.blank ? ', blank next' : ''}` : '·'} | ${same ? 'yes' : '**no**'} |`);
   }
+  const guard = await page.evaluate(() => window.__prosemirrorBeltype.compareHosts());
+  console.log(`\nThe guard, view against CLI: ${guard.pages[0]} pages against ${guard.pages[1]}, ${guard.first == null ? 'every page holds the same words' : `first difference on page ${guard.first}`}.`);
   console.log(`\nPage sizes, CLI: ${reference.map((p) => p.size.join('×')).join(', ')}`);
   console.log(`Page sizes, view: ${view.pages.map((p) => p.size.join('×')).join(', ')}`);
   const objects = (pages) => pages.map((p, i) => (p.objects ?? []).map((o) => `page ${i + 1} ${o.is} ${o.size.join('×')}`)).flat().join(', ') || 'none';

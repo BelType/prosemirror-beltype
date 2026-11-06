@@ -16,56 +16,24 @@
 import { EditorState } from 'prosemirror-state';
 import { FragmentedView, dirtied } from 'prosemirror-fragview';
 import * as g from 'beltype-studio-experiment/src/schema-generic.js';
-import { ciceroContainers, ledger, ledgerKey } from '../src/index.js';
+import { ciceroContainers, ledger, ledgerKey, wordsOf, firstDifference } from '../src/index.js';
 import { findSites } from '@beltype/cicero/internal/reads';
 import { sheetReach } from '@beltype/cicero/internal/capture';
 import { topLevelReach } from '@beltype/cicero/fragmentation';
 
-/** The Gauge's word: a maximal run of what a breaking space does not divide. */
-const WORD = /[\S  ﻿]+/g;
-
-/**
- * The visible words of one `<beltype-page>`, in order.
- * @param {Element} page
- * @returns {string[]}
- */
-export function wordsOf(page) {
-  const shadow = /** @type {ShadowRoot} */ (page.shadowRoot);
-  const flow = /** @type {HTMLElement} */ (shadow.querySelector('.flow'));
-  const slot = /** @type {HTMLSlotElement} */ (flow.querySelector('slot'));
-  const box = page.getBoundingClientRect();
-  const clipped = getComputedStyle(flow).overflowY === 'clip';
-  const foot = clipped ? Math.min(box.bottom, flow.getBoundingClientRect().bottom) : box.bottom;
-  const range = document.createRange();
-  /** @type {string[]} */
-  const words = [];
-  /** The text node the last word kept ended at the end of, so a word that goes on in the next node is joined to it. */
-  let open = null;
-  const visit = (/** @type {Node} */ node) => {
-    if (node.nodeType === 3) {
-      const text = /** @type {Text} */ (node);
-      for (const m of text.data.matchAll(WORD)) {
-        range.setStart(text, /** @type {number} */ (m.index));
-        range.setEnd(text, /** @type {number} */ (m.index) + m[0].length);
-        const seen = [...range.getClientRects()].some((r) => r.width > 0.5 && r.top >= box.top - 0.5 && r.bottom <= foot + 0.5 && r.left >= box.left - 0.5 && r.right <= box.right + 0.5);
-        if (!seen) { open = null; continue; }
-        if (m.index === 0 && open && open.ends) words[words.length - 1] += m[0];
-        else words.push(m[0]);
-        open = { ends: m.index + m[0].length === text.data.length };
-      }
-      if (!/\S$/.test(text.data)) open = null;
-      return;
-    }
-    if (node.nodeType === 1) {
-      const display = getComputedStyle(/** @type {Element} */ (node)).display;
-      if (display !== 'inline' && display !== 'contents') open = null;
-      for (const child of node.childNodes) visit(child);
-      if (display !== 'inline' && display !== 'contents') open = null;
-    }
-  };
-  for (const node of slot.assignedNodes({ flatten: true })) visit(node);
-  return words;
+/** The guard a host runs before writing a PDF, here between the view's pages and the CLI's. */
+export function compareHosts() {
+  return firstDifference(wordsOfPages(viewPagesOf()), rootWords);
 }
+
+/** @param {Element[]} pages */
+const wordsOfPages = (pages) => pages.map((page) => {
+  page.scrollIntoView({ block: 'center' });
+  return wordsOf(page);
+});
+
+/** The CLI's pages' words, read before the view is mounted, since the root is hidden after. @type {string[][]} */
+let rootWords = [];
 
 /**
  * Each page's first and last visible word and its word count.
@@ -229,6 +197,7 @@ async function quiet(view, factory, { settleMs = 300, timeoutMs = 120000, starte
  * @param {{ settleMs?: number, timeoutMs?: number, bare?: boolean, noLedger?: boolean, reach?: 0 | 1 | 2 | null }} [options]
  */
 export async function mount({ settleMs = 300, timeoutMs = 120000, bare = false, noLedger = false, reach = null } = {}) {
+  rootWords = wordsOfPages(rootPages());
   const removed = bare ? adoptedSheets() : [];
   if (bare) document.adoptedStyleSheets = [];
   /** @type {any[]} */
@@ -512,4 +481,4 @@ export function reachOf() {
   return { topLevel: holder ? topLevelReach(document, boxes, []) : null, shaped: holder ? topLevelReach(document, boxes, boxes.slice(1)) : null, shapedRules: shapedRules.slice(0, 8), reach: sheetReach(document), two: out.two.length, one: out.one.length, first: [...out.two, ...out.one].slice(0, 8) };
 }
 
-Object.assign(window, { __prosemirrorBeltype: { runningCopies, wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount, tagChrome, untagChrome, cliLedger, viewPagesOf, readsOf, retitle, edit, stateOf, refillWhole, keystrokes, reachOf, overtaken } });
+Object.assign(window, { __prosemirrorBeltype: { runningCopies, compareHosts, wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount, tagChrome, untagChrome, cliLedger, viewPagesOf, readsOf, retitle, edit, stateOf, refillWhole, keystrokes, reachOf, overtaken } });

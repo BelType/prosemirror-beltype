@@ -10,4 +10,5 @@ export { Originals, wordsBeforePoint, wordPositionOf, wordAddressOf, stateOfPage
 export { ledger, ledgerKey, pageOf, accountOf, keyOf, applyLedger, ledgerToJSON, ledgerFromJSON } from './ledger.js';
 export { Chain, Overtaken } from './chain.js';
 export { collapsedSpaces } from './spaces.js';
+export { wordsOf, firstDifference } from './compare.js';
 export { FIRST_SPAN, firstSpan, parityAt, conditionOf, hintAfter, hintAfterBlank, enter, wordPoint, verdictPosition, wholeAfter, advances, inFlowStart } from './turn.js';

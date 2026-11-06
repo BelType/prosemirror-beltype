@@ -273,8 +273,8 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 
 - **Seen**: the print dock on the showcase, with and without the switch (the print frame paginates the state itself and never reads the view's pages): `caster: the continuation of section[4] does not mirror its source — section[35]/p[7]/span[0] has 1 element children where its twin at section[4]/p[7]/span[0] has only 0`. The quiet press (30 pages, 190 kB) and the report print under the switch.
 - **Layer**: the engine's continuation of an inline element with an element child, or Caster's mirror check (`packages/caster`); not the switch.
-- **Fix**: case it in the battery from the showcase's page 4 paragraph 8.
-- **State**: OPEN, seen on main too.
+- **Layer, traced 2026-11-06**: not the continuation. Three faults stood one behind the other, all Caster's. The second moment of reification wrote `content: string(family)` into a clone and not its original, and the pairing refused it. The check for an authored `::first-letter` took Cicero's `all: unset` on a resumed tinted `<pre>` for a drop capital. Both are fixed in Caster. The third still refuses: a two-column `<dl>` taller than what is left of the page is a painted slice, whole on each page under a clip, so the partition counts its words once per page (*the slice wrapper's clip is NOT honoured*, Caster's DESIGN.md S69). A `<dl style="column-count: 2">` of 90 entries on a small page reproduces it.
+- **State**: OPEN on the third fault.
 
 ### A margin box takes a running element only through a forwarding slot
 
