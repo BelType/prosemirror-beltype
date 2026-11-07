@@ -13,7 +13,9 @@
  * @packageDocumentation
  */
 
-import { EditorState } from 'prosemirror-state';
+import { EditorState, TextSelection } from 'prosemirror-state';
+import { history, undo, redo } from 'prosemirror-history';
+import { canSplit, canJoin, findWrapping, liftTarget } from 'prosemirror-transform';
 import { FragmentedView, dirtied } from 'prosemirror-fragview';
 import * as g from 'prosemirror-fragview/schema-generic';
 import { ciceroContainers, ledger, ledgerKey, wordsOf, firstDifference } from '../src/index.js';
@@ -196,9 +198,9 @@ async function quiet(view, factory, { settleMs = 300, timeoutMs = 120000, starte
 
 /**
  * Mount the view beside the root, the root hidden, and wait for the chain to fill whole and the reads loop to settle. `bare` first takes every sheet the document has adopted off it, the CLI's root's among them, so the view is measured in a document no root has dressed, as it is in a host that runs none. `noLedger` mounts the state without the Ledger plugin, as round 1 did: no reads loop, no chrome on an edit.
- * @param {{ settleMs?: number, timeoutMs?: number, bare?: boolean, noLedger?: boolean, reach?: 0 | 1 | 2 | null }} [options]
+ * @param {{ settleMs?: number, timeoutMs?: number, bare?: boolean, noLedger?: boolean, reach?: 0 | 1 | 2 | null, withHistory?: boolean }} [options]
  */
-export async function mount({ settleMs = 300, timeoutMs = 120000, bare = false, noLedger = false, reach = null } = {}) {
+export async function mount({ settleMs = 300, timeoutMs = 120000, bare = false, noLedger = false, reach = null, withHistory = false } = {}) {
   rootWords = wordsOfPages(rootPages());
   const removed = bare ? adoptedSheets() : [];
   if (bare) document.adoptedStyleSheets = [];
@@ -220,11 +222,12 @@ export async function mount({ settleMs = 300, timeoutMs = 120000, bare = false, 
   const started = performance.now();
   const containers = recorded(factory, fills);
   const view = new FragmentedView(host, {
-    state: EditorState.create({ doc, plugins: noLedger ? [] : [ledger()] }),
+    // `withHistory`: the random edits' undo and redo, every transaction its own event (`newGroupDelay: 0`), so a seed replays the same undo whatever the clock says.
+    state: EditorState.create({ doc, plugins: [...(noLedger ? [] : [ledger()]), ...(withHistory ? [history({ newGroupDelay: 0 })] : [])] }),
     words: { attribute: 'data-beltype' },
     containers,
   });
-  mounted = { view, factory, fills };
+  mounted = { view, factory, fills, doc };
   const settled = await quiet(view, factory, { settleMs, timeoutMs, started, failed: () => fills.some((f) => f.error) });
   const ms = performance.now() - started - (settled ? settleMs : 0);
   const pages = view.fragments.map((/** @type {any} */ f) => f.container?.dom).filter(Boolean);
@@ -476,6 +479,101 @@ export async function keystrokes(pageNo, n) {
 }
 
 
+/** A seeded generator (mulberry32): the same seed, the same edits. @param {number} a */
+const seeded = (a) => () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+
+/** The random edits' kinds, each with its weight. */
+const RANDOM_KINDS = [['type', 3], ['delete', 2], ['split', 2], ['join', 1], ['markup', 1], ['wrap', 1], ['lift', 1], ['undo', 1.5], ['redo', 1], ['redraw', 1]];
+
+/**
+ * Make `n` random edits from `seed` on the mounted view (mounted `withHistory`), none waiting for the chain between them, and wait for quiet only after the last: answers as `edit` does, with the edits' log, so the runner compares the whole run with a cold `invalidate()` fill once.
+ *
+ * @remarks
+ * Every edit aims at a cut: a page's `from` or `to` read from the settled chain at the run's start and mapped through each transaction since, a few positions either side, or a textblock inside a shell or a row item near a cut, preferring one that is not its parent's last child. The kinds are typing, a delete of 1 to 30 positions, Enter (`split`), joining a textblock to the one before, a heading made a paragraph or the reverse or its level changed (`setNodeMarkup`), a wrap in a blockquote, a lift, undo, redo, and `redraw` of the range. Between two edits the run waits for nothing, a frame, 20 ms, or until a fill is in flight, so an edit can land on a page being filled. The edits a seed makes depend on the document and the seed only, never on how far the chain has filled; the pacing does depend on the clock, so a fault that needs a fill in flight can need its seed run more than once.
+ *
+ * A run starts from the document as mounted, with an empty history, filled cold, so a seed replays alone whatever ran before it. `skip` names edits (from 1) that are drawn but not made, for narrowing a failing seed down to the edits it needs.
+ * @param {number} seed
+ * @param {number} n
+ * @param {number[]} [skip]
+ * @param {boolean} [paced] Wait for the chain to be quiet after every edit instead, the seed's draws unchanged: a seed that fails unpaced and passes paced needs two edits with no fill between.
+ */
+export async function randomEdits(seed, n, skip = [], paced = false) {
+  const { view, factory, fills } = mounted;
+  if (view.state.doc !== mounted.doc) {
+    view.updateState(EditorState.create({ doc: mounted.doc, plugins: view.state.plugins }));
+    view.invalidate();
+    await quiet(view, factory);
+  }
+  const rand = seeded(seed);
+  const total = RANDOM_KINDS.reduce((a, [, w]) => a + /** @type {number} */ (w), 0);
+  const kindOf = () => { let r = rand() * total; for (const [k, w] of RANDOM_KINDS) if ((r -= /** @type {number} */ (w)) < 0) return /** @type {string} */ (k); return 'type'; };
+  /** @type {number[]} */
+  let cuts = [...new Set(view.entries.flatMap((/** @type {any} */ e) => [e.from, e.to]).filter((/** @type {any} */ x) => x != null && x > 0))];
+  const before = { ...factory.chain.counts, fills: fills.length };
+  /** @type {string[]} */
+  const log = [];
+  const t0 = performance.now();
+  for (let i = 0; i < n; i++) {
+    const { doc, schema } = view.state;
+    const size = doc.content.size;
+    const cut = cuts.length ? cuts[Math.floor(rand() * cuts.length)] : Math.floor(rand() * size);
+    let pos = Math.max(0, Math.min(size, cut + Math.floor(rand() * 9) - 4));
+    if (rand() < 0.35) {
+      // A textblock inside a shell or a row item, the nearest to the cut, a not-last child first.
+      /** @type {{ pos: number, size: number, last: boolean, d: number }[]} */
+      const nested = [];
+      doc.descendants((/** @type {any} */ node, /** @type {number} */ p, /** @type {any} */ parent, /** @type {number} */ index) => {
+        if (node.isTextblock) { if (doc.resolve(p).depth >= 1) nested.push({ pos: p, size: node.content.size, last: index === parent.childCount - 1, d: Math.abs(p - cut) }); return false; }
+        return true;
+      });
+      nested.sort((a, b) => Number(a.last) - Number(b.last) || a.d - b.d);
+      const b = nested[Math.floor(rand() * Math.min(3, nested.length))];
+      if (b) pos = b.pos + 1 + Math.floor(rand() * (b.size + 1));
+    }
+    const sel = TextSelection.near(doc.resolve(pos));
+    const p = sel.from;
+    const $p = doc.resolve(p);
+    const kind = kindOf();
+    const k = 1 + Math.floor(rand() * 30);
+    const word = ['x', 'word ', ' and a few more words, ', 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '][Math.floor(rand() * 4)];
+    const level = 2 + Math.floor(rand() * 3);
+    /** @type {any} */
+    let tr = null;
+    let note = '';
+    const skipped = skip.includes(i + 1);
+    try {
+      if (kind === 'type') tr = view.state.tr.insertText(word, p);
+      else if (kind === 'delete') tr = view.state.tr.delete(p, Math.min(size, p + k));
+      else if (kind === 'split') { if (canSplit(doc, p)) tr = view.state.tr.split(p); }
+      else if (kind === 'join') { const at = $p.depth ? $p.before() : p; if (canJoin(doc, at)) tr = view.state.tr.join(at); }
+      else if (kind === 'markup' && $p.depth) {
+        const node = $p.parent;
+        const type = node.type.name === 'heading' && rand() < 0.5 ? schema.nodes.paragraph : schema.nodes.heading;
+        if (type && type.validContent(node.content) && $p.node(-1).canReplaceWith($p.index(-1), $p.index(-1) + 1, type)) tr = view.state.tr.setNodeMarkup($p.before(), type, { ...node.attrs, level });
+        note = `${node.type.name}→${type?.name}${type?.name === 'heading' ? level : ''}`;
+      } else if (kind === 'wrap') { const range = $p.blockRange(); const w = range && schema.nodes.blockquote && findWrapping(range, schema.nodes.blockquote); if (w) tr = view.state.tr.wrap(/** @type {any} */ (range), w); }
+      else if (kind === 'lift') { const range = $p.blockRange(); const target = range && liftTarget(range); if (target != null) tr = view.state.tr.lift(/** @type {any} */ (range), target); }
+      else if (kind === 'undo' || kind === 'redo') (kind === 'undo' ? undo : redo)(view.state, (/** @type {any} */ t) => { tr = t; });
+      else if (kind === 'redraw') { if (!skipped) view.redraw(p, Math.min(size, p + k)); note = `to ${Math.min(size, p + k)}`; }
+    } catch (error) { note = `refused: ${String(/** @type {any} */ (error)?.message ?? error).slice(0, 80)}`; tr = null; }
+    if (skipped) { log.push(`${i + 1} ${kind} skipped`); continue; }
+    if (tr) { view.dispatch(tr); cuts = [...new Set(cuts.map((c) => tr.mapping.map(c)))]; }
+    log.push(`${i + 1} ${kind}${kind === 'type' ? ` ${JSON.stringify(word)}` : kind === 'delete' ? ` ${k}` : ''} at ${p} in ${[...Array($p.depth + 1).keys()].slice(1).map((d) => $p.node(d).type.name).join('>')}${tr || kind === 'redraw' ? '' : ' (nothing to do)'}${note ? ` ${note}` : ''}`);
+    const pace = rand();
+    if (paced) { await quiet(view, factory); continue; }
+    if (pace < 0.35) continue;
+    if (pace < 0.6) await new Promise((r) => requestAnimationFrame(r));
+    else if (pace < 0.8) await new Promise((r) => setTimeout(r, 20));
+    else { const until = performance.now() + 300; while (view.filling.size === 0 && performance.now() < until) await new Promise((r) => setTimeout(r, 2)); }
+  }
+  const settled = await quiet(view, factory, { started: t0, failed: () => fills.slice(before.fills).some((/** @type {any} */ f) => f.error) });
+  const after = { ...factory.chain.counts, fills: fills.length };
+  const errors = fills.slice(before.fills).filter((/** @type {any} */ f) => f.error).map((/** @type {any} */ f) => `page ${f.index + 1}: ${f.error}`);
+  const detail = fills.slice(before.fills).map((/** @type {any} */ f) => ({ page: f.index + 1, from: f.from, to: f.to, kind: f.kind, ...(f.error ? { error: f.error } : {}) }));
+  viewPages = view.fragments.map((/** @type {any} */ f) => f.container?.dom).filter(Boolean);
+  return { seed, n, log, errors, settled, ms: performance.now() - t0 - 300, redrawn: after.redrawn - before.redrawn, dirtied: after.dirtied - before.dirtied, refilled: fills.slice(before.fills).map((/** @type {any} */ f) => f.index + 1), detail, pages: readPages(viewPages), reads: readsOf(), state: stateOf(), originals: factory.originals.timings.at(-1), docSize: view.state.doc.content.size };
+}
+
 /**
  * The overtaken fill (docs/found.md, "A fill overtaken by a second transaction in the same task throws in the grab"): for each pair of neighbouring pages of the settled chain, both pages are filled from their own entry's `from` over the one document in the same task, so the first is suspended at its measurement when the second's trial begins. Each fill must answer the `to` its entry holds; a fill that throws is named with its message. Also the law holders still standing in the document once every fill has ended, which is none.
  */
@@ -534,4 +632,4 @@ export function reachOf() {
   return { topLevel: holder ? topLevelReach(document, boxes, []) : null, shaped: holder ? topLevelReach(document, boxes, boxes.slice(1)) : null, shapedRules: shapedRules.slice(0, 8), reach: sheetReach(document), two: out.two.length, one: out.one.length, first: [...out.two, ...out.one].slice(0, 8) };
 }
 
-Object.assign(window, { __prosemirrorBeltype: { repage, runningCopies, compareHosts, wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount, tagChrome, untagChrome, cliLedger, viewPagesOf, readsOf, retitle, edit, stateOf, refillWhole, keystrokes, reachOf, overtaken } });
+Object.assign(window, { __prosemirrorBeltype: { repage, runningCopies, compareHosts, wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount, tagChrome, untagChrome, cliLedger, viewPagesOf, readsOf, retitle, edit, stateOf, refillWhole, keystrokes, reachOf, overtaken, randomEdits } });
