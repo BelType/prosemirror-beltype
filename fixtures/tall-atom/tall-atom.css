@@ -1,0 +1,5 @@
+/* The tall atom fixture's sheet: the flow fixture's small page, an image alone in its paragraph (the form a Markdown image takes) and an embed, each an atom of the generic schema taller than the page, which the engine slices at the page's edge and continues painted on the pages after it. */
+@page { size: 110mm 150mm; margin: 14mm 12mm; }
+p { orphans: 2; widows: 2; }
+p > img { width: 100%; }
+object.plate { display: block; width: 100%; height: auto; aspect-ratio: 300 / 1300; }

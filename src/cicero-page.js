@@ -13,7 +13,7 @@
  * 6. The page. The slice from `from` to the cut's own end (`openedAt(doc, to)`, or past `to` to the end of a box the page shows whole) is rendered into the page (`setContent`), the row pieces seated, the shells made, the tables and grids the page divides pinned to the tracks the trial laid them out at (`pinTracks`), the flow given the lead, the extent the verdict used and the extension a divided box takes (`setFlow`, `extensionPx`), and the answer is `{ to, next }` (`hintAfter`).
  * 7. The chrome, as the root draws it (`drawChrome`, `root.js`' `#chrome`): the page's state read off the chain's one rendering of the whole state (`Originals`, `originals.js`) over the page's interval in the engine's word positions, its counters at its first word, its strings and running elements in their four readings; the margin boxes' `content` transliterated and dressed, `setCounters` with `page N` and, once the chain is complete, `pages T`, `setStrings`, each running element a copy of the originals' slotted into its box, and the bands measured. The trial is measured wearing what the page publishes (`publish`), and a page whose strings a flow site reads is cut again when its interval reads them otherwise (`fill`).
  *
- * The page never throws (*the build cannot fail*, C2), and a fill that throws all the same shows the node at its start unmeasured and answers past it (`failSafe`). A verdict that maps to no position (a cut inside a leaf, which a schema's atom has none of) or to the page's own start with nothing entered or shrunk (`advances`) is an uncuttable run at the page's start: the node there is taken whole (`wholeAfter`), rendered as it is, its overflow clipped by the page as the engine's own page clips it, and the console says so once, with the page and the node's type.
+ * The page never throws (*the build cannot fail*, C2), and a fill that throws all the same shows the node at its start unmeasured and answers past it (`failSafe`). A verdict that maps to no position (a cut inside a leaf, which a schema's atom has none of) or to the page's own start with nothing entered or shrunk (`advances`) is an uncuttable run at the page's start. A block atom there taller than the page area is sliced at the page's edge as a painted shell, as the engine slices a monolith (`paintedAtom`; @see a-tall-atom-is-a-painted-shell). Anything else there is taken whole (`wholeAfter`), rendered as it is, its overflow clipped by the page as the engine's own page clips it, and the console says so once, with the page and the node's type.
  *
  * Where this departs from the driver's loop, each is a finding recorded in docs/results.md: the Cast-off's word estimate is the view's span; a parallel flow carried across a cut (a float, an absolutely positioned box) has no place in a position; a nested row cut inside a row item is taken whole; and the root's parity demand on the first page is not read. The page settles no reads of its own: the engine's reads loop runs around the whole chain (`Chain`, `chain.js`), which delivers `target-counter()` and `target-text()`, checks the flow sites that read a page fact against the chain's own facts, and redraws or dirties a page an edit left unfilled; the page tells it when a fill begins and ends, and takes at every fill the hint the view hands it, the one the page before it left last.
  *
@@ -523,8 +523,17 @@ export class CiceroPage {
         nextName = to == null ? '' : this.nameAt(t, to);
         usedPx = verdict.y - pageStart;
         cost = verdict.cost ?? 0;
-        // A verdict that maps to no position (a cut inside a leaf), or to the page's own start with no shell that shrank and no row item that moved, is an uncuttable run at the page's start: the driver lets it overflow in place (*the build cannot fail*, C2), and so does the page.
-        if (!cut || !advances(from, start, cut)) {
+        // A verdict that maps to no position (a cut inside a leaf), or to the page's own start with no shell that shrank and no row item that moved, is an uncuttable run at the page's start. A block atom taller than the page area is sliced as a painted shell; anything else overflows in place, as the driver lets it (*the build cannot fail*, C2).
+        const painted = !cut || !advances(from, start, cut) ? this.paintedAtom(doc, t, report, start, from, pageStart) : null;
+        if (painted) {
+          // The account reads it as the engine's own edge cut through a monolith: `E`, at the page's edge.
+          cut = painted;
+          to = cut.to;
+          nextName = to == null ? '' : this.nameAt(t, to);
+          usedPx = contentH;
+          cost = 0;
+          verdict = { ...verdict, kind: 'E', cls: 'LAST_RESORT', y: pageStart + contentH };
+        } else if (!cut || !advances(from, start, cut)) {
           whole = wholeAfter(doc, from);
           console.warn(`prosemirror-beltype: page ${this.index + 1} cannot be cut after ${from} (a ${verdict.kind} verdict mapped to ${cut ? cut.to : 'no position'}); the ${whole.node?.type.name ?? 'content'} there is taken whole and overflows the page, clipped`);
           cut = null;
@@ -951,6 +960,31 @@ export class CiceroPage {
       enter: (p) => enter(doc, p)
     });
     return pos == null ? null : { to: pos };
+  }
+
+  /**
+   * The painted shell of the block atom at the page's start where it is taller than the page area: the cut at the page's edge through a box that has no position inside it, built as `cutOf` builds an `E` verdict's (*the page edge is not a break point*, C10), or null where the node there is no such atom or the cut would not move the chain on.
+   * @see a-tall-atom-is-a-painted-shell
+   * @param {PMNode} doc
+   * @param {Trial} t
+   * @param {ReturnType<typeof takeReport>} report
+   * @param {Start} start
+   * @param {number} from
+   * @param {number} pageStart
+   * @returns {Cut | null}
+   */
+  paintedAtom(doc, t, report, start, from, pageStart) {
+    const { node, at } = wholeAfter(doc, from);
+    if (!node?.isAtom || !node.isBlock) return null;
+    // The atom's box as `cutOf` reads a verdict's, by the node its element was rendered for.
+    const rect = [...report.boxes()].find((box) => this.nodeOf(doc, t, box.el) === at)?.rect;
+    const y = pageStart + this.conditions.contentH;
+    if (!rect || rect.top >= y || rect.bottom <= y + EPS) return null;
+    /** @type {Shell} */
+    const shell = { pos: at, remaining: rect.bottom - y, paint: y - rect.top };
+    const end = at + node.nodeSize;
+    const cut = { to: enter(doc, at), end, shell, next: { shell } };
+    return advances(from, start, cut) ? cut : null;
   }
 
   /**

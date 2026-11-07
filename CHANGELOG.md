@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+An atom taller than the page area is sliced as a painted shell (2026-11-07, `css-fidelity-atoms-and-monoliths`; the ruling is the decision record `a-tall-atom-is-a-painted-shell`).
+
+- A node with no editable inside (an image, a rule, an embed) whose drawing is taller than the page area is now cut at the page's edge and continued painted on the pages after it, as the engine already slices a monolith. It used to be taken whole when the engine's cut fell inside its drawing, for example on an image inside an atom drawn as a figure: the page clipped it, its lower part showed on no page, and only a console line said so. Such a page's account now says `E`, `next.shell` carries the painted remainder, and the page after begins in it. `test/tall-atom.test.js` proves it on a 700 px image inside a figure atom on a 260 px page area, three pages that show 0 to 260, 260 to 520 and 520 to 700 px of it and agree with a fresh fill; it is red before the change.
+- `whole` stays for the true leftover: a cut that maps to no position and that the painted shell cannot take, such as an inline atom or a block that is not an atom. That case keeps its warning.
+- `fixtures/tall-atom` adds an image alone in its paragraph (the form a Markdown image takes) and a block `<object>` embed, both taller than the page, to the harness. Under the generic schema the engine's own cut already reaches both, so the fixture guards that they still agree with the CLI page for page.
+
 A page that shows the rest of a table row or a flex row (2026-11-07, `incremental-correctness-4`).
 
 - A same-length replacement or a mark in the rest of a row item that is not the last one now reaches the page that shows it. That text's positions lie inside the page before, which the cut through the row ends at the last item's place, so the edit refilled only the page before; its cut and its hint stayed the same, and the page after kept the old text. A `CiceroPage` now answers `shows` from its fill: from the lowest place of the row items it resumes, where that is below its start, to the end its own slice was rendered to, where that is past its cut (a painted shell, a row's end). The fragmented view dirties a page whose `shows` an edit touches.
