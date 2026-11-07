@@ -1,0 +1,4 @@
+/* The justified fixture's sheet: what the engine's first fragment does at an ordinary cut, which the page must do too (`mutateToFirstFragment`). Justified paragraphs divided by the page's foot, whose last line on the page stays justified (css-text-3 §7.2), and a box that clones its decoration across the cut (css-break-3 §5.4) and whose background reaches the foot (§5.3's extension). */
+@page { size: 110mm 150mm; margin: 14mm 12mm; }
+p { text-align: justify; orphans: 2; widows: 2; }
+div.boxed { box-decoration-break: clone; -webkit-box-decoration-break: clone; border: 3px solid #333; padding: 8px 10px; background: #e8e8e8; }

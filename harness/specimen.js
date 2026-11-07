@@ -77,7 +77,9 @@ export function dressingOf(pages) {
       }
       if (el.matches(CUT_OFF)) {
         const after = getComputedStyle(el, '::after').content;
-        if ((after !== 'none' && after !== 'normal') || el.matches('aside')) out.push({ page: i + 1, edge: 'cut-off', el: name, after });
+        // The first fragment's own edge where the engine constructs it (`mutateToFirstFragment`): a justified line before the cut, a block-end border and padding a cloned box keeps, the padding the extension adds.
+        const edge = own.textAlign === 'justify' || own.boxDecorationBreak === 'clone';
+        if ((after !== 'none' && after !== 'normal') || el.matches('aside') || edge) out.push({ page: i + 1, edge: 'cut-off', el: name, after, ...(edge ? { textAlignLast: own.textAlignLast, borderBottom: own.borderBottomWidth, paddingBottom: `${Math.round(parseFloat(own.paddingBottom))}px` } : {}) });
       }
     }
   });

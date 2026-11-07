@@ -197,9 +197,10 @@ try {
   const objects = (pages) => pages.map((p, i) => (p.objects ?? []).map((o) => `page ${i + 1} ${o.is} ${o.size.join('×')}`)).flat().join(', ') || 'none';
   console.log(`\nObjects, CLI: ${objects(reference)}`);
   console.log(`Objects, view: ${objects(view.pages)}`);
-  const dressing = (pieces) => pieces.map((d) => `  page ${d.page} ${d.edge} ${d.el}: ${d.edge === 'cut-off' ? `::after ${d.after}` : `::before ${d.before}${d.marker != null ? `, ::marker ${d.marker}` : ''}, ::first-letter ${d.firstLetter}, ::first-line ${d.firstLine}, own ${d.own}`}`).join('\n') || '  none';
+  const dressing = (pieces) => pieces.map((d) => `  page ${d.page} ${d.edge} ${d.el}: ${d.edge === 'cut-off' ? `::after ${d.after}${d.textAlignLast ? `, text-align-last ${d.textAlignLast}, border-bottom ${d.borderBottom}, padding-bottom ${d.paddingBottom}` : ''}` : `::before ${d.before}${d.marker != null ? `, ::marker ${d.marker}` : ''}, ::first-letter ${d.firstLetter}, ::first-line ${d.firstLine}, own ${d.own}`}`).join('\n') || '  none';
   console.log(`\nDivided pieces' edges, CLI:\n${dressing(referenceDressing)}`);
   console.log(`\nDivided pieces' edges, view:\n${dressing(view.dressing)}`);
+  if (dressing(referenceDressing) !== dressing(view.dressing)) { console.log("**The divided pieces' edges differ**: this run exits with an error."); process.exitCode = 1; }
   if (bare) console.log(`\nAdopted sheets taken off before the view was mounted (${view.removed.length}):\n${view.removed.map((s) => `  ${s}`).join('\n') || '  none'}`);
   console.log(`\nAdopted sheets after the view settled (${view.adopted.length}):\n${view.adopted.map((s) => `  ${s}`).join('\n') || '  none'}`);
   console.log(`\nFirst difference: ${first == null ? 'none' : `page ${first + 1}`}`);

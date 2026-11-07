@@ -1405,3 +1405,25 @@ This also makes the harness's `invalidate()` reference cold: a comparison of an 
 # The safety net renders under its own guard
 
 2026-11-07. Where a node's `toDOM` throws, the page's safety net threw too: `failSafe` rendered the node again outside any guard, inside the fill's `catch`, so `Chain.failed` was skipped, the chain's `inflight` stayed up and `settled()` never answered. The harness's `throw` stubs `cutAndDraw`, so the render never threw there. `failSafe` now renders in a `try`, shows the page empty where the rendering throws and answers past the node, and the fill calls `Chain.failed` in a `finally`. `test/settle.test.js` makes page 2's rendering throw: before the fix `settled()` gave no answer in five seconds, and now it answers `{ complete: false, why: "page 2's fill threw: toDOM threw" }`, the last entry runs to the end and the Ledger keeps its tables. The harness's new edit `throw-render:2` on `fixtures/specimen` settles incomplete with that reason over 11 pages, two of them empty, against the fresh fill's 9; a `key:1` after it agrees with the fresh fill on 9 of 9.
+
+# The first fragment at an ordinary cut
+
+Written 2026-11-07, on the branch `fix/fidelity-and-zoom`. The page called the engine's `mutateToFirstFragment` only for a shell (`endAsShell`). At an ordinary cut it gave the extension to `setFlow` alone, so three things differed from print: the last line before the cut was set ragged, a box with `box-decoration-break: clone` lost its block-end border and padding, and no background reached the foot.
+
+`endFirstFragment` (`src/shells.js`) now hands each box the cut divides, the ancestors of `to`, to `mutateToFirstFragment` as its own root, with the law copy's element as its source. Nothing is truncated, since the slice already ends at the cut. The innermost box takes the extension and the justified line, as in the engine. The ancestors only take `split` and `wrapped`, so the `text-align-last` the door writes on a justified ancestor is put back. The trial does the same at its bound with no extension, on the trial and the law copy, because the Stonehand charges a cut through a cloned box what the law copy's style says.
+
+A box the page resumes needed the other half. The engine's `truncateLeadingDecoration` writes `wrapped` on a cloned box, and neither Cicero 0.1.6 nor 0.1.7 exports it or the word. `wrapResumed` spells the word and reads `box-decoration-break` here, and goes when the fragmentation face has the door.
+
+`fixtures/justified`: justified paragraphs on the flow fixture's small page, and a `div.boxed` with a 3 px border, 8 px padding, a background and `box-decoration-break: clone` across three pages. The harness now prints each cut-off piece's `text-align-last`, block-end border and padding where its box is justified or clones its decoration, and exits 1 when the two sides' edges differ.
+
+| | Before | After |
+| :-- | :-- | :-- |
+| Pages | 10 against 10, first difference page 4 | 10 against 10, none |
+| `text-align-last` on the cut-off `p` | `auto` on every page, the CLI's `justify` | `justify`, as the CLI |
+| `div.boxed` cut off, pages 4 to 6 | border 0, padding 0 | border 3 px, padding 8 px, as the CLI |
+| The extension on the cut-off `p` | 0 on every page | 11, 35, 23, 13, 23, 13, 35 and 20 px on pages 2 to 9, as the CLI |
+| The view's console | pages 4 to 6 cut off 11 px no page shows | nothing |
+
+With the first fragment alone and no `wrapResumed`, pages 1 to 5 agreed and page 6 differed: page 5, which resumes and cuts the box, cut off 22 px, its block-start border and padding missing from the trial.
+
+Every fixture under `fixtures/` and the specimen were run again with `--strict`. The guard's two allowances stand, and every other fixture is the same on every page and every divided edge. The edits `tail:2;past:4;key:3;delete:2;paste` on `justified`, `dressing` and `flow` each agree with a fresh fill on every page. `pnpm test` gives 63 of 63.

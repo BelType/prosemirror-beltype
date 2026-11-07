@@ -44,7 +44,7 @@ import { copyOf, isFixedBox, noteSource } from '@beltype/cicero/fragmentation';
 import { presentation } from '@beltype/cicero/fragmentation';
 import '@beltype/cicero/page';
 import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition, wholeAfter, advances, inFlowStart, carriedHint, startFrom, endsNowhere } from './turn.js';
-import { Positions, nodeDom, nodeStart, continueAsShell, endAsShell, seatPieces, shellsOf, endsOf, pinTracks } from './shells.js';
+import { Positions, nodeDom, nodeStart, continueAsShell, endAsShell, endFirstFragment, wrapResumed, seatPieces, shellsOf, endsOf, pinTracks } from './shells.js';
 import { stateOfPage, runningPlaced, sameElements } from './originals.js';
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
@@ -493,7 +493,7 @@ export class CiceroPage {
     const parallel = to == null ? 0 : this.parallelBelow(report, t, pageStart + flowPx, to);
     ctx.dispose();
 
-    this.show(this.page(doc, from, render, t, start, cut ?? { to }, tracks), forced);
+    this.show(this.page(doc, from, render, t, start, cut ?? { to }, tracks, extPx), forced);
     t.lawRoot.replaceChildren();
     this.dom.setFlow({ leadPx: pageStart, usedPx, extPx, costPx: extPx > 0 ? cost : 0 });
     this.to = to;
@@ -624,6 +624,14 @@ export class CiceroPage {
       const el = continueAsShell(trial.fragment, tp, doc, shell, source);
       if (el && shell.paint == null) shelled.set(el, shell.pos);
     }
+    // The boxes the bound cuts off are the driver's feed cut at its place (`truncateFrom`): a box that clones its decoration is measured with its block-end border and padding, and its law copy wears them too, since the Stonehand charges a cut through it what the law copy's style says.
+    if (end != null) {
+      endFirstFragment(trial.fragment, tp, doc, end, (_, el) => lawOf.get(el) ?? null, null);
+      endFirstFragment(lawRoot, lp, doc, end, () => null, null);
+    }
+    // And the boxes it resumes keep their cloned block-start decoration, on both copies.
+    wrapResumed(trial.fragment, tp, doc, from, (_, el) => lawOf.get(el) ?? null);
+    wrapResumed(lawRoot, lp, doc, from, (_, el) => el);
     const blocks = [...lawRoot.children].filter((el) => !isFixedBox(el));
     return { trial: { ...trial, positions: /** @type {any} */ (tp) }, law: { ...law, positions: /** @type {any} */ (lp) }, lawOf, lawRoot, blocks, container: null, shelled };
   }
@@ -905,7 +913,7 @@ export class CiceroPage {
    * @param {Map<number, any>} tracks The trial's tables' and grids' tracks, by position (`pinTracks`).
    * @returns {RenderedSlice}
    */
-  page(doc, from, render, t, start, cut, tracks) {
+  page(doc, from, render, t, start, cut, tracks, extPx = 0) {
     const end = cut.end ?? (cut.to == null ? null : openedAt(doc, cut.to));
     const rendered = render(doc, from, end);
     const positions = new Positions(rendered.positions);
@@ -915,6 +923,9 @@ export class CiceroPage {
     const begins = shellsOf({ shell: start.shell, pieces: cut.pieces ?? start.pieces });
     for (const shell of begins) continueAsShell(root, positions, doc, shell, law(shell));
     for (const shell of endsOf(cut)) if (!begins.some((b) => b.pos === shell.pos && b.paint != null)) endAsShell(root, positions, doc, shell, law(shell));
+    // An ordinary cut: the boxes it divides are ended as the engine ends its constructed first fragment. A shell and a row's pieces are ended above.
+    if (cut.to != null && !cut.shell && !cut.pieces?.length) endFirstFragment(root, positions, doc, cut.to, (pos) => nodeDom(t.lawRoot, t.law.positions, doc, pos), extPx);
+    wrapResumed(root, positions, doc, from, (pos) => nodeDom(t.lawRoot, t.law.positions, doc, pos));
     pinTracks(root, positions, doc, tracks, rendered.from);
     return { ...rendered, positions: /** @type {any} */ (positions) };
   }
