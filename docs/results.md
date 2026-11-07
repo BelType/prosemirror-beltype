@@ -1430,7 +1430,7 @@ Every fixture under `fixtures/` and the specimen were run again with `--strict`.
 
 # A zoom built on a transform
 
-Written 2026-11-07, on the branch `fix/fidelity-and-zoom`. A host that zooms the pages with a CSS transform on an ancestor made them refill once a frame. After a fill, the page recorded each node's height with `getBoundingClientRect`, which reads after the transform, and its observer compared that with `borderBoxSize`, which reads before it. At any scale but 1, every node differed by more than the quarter pixel at once, so the page dispatched `moved`, the view refilled it, and the next fill recorded the same wrong height. `clippedBy` already divided by the page's scale. The record does too now, through one `scale()`, and so does the observer's fallback where `borderBoxSize` is missing.
+Written 2026-11-07, on the branch `fix/fidelity-and-zoom`. A host that zooms the pages with a CSS transform on an ancestor made them refill once a frame. After a fill, the page recorded each node's height with `getBoundingClientRect`, which reads after the transform, and its observer compared that with `borderBoxSize`, which reads before it. At any scale but 1, every node differed by more than the quarter pixel at once, so the page dispatched `moved`, the view refilled it, and the next fill recorded the same wrong height. The page now records no height at the fill: the observer's first report, which `observe()` makes at once, is the baseline, in the observer's own units, so a transform cannot come between the two readings. `clippedBy` and the observer's fallback where `borderBoxSize` is missing divide by the page's scale through one `scale()`, read against the page's computed height. Dividing the recorded height by the scale was tried first and is wrong: the scale read against `offsetHeight`, which is rounded to a whole pixel, gave 0.9992 on the repage fixture's 170 mm page with no transform, and the fixture refilled its pages 5 to 7 for 72 fills where `main` fills 8 times. With the computed height it still filled 12 times, pages 1 to 4 recording a height of 0 at the fill. With the baseline it fills 8 times.
 
 `test/zoom.test.js` mounts eight paragraphs, every other one padded, inside a box scaled by `transform`, settles the chain and counts every `moved` over the next 30 frames, then once more after a keystroke.
 
@@ -1472,3 +1472,24 @@ Headless Chromium lays these documents out independently of the ratio, so on thi
 The chain watches the ratio while a view is attached (`Chain.watchResolution`): a `resolution` media query at the current ratio, asked again at each new one, calls the view's `invalidate()` once the ratio has held for 250 ms, since a browser zoom steps through several. A page cut at a ratio other than 1 has `dpr` in its account, and the console says it once per document and ratio.
 
 `test/zoom.test.js` mounts the view at 1, where no account has `dpr`, then sets the ratio to 1.5 and at once to 2, narrowing the viewport with each as a browser zoom does: one `invalidate()`, every page's account `dpr: 2`, and one warning. Before the watch the same test read no `invalidate()`. Measured 2026-11-07: Chromium's device-metrics emulation fires no `resolution` change when the ratio changes and the viewport's size does not.
+
+# A new page geometry
+
+Written 2026-11-07, on the branch `fix/fidelity-and-zoom`. The factory reads the geometry table once, when it is made (`src/containers.js`), and its chain keeps each page name's sidedness (`Chain.sidedness`), so `view.invalidate()` on the same factory refills every page under the old `@page`. By reading, a new factory through fragview's `setProps` was the route: the view invalidates on a new `containers`, and the Ledger's plugin view moves to the new chain (`src/ledger.js`). It had not been run.
+
+`fixtures/repage` sets a 110 by 150 mm page with 14 and 12 mm margins. Its `b.css` sets 125 by 170 mm, 16 and 10 mm margins, and a 22 mm outer margin on each side (`:left`, `:right`), so the sidedness is read again. The harness edit `repage:b.css` links that sheet into the mounted document, gives the view `ciceroContainers(document)` through `setProps` and waits for quiet. It then reads the pages against a second view mounted fresh over the same state, and against the view's own fresh fill (`invalidate()` on the new factory). `fixtures/repage-b` links both sheets from the start, so the CLI measures the second geometry.
+
+| Page | After `setProps` | Fresh mount | CLI (`repage-b`) |
+| ---: | :-- | :-- | :-- |
+| 1 | `The` to `colophon`, 80 words, 472 × 642 | = | = |
+| 2 | `tympan` to `colophon.`, 120 | = | = |
+| 3 | `Dingbat` to `dingbat`, 108 | = | = |
+| 4 | `baseline` to `quire`, 122 | = | = |
+| 5 | `imposition` to `fragment.`, 97 | = | = |
+| 6 | `Part` to `imposition`, 112 | = | = |
+| 7 | `raised` to `furniture`, 117 | = | = |
+| 8 | `verso` to `fragment.`, 33 | = | = |
+
+The repaged chain settled in 8 fills, one per page. Its fresh fill agrees on 8 of 8 pages and on every page's state, and so does a keystroke after it. `repage-b` agrees with the CLI on every page and every fill's interval. So `setProps` with a new factory is the supported path, and the README and docs/plan.md say so.
+
+Running it found a fault of this round's own. Dividing the recorded height by the page's scale, the zoom's first fix, read the scale against `offsetHeight`, rounded to a whole pixel: 0.9992 on this 170 mm page with no transform, and the fixture filled 80 times where `main` fills 8. The baseline is now the observer's first report (the zoom's section above). Taking the read of each node's height out of the fill also took away the layout it forced. On a page that `content-visibility` skips, the flow's rect then read as zeros, and every page of the faces test said it cut off 280 to 1 326 px. `clippedBy` now reads each node's own rect before the flow's.

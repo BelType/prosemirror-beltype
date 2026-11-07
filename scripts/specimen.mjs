@@ -298,6 +298,22 @@ try {
   for (const e of edits) {
     const [kind, ...rest] = e.split(':');
     const arg = rest.join(':');
+    if (kind === 'repage') {
+      // A new `@page` through the supported path, `setProps` with a new factory: the view's pages against a view mounted fresh over the same state, then (below) against its own fresh fill.
+      const done = await page.evaluate((href) => window.__prosemirrorBeltype.repage(href), arg);
+      const pages = (ps) => ps.map((p) => `${p.first}…${p.last} ${p.count} ${p.size.join('×')}`);
+      const same = JSON.stringify(pages(done.pages)) === JSON.stringify(pages(done.fresh));
+      console.log(`\n### Repaged with \`${arg}\` through \`setProps\`\n\nSettled: ${done.settled}; fills ${done.refilled.length}. ${done.pages.length} pages, a fresh mount ${done.fresh.length}: ${same ? 'every page the same' : '**they differ**'}.\n`);
+      console.log('| Page | first | last | words | size | fresh mount |');
+      console.log('| ---: | :-- | :-- | ---: | :-- | :-- |');
+      for (let i = 0; i < Math.max(done.pages.length, done.fresh.length); i++) {
+        const a = done.pages[i], b = done.fresh[i];
+        console.log(`| ${i + 1} | ${cell(a?.first)} | ${cell(a?.last)} | ${a?.count ?? '·'} | ${a?.size.join('×') ?? '·'} | ${pages([a])[0] === (b && pages([b])[0]) ? '=' : (b ? `${b.first}…${b.last} ${b.count} ${b.size.join('×')}` : '·')} |`);
+      }
+      if (!same) disagreed++;
+      await compare(`Repaged with \`${arg}\`, against its own fresh fill`, done);
+      continue;
+    }
     const done = await page.evaluate(([kind, arg]) => window.__prosemirrorBeltype.edit(kind, arg), [kind, arg]);
     await compare(kind === 'retitle' ? `Retitled \`${arg.split('=>')[0]}\` to \`${arg.split('=>')[1]}\` at ${done.at}` : `Edit \`${e}\` at ${done.at}`, done);
   }

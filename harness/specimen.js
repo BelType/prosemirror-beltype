@@ -218,7 +218,27 @@ export async function mount({ settleMs = 300, timeoutMs = 120000, bare = false, 
   // `--reach N`: the memo settled under N whatever the sheets say, a measurement of what each reach keeps beside the engine's reading for a whole top-level box (`topLevelReach`).
   if (reach != null) factory.originals.reachOf = () => reach;
   const started = performance.now();
-  const containers = Object.assign((/** @type {number} */ index, /** @type {any} */ hint, /** @type {any} */ entries) => {
+  const containers = recorded(factory, fills);
+  const view = new FragmentedView(host, {
+    state: EditorState.create({ doc, plugins: noLedger ? [] : [ledger()] }),
+    words: { attribute: 'data-beltype' },
+    containers,
+  });
+  mounted = { view, factory, fills };
+  const settled = await quiet(view, factory, { settleMs, timeoutMs, started, failed: () => fills.some((f) => f.error) });
+  const ms = performance.now() - started - (settled ? settleMs : 0);
+  const pages = view.fragments.map((/** @type {any} */ f) => f.container?.dom).filter(Boolean);
+  viewPages = pages;
+  return { total: factory.originals.total, originals: factory.originals.timings, ms, settled, entries: view.entries.map((/** @type {any} */ { from, to }) => ({ from, to })), fills, pages: readPages(pages), dressing: dressingOf(pages), removed, adopted: adoptedSheets(), docSize: doc.content.size, reads: readsOf(), counts: { ...factory.chain.counts } };
+}
+
+/**
+ * The factory with every fill's account recorded in `fills`.
+ * @param {any} factory
+ * @param {any[]} fills
+ */
+function recorded(factory, fills) {
+  return Object.assign((/** @type {number} */ index, /** @type {any} */ hint, /** @type {any} */ entries) => {
     const page = factory(index, hint, entries);
     const fill = page.fill.bind(page);
     page.fill = async (/** @type {any[]} */ ...args) => {
@@ -234,17 +254,6 @@ export async function mount({ settleMs = 300, timeoutMs = 120000, bare = false, 
     };
     return page;
   }, { chain: factory.chain, originals: factory.originals });
-  const view = new FragmentedView(host, {
-    state: EditorState.create({ doc, plugins: noLedger ? [] : [ledger()] }),
-    words: { attribute: 'data-beltype' },
-    containers,
-  });
-  mounted = { view, factory, fills };
-  const settled = await quiet(view, factory, { settleMs, timeoutMs, started, failed: () => fills.some((f) => f.error) });
-  const ms = performance.now() - started - (settled ? settleMs : 0);
-  const pages = view.fragments.map((/** @type {any} */ f) => f.container?.dom).filter(Boolean);
-  viewPages = pages;
-  return { total: factory.originals.total, originals: factory.originals.timings, ms, settled, entries: view.entries.map((/** @type {any} */ { from, to }) => ({ from, to })), fills, pages: readPages(pages), dressing: dressingOf(pages), removed, adopted: adoptedSheets(), docSize: doc.content.size, reads: readsOf(), counts: { ...factory.chain.counts } };
 }
 
 /** What the reads loop did, settle by settle: each run's pages dirtied and cut, and the loop's own result. */
@@ -388,6 +397,39 @@ export async function edit(kind, arg) {
  */
 export const retitle = (from, to) => edit('retitle', `${from}=>${to}`);
 
+/**
+ * The supported way to change the page's geometry under a mounted view: link a sheet that changes `@page` and give the view a new factory through `setProps`, which reads the geometry table again and makes a new chain; the view invalidates on a new factory. Answers as `edit` does, and with the pages of a view mounted fresh over the same state beside it (`fresh`).
+ * @param {string} href The sheet, relative to the served document.
+ */
+export async function repage(href) {
+  const { view, fills } = mounted;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = href;
+  await new Promise((resolve, reject) => { link.onload = resolve; link.onerror = () => reject(new Error(`${href} did not load`)); document.head.appendChild(link); });
+  const before = fills.length;
+  const t0 = performance.now();
+  const factory = ciceroContainers(document);
+  mounted.factory = factory;
+  view.setProps({ containers: recorded(factory, fills) });
+  const settled = await quiet(view, factory, { started: t0 });
+  const refilled = fills.slice(before).map((/** @type {any} */ f) => f.index + 1);
+  viewPages = view.fragments.map((/** @type {any} */ f) => f.container?.dom).filter(Boolean);
+  const out = { at: href, settled, ms: performance.now() - t0 - 300, refilled, detail: fills.slice(before).map((/** @type {any} */ f) => ({ page: f.index + 1, from: f.from, to: f.to, name: f.name, kind: f.kind, cls: f.cls })), pages: readPages(viewPages), reads: readsOf(), state: stateOf(), originals: factory.originals.timings.at(-1) };
+  // A view mounted fresh over the same state, read and taken down.
+  const host = document.createElement('div');
+  host.id = 'prosemirror-beltype-fresh';
+  host.className = 'fragview-fresh';
+  document.body.appendChild(host);
+  const freshFactory = ciceroContainers(document);
+  const fresh = new FragmentedView(host, { state: EditorState.create({ doc: view.state.doc, plugins: [ledger()] }), words: { attribute: 'data-beltype' }, containers: freshFactory });
+  await quiet(fresh, freshFactory);
+  const freshPages = readPages(fresh.fragments.map((/** @type {any} */ f) => f.container?.dom).filter(Boolean));
+  fresh.destroy();
+  host.remove();
+  return { ...out, fresh: freshPages };
+}
+
 /** Invalidate the view and wait for its fresh fill of the same state. */
 export async function refillWhole() {
   const { view, factory, fills } = mounted;
@@ -492,4 +534,4 @@ export function reachOf() {
   return { topLevel: holder ? topLevelReach(document, boxes, []) : null, shaped: holder ? topLevelReach(document, boxes, boxes.slice(1)) : null, shapedRules: shapedRules.slice(0, 8), reach: sheetReach(document), two: out.two.length, one: out.one.length, first: [...out.two, ...out.one].slice(0, 8) };
 }
 
-Object.assign(window, { __prosemirrorBeltype: { runningCopies, compareHosts, wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount, tagChrome, untagChrome, cliLedger, viewPagesOf, readsOf, retitle, edit, stateOf, refillWhole, keystrokes, reachOf, overtaken } });
+Object.assign(window, { __prosemirrorBeltype: { repage, runningCopies, compareHosts, wordsOf, readPages, dressingOf, adoptedSheets, rootPages, mount, tagChrome, untagChrome, cliLedger, viewPagesOf, readsOf, retitle, edit, stateOf, refillWhole, keystrokes, reachOf, overtaken } });

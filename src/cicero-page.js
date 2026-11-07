@@ -143,8 +143,8 @@ export class CiceroPage {
      * The border-box heights of the nodes the last fill gave the page, against which `moved` is judged; cleared at every fill, so it holds only what the page shows.
      *
      * @remarks
-     * The border box, recorded off `getBoundingClientRect()` and read off the observer's `borderBoxSize`, since padding and borders are what the cut was decided against. The observer's `contentRect` is a content box: measured 2026-10-25, the quiet press's `section.titlepage`, with a 151.18 px `padding-top`, recorded 522.81 against a content box of 371.64 on every observation, so every fill ended in `moved` and the view refilled the title page once a frame (docs/results.md, "Late truth, like with like"). The two readings agree while no transform scales the page and the node's writing mode is horizontal.
-     * @type {Map<Element, number>}
+     * The border box, read off the observer's `borderBoxSize`, since padding and borders are what the cut was decided against: null from the fill until the observer's first report, which `observe()` makes at once and which is then the baseline. The observer's `contentRect` is a content box: measured 2026-10-25, the quiet press's `section.titlepage`, with a 151.18 px `padding-top`, recorded 522.81 against a content box of 371.64 on every observation, so every fill ended in `moved` and the view refilled the title page once a frame (docs/results.md, "Late truth, like with like"). It was recorded off `getBoundingClientRect()` until 2026-11-07, which reads after a zoom's transform, so a scaled page refilled once a frame too (docs/results.md, "A zoom built on a transform").
+     * @type {Map<Element, number | null>}
      */
     this.heights = new Map();
     /** The last fill's own account, for a reader that compares it with the engine's. @type {Record<string, any> | null} */
@@ -164,11 +164,13 @@ export class CiceroPage {
     originals?.pages.add(this);
     this.observer = new ResizeObserver((entries) => {
       if (!this.rendered) return;
-      // Only a node the page still shows, judged by its border box; the observation `observe()` makes at once reads the recorded height and is dropped by `EPS`.
+      // Only a node the page still shows, judged by its border box against the first one the observer reported after the fill (`observe()` reports at once), in the observer's own units, which no transform scales: a height read off the page would be after a zoom's transform, and a whole page refilled at every frame.
       const changed = (/** @type {ResizeObserverEntry} */ e) => {
+        if (!this.heights.has(e.target) || !e.target.isConnected) return false;
+        const now = e.borderBoxSize?.[0]?.blockSize ?? e.target.getBoundingClientRect().height / this.scale();
         const recorded = this.heights.get(e.target);
-        if (recorded == null || !e.target.isConnected) return false;
-        return Math.abs((e.borderBoxSize?.[0]?.blockSize ?? e.target.getBoundingClientRect().height / this.scale()) - recorded) > EPS;
+        if (recorded == null) { this.heights.set(e.target, now); return false; }
+        return Math.abs(now - recorded) > EPS;
       };
       if (entries.some(changed)) {
         requestAnimationFrame(() => { if (this.rendered) this.moved.dispatchEvent(new Event('moved')); });
@@ -501,10 +503,8 @@ export class CiceroPage {
     this.dom.setFlow({ leadPx: pageStart, usedPx, extPx, costPx: extPx > 0 ? cost : 0 });
     this.to = to;
     if (to != null) this.span = to - from;
-    // In the observer's own units, its `borderBoxSize`, which no transform scales: a zoom built on one would otherwise read as a move on every node at every fill.
-    const scale = this.scale();
     for (const node of /** @type {Element[]} */ (this.given())) {
-      this.heights.set(node, node.getBoundingClientRect().height / scale);
+      this.heights.set(node, null);
       this.observer.observe(node);
     }
     const clipped = whole || cut?.shell || cut?.pieces?.length || start.shell || start.pieces?.length ? null : this.clippedBy(parallel);
@@ -548,10 +548,18 @@ export class CiceroPage {
     return { dpr };
   }
 
-  /** How much a transform on the page or an ancestor scales it on screen: its drawn height over its layout height, 1 where it has none. */
+  /**
+   * How much a transform on the page or an ancestor scales it on screen: its drawn height over its layout height, 1 where it has none.
+   *
+   * @remarks
+   * The layout height is the computed one and never `offsetHeight`, which is rounded to a whole pixel: measured 2026-11-07, a page 170 mm tall (642.52 px) read a scale of 0.9992 with no transform, every recorded height was 0.4 px off on a 500 px node, and the repage fixture refilled its pages 5 to 7 for 72 fills before it was quiet.
+   */
   scale() {
     const host = this.dom.getBoundingClientRect();
-    return host.height / (this.dom.offsetHeight || host.height) || 1;
+    const st = getComputedStyle(this.dom);
+    const edges = st.boxSizing === 'border-box' ? 0 : ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth'].reduce((sum, k) => sum + (parseFloat(/** @type {any} */ (st)[k]) || 0), 0);
+    const layout = (parseFloat(st.height) || 0) + edges;
+    return (layout > 0 && host.height / layout) || 1;
   }
 
   /**
@@ -560,15 +568,17 @@ export class CiceroPage {
    * @returns {{ flow: number, parallel: number } | null}
    */
   clippedBy(parallel) {
-    const scale = this.scale();
-    const foot = /** @type {Element} */ (/** @type {ShadowRoot} */ (this.dom.shadowRoot).querySelector('.flow')).getBoundingClientRect().bottom;
     const range = this.doc.createRange();
     let bottom = -Infinity;
     for (const node of this.given()) {
+      // An element's own rect lays out what the page's `content-visibility` skips, its shadow flow included, and neither a range's nor the host's does: measured 2026-11-07, with no element read first the flow's rect was all zeros and every page of the faces test said it cut off 280 to 1 326 px. The reading of each node's height at the fill, which `moved` no longer needs, had been doing it.
+      /** @type {Element} */ (node).getBoundingClientRect();
       range.selectNode(node);
       const rect = range.getBoundingClientRect();
       if (rect.height > 0) bottom = Math.max(bottom, rect.bottom); // a node put away has no box
     }
+    const scale = this.scale();
+    const foot = /** @type {Element} */ (/** @type {ShadowRoot} */ (this.dom.shadowRoot).querySelector('.flow')).getBoundingClientRect().bottom;
     const flow = bottom === -Infinity ? 0 : Math.max(0, (bottom - foot) / scale);
     if (flow <= 1 && parallel <= 1) return null;
     const clipped = { flow: Math.round(flow), parallel: Math.round(parallel) };
