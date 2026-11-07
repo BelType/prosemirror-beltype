@@ -25,6 +25,9 @@ import { findPageSites } from '@beltype/cicero/fragmentation';
 import { ForcingMemo } from '@beltype/cicero/fragmentation';
 import { topLevelReach } from '@beltype/cicero/fragmentation';
 import { BREAKING_SPACE, isInlineBox, isFixedBox, isLineBreak } from '@beltype/cicero/fragmentation';
+import { hasArgumentsOf } from '@beltype/cicero/internal/capture';
+import { hasWordFor } from '@beltype/cicero/internal/data-beltype';
+import { askBox } from '@beltype/cicero/internal/has-words';
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
 /** @import { SliceRenderer, RenderedSlice } from 'prosemirror-fragview/src/fragmentainer.js' */
@@ -211,6 +214,7 @@ export const rebased = (pos, { base, at }) => pos - base + at;
  * @property {number[]} sites The model positions of the flow sites that read a page fact (`findPageSites`), in document order.
  * @property {Keep | null} keep The memo's door for the walks over this state's blocks, null where the sheets' reach puts the memo out of use.
  * @property {{ render: number, read: number }} ms
+ * @property {Map<number, string[]>} [has] The `has:` words of each top-level node asked so far (`hasWordsOf`), by its index.
  */
 
 export class Originals {
@@ -427,6 +431,27 @@ export class Originals {
     const point = this.pointOf(state, pos);
     if (!point) return pos <= 0 ? { pos: 0, block: 0 } : { pos: state.index.total, block: state.blocks.length };
     return wordAddressOf(this.holder(), state.blockIndex, state.index, point);
+  }
+
+  /**
+   * The engine's `has:` words for the state's top-level node `index`: each rewritten `:has()` argument its original satisfies where it stands, asked as the engine's `answerHas` asks a box (`askBox`), once per state and node.
+   *
+   * @remarks
+   * The slice renderer writes `fragment` on the root of every divided piece, and the has-words rewrite takes the native `:has()` arm away from an element with that word, so a divided root matches only by these words (the engine's `data-beltype.js`, the guard). Without them a top-level `section:has(> h1) { page: chapter }` named no page on a slice that divides the section: a page that resumed it, or a trial bounded inside it (docs/found.md, "Random edits leave a page cut for a page name the cold fill does not see").
+   * @param {OriginalsState} state
+   * @param {number} index
+   * @returns {string[]}
+   */
+  hasWordsOf(state, index) {
+    state.has ??= new Map();
+    let words = state.has.get(index);
+    if (!words) {
+      const el = state.entries[index]?.el;
+      const args = el ? hasArgumentsOf(this.document) : new Map();
+      words = el && args.size ? askBox(el, args).filter((a) => a.own).map((a) => hasWordFor(a.hash)) : [];
+      state.has.set(index, words);
+    }
+    return words;
   }
 
   /** The hidden holder the rendering stands in. */

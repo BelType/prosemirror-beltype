@@ -354,7 +354,7 @@ export class CiceroPage {
     for (;;) {
       recuts++;
       this.publish = this.publishOf(facts.strings);
-      answer = await this.cutOnce(doc, from, render, holder);
+      answer = await this.cutOnce(doc, from, withHasWords(render, o, state), holder);
       at = answer.to == null ? null : o.addressAt(state, answer.to);
       end = at?.pos ?? null;
       const truth = stateOfPage(state, start, this.blank ? start : end);
@@ -1188,4 +1188,25 @@ function textBefore(el, child) {
  */
 export function handleFillRejected(view, error, container, from) {
   return container instanceof CiceroPage ? container.rejected(view.state.doc, from, error) : undefined;
+}
+
+/**
+ * The renderer with the engine's `has:` words written on the root of every divided piece it renders (`Originals.hasWordsOf`), so a rewritten `:has()` matches the trial, the law copy and the shown page as it matches the original.
+ *
+ * @remarks
+ * ponytail: only the root, which is where the rewrite's guard takes the native arm away; a divided box below it keeps the native arm over its partial content, as before. Every divided box when a `:has()` reaching past a cut misreads one.
+ * @param {SliceRenderer} render
+ * @param {Originals} originals
+ * @param {OriginalsState} state
+ * @returns {SliceRenderer}
+ */
+function withHasWords(render, originals, state) {
+  return (doc, from, to) => {
+    const r = render(doc, from, to);
+    for (const el of r.fragment.children) {
+      const span = hasWord(el, FRAGMENT) ? r.positions.get(el) : undefined;
+      if (span) for (const word of originals.hasWordsOf(state, doc.resolve(span.start).index(0))) addWord(el, word);
+    }
+    return r;
+  };
 }
