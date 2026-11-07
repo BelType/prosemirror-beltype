@@ -333,7 +333,7 @@ function editOf(view, kind, arg = '') {
   if (kind === 'throw-render') {
     const f = view.fragments[Number(arg) - 1];
     const fill = f.container.fill.bind(f.container);
-    f.container.fill = (/** @type {any} */ d, /** @type {number} */ from) => fill(d, from, () => { throw new Error('the harness\'s toDOM threw'); });
+    f.container.fill = (/** @type {any} */ d, /** @type {number} */ from, /** @type {any} */ _render, /** @type {any} */ hint) => fill(d, from, () => { throw new Error('the harness\'s toDOM threw'); }, hint);
     const b = /** @type {any} */ (blocks.find((x) => x.pos >= f.from && x.node.textContent.length > 8));
     const at = b.pos + 1;
     return { tr: view.state.tr.insertText('x', at), at };
@@ -489,7 +489,7 @@ export async function overtaken() {
   const before = pagesOf();
   for (let i = 0; i + 1 < entries.length; i++) {
     const pair = [entries[i], entries[i + 1]];
-    const settled = await Promise.allSettled(pair.map((e) => view.containers.get(e.key).fill(doc, e.from, view.render)));
+    const settled = await Promise.allSettled(pair.map((e, k) => view.containers.get(e.key).fill(doc, e.from, view.render, view.hints.get(entries[i + k - 1]?.key))));
     settled.forEach((r, k) => {
       const e = pair[k];
       if (r.status === 'rejected') failures.push(`page ${i + 1 + k} (with page ${i + 1 + (1 - k)}): threw ${String(r.reason?.message ?? r.reason)}`);

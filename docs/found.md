@@ -96,7 +96,7 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 
 - **Seen**: the chrome fixture, 2026-10-25, `Folios` retitled `Folios, retitled` by a transaction: the heading wraps and the chain refills from page 1 to a new 17th page. Page 4, which now opens chapter II at a forced break, was refilled with `forced: false` and its lead truncated (27.72 px), since its container had been built when the page before it ended unforced, and every page from 4 on differed from the view's fresh fill of the same state (77 words on page 4 against 83).
 - **Layer**: the view hands a container the hint the page before it left only when it builds it (`FragmentedView.build`; `fill` takes none), and this package read it only in the constructor (`src/cicero-page.js`).
-- **Fix**: at every fill the page takes the hint the page before it left at its last fill (`Chain.hintFor`, by index, so it needs no view), its name, side and blankness with it; the view's door is filed in its section.
+- **Fix**: at every fill the page takes the hint the page before it left at its last fill (`Chain.hintFor`, by index, so it needs no view), its name, side and blankness with it; the view's door is filed in its section. Since 2026-11-07 the view hands it to `fill` and the page reads it there (the entry "A container is handed its hint only when it is built").
 - **State**: CLOSED 2026-10-25, 49cfad9 and 2de1bc9 on `round/the-ledger-is-state`: the same edit gives 17 pages, every one equal to the fresh fill.
 
 ### A typed double space collapses on the page
@@ -211,7 +211,7 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen**: the chrome fixture under an edit that adds a page (this package's entry "A refilled page keeps the hint it was built with"): a ripple refills a container whose page before it now ends otherwise, and the hint that page left is in the view's `hints` but reaches the container only through the factory, at `build`.
 - **Layer**: the view, `src/fragmented-view.js` (`build`, `fill`).
 - **Fix**: hand `fill` the hint the entry before it left (`fill(doc, from, render, hint)`), or rebuild a container whose hint changed. Worked around in this package (the page asks the chain object for the hint the page before left).
-- **State**: OPEN.
+- **State**: CLOSED 2026-11-07 by prosemirror-fragview 805db68 (`fill(doc, from, render, hint)`), on `fix/pin-and-follow-ups`: the page reads the hint it is handed and `Chain.hintFor` is gone. The chrome fixture's retitle gives 17 of 17 pages equal to a fresh fill, and 5 of 17 with the handed hint ignored.
 
 ### The chain does not serialize
 

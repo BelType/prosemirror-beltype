@@ -28,6 +28,7 @@ The measurement stands on its own.
 - The harness gains the edits `throw`, `tail`, `past`, `beyond` and `carried`, and the fixture `clipped`, and `scripts/specimen.mjs` gains `--strict`, which exits with an error when an edited chain differs from a fresh fill.
 
 - The `prosemirror-fragview` dev pin moves to `805db68`, its `main` with the hint passed on every fill, `handleFillRejected`, the selected node's class on every piece and every `handleDOMEvents` key. Nothing in this package changed for it: `pnpm test` 67 of 67, and every fixture agrees with the CLI and with a fresh fill under `--strict` with the edits `start;key:2;delete:2;end;paste`.
+- A page reads its hint from `fill`'s fourth argument, which `prosemirror-fragview` 805db68 hands every fill, and `Chain.hintFor`, the side channel that read it by index, is gone. On the chrome fixture, retitling `Folios` gives 17 of 17 pages equal to a fresh fill, and 5 of 17 when the page ignores the hint it is handed. A view older than 805db68 refills a page under the hint it was built with.
 
 ## 0.1.1 (2026-11-04)
 

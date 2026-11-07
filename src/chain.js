@@ -304,17 +304,6 @@ export class Chain {
   }
 
   /**
-   * The hint the page before `page` left at its last fill, which is what the view recorded for it; `{}` for the first page, and `undefined` where the page before is not built or has not filled, so the page keeps the one it was built with. Read by index, so it needs no view and holds in a state without the Ledger plugin.
-   * @param {CiceroPage} page
-   * @returns {Record<string, any> | undefined}
-   */
-  hintFor(page) {
-    if (page.index === 0) return {};
-    const prev = this.byIndex.get(page.index - 1);
-    return prev?.account ? prev.account.next ?? {} : undefined;
-  }
-
-  /**
    * The rows in the chain's order, as the Ledger holds them, a staged row standing in for one the state does not hold yet.
    * @param {any} view
    * @returns {Row[]}
