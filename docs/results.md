@@ -1392,7 +1392,7 @@ Multicol's difference is not this round's. On the old path too, its page 3 holds
 
 Only the page counts were compared with the old path, and multicol's words. The root on the old path was the monorepo's legacy Cicero, and here it is the pinned `@beltype/cicero`, the same copy the view runs. These runs set `FRAGVIEW` to a checkout of fragview's `main`, since the pin then stood before `prosemirror-fragview/schema-generic`; it has moved since.
 
-On the new path, `--edits` on `fixtures/chrome` and `--bare` on `fixtures/specimen` hold every page the same. `--overtaken` on `fixtures/flow` reports 42 failures over 25 pairs and exits 1, the same output on the old path with the same fragview checkout, so it is not this round's. The later `found.md` entry for that case was not reopened.
+On the new path, `--edits` on `fixtures/chrome` and `--bare` on `fixtures/specimen` hold every page the same. `--overtaken` on `fixtures/flow` reports 42 failures over 25 pairs and exits 1, the same output on the old path with the same fragview checkout, so it is not this round's. Traced the same day: the 42 failures are not fragview's either. They are Cicero 0.1.6's measure container, one per document, which two fills in flight share; under Cicero `main`, which gives each measure context its own container (20aa979, unreleased), the case gives 0 over 25 with either fragview (`found.md`, "The measure container is one element for every fill of a document").
 
 # The settle starts cold where the driver does
 
