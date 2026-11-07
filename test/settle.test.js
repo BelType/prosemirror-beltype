@@ -1,5 +1,5 @@
 /**
- * The chain's settle on real `CiceroPage`s, in a browser: a restored Ledger's first fill starts cold and lands where a first fill lands.
+ * The chain's settle and its safety net on real `CiceroPage`s, in a browser: a restored Ledger's first fill starts cold and lands where a first fill lands, and a page whose rendering throws still answers, so `settled()` answers too.
  */
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -31,4 +31,12 @@ test('a restored Ledger\'s first fill passes no warm table, and lands where a fi
   assert.deepEqual(read.restored.answer, { complete: true, why: null });
   assert.equal(read.restored.warmed, false, 'the restored page number was delivered before the first layout');
   assert.equal(read.restored.delivered, read.cold.delivered);
+});
+
+test('a page whose rendering throws still answers: the chain stands incomplete, the pages after it are reached, and the Ledger keeps its tables', () => {
+  assert.notEqual(read.thrown.answer, 'no answer', 'settled() never answered');
+  assert.equal(read.thrown.answer.complete, false);
+  assert.match(read.thrown.answer.why, /page 2's fill threw: toDOM threw/);
+  assert.equal(read.thrown.last, null);
+  assert.equal(read.thrown.ledgerKept, true);
 });

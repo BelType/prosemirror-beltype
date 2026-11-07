@@ -1401,3 +1401,7 @@ On the new path, `--edits` on `fixtures/chrome` and `--bare` on `fixtures/specim
 ## Not done
 
 This also makes the harness's `invalidate()` reference cold: a comparison of an edited chain with its fresh fill after `invalidate()` now compares with a settle that started from the reservations, not from the edited chain's tables. No fixture was run on it here.
+
+# The safety net renders under its own guard
+
+2026-11-07. Where a node's `toDOM` throws, the page's safety net threw too: `failSafe` rendered the node again outside any guard, inside the fill's `catch`, so `Chain.failed` was skipped, the chain's `inflight` stayed up and `settled()` never answered. The harness's `throw` stubs `cutAndDraw`, so the render never threw there. `failSafe` now renders in a `try`, shows the page empty where the rendering throws and answers past the node, and the fill calls `Chain.failed` in a `finally`. `test/settle.test.js` makes page 2's rendering throw: before the fix `settled()` gave no answer in five seconds, and now it answers `{ complete: false, why: "page 2's fill threw: toDOM threw" }`, the last entry runs to the end and the Ledger keeps its tables. The harness's new edit `throw-render:2` on `fixtures/specimen` settles incomplete with that reason over 11 pages, two of them empty, against the fresh fill's 9; a `key:1` after it agrees with the fresh fill on 9 of 9.

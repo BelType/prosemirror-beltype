@@ -14,6 +14,7 @@ The measurement stands on its own.
 - A hint carries its shell and row positions relative to the cut, so a page no longer drops a hint because an earlier edit shifted the document. With `prosemirror-fragview` after 0.1.1, a hint that changes under an equal `to` also fills the next page.
 - `collapsedSpaces` no longer binds words: spaces typed one by one at a line's end, then a word, alternate as the same run inserted at once does. They used to stay as two U+00A0 in the saved document.
 - A fill that throws no longer stops the chain. The page shows the node at its start unmeasured and answers past it, its account says `failed`, and `chain.settled(doc)` answers incomplete until the page fills.
+- A fill whose rendering throws, a node's `toDOM`, no longer stops the chain at that page: the safety net rendered again outside any guard, so `chain.settled(doc)` never answered. The page now shows empty and answers past the node, and the chain hears of the failure whatever the safety net does. The harness gains the edit `throw-render`.
 - A page says what its foot cuts off with no later page to show it: `clipped` in its account, in pixels of the flow and of a parallel flow, and one warning per page.
 - A bounded feed that decides nothing takes the node at the page's start whole, with a warning, where it used to take the rest of the document and close the chain.
 - The running copies in the margin boxes are `inert`, not editable and not spellchecked.

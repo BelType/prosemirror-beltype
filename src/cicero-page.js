@@ -207,16 +207,19 @@ export class CiceroPage {
       this.chain?.filled(this, doc, answer);
       return answer;
     } catch (error) {
-      const answer = this.failSafe(doc, from, render, error);
-      this.chain?.failed(this, doc, error);
-      return answer;
+      // In a `finally`, so the chain hears of the failure even where the safety net throws too, and `settled()` still answers.
+      try {
+        return this.failSafe(doc, from, render, error);
+      } finally {
+        this.chain?.failed(this, doc, error);
+      }
     } finally {
       holder.remove();
     }
   }
 
   /**
-   * A fill that threw: the page shows the node at its start whole and unclipped, unmeasured, and answers past it, so one page cannot blank every page after it. The account says `failed`, for a host that must not print the page, and the chain stands incomplete (`Chain.failed`).
+   * A fill that threw: the page shows the node at its start whole and unclipped, unmeasured, or nothing where the node itself cannot be rendered, and answers past it, so one page cannot blank every page after it. The account says `failed`, for a host that must not print the page, and the chain stands incomplete (`Chain.failed`).
    * @param {PMNode} doc
    * @param {number} from
    * @param {SliceRenderer} render
@@ -226,11 +229,18 @@ export class CiceroPage {
   failSafe(doc, from, render, error) {
     console.error(`prosemirror-beltype: page ${this.index + 1}'s fill threw; the node at ${from} is shown unmeasured and the chain goes on.`, error);
     const { to } = wholeAfter(doc, from);
-    const rendered = render(doc, from, to == null ? null : openedAt(doc, to));
     this.to = to;
     this.observer.disconnect();
     this.heights.clear();
+    let rendered = null;
     try {
+      rendered = render(doc, from, to == null ? null : openedAt(doc, to));
+    } catch (thrown) {
+      // The rendering is what threw (a node's `toDOM`): the page is shown empty and still answers past the node.
+      console.error(`prosemirror-beltype: page ${this.index + 1}'s node at ${from} cannot be rendered; the page is shown empty.`, thrown);
+      this.dom.setContent();
+    }
+    if (rendered) try {
       this.show(rendered);
     } catch {
       // Presenting is what threw (a facsimile with no alt): the rendering goes in as it stands.
