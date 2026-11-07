@@ -1,8 +1,8 @@
 /**
- * The harness the specimen's measurement injects into BelType's own page (`scripts/specimen.mjs`): the reading of a page's words, the same for the engine's pages and the view's, and the view mounted beside the root over the same served document.
+ * The harness the specimen's measurement injects into the engine's own page (`scripts/specimen.mjs`): the reading of a page's words, the same for the engine's pages and the view's, and the view mounted beside the root over the same served document.
  *
  * @remarks
- * Loaded as a module from Vite's server into a page BelType's dev server serves, so the sheets, the faces, the geometry and the browser are the CLI's own. The engine's modules this file reaches through `../src/` are a second instance beside the page's: `customElements.define` is guarded on both sides, so `<beltype-page>` is whichever registered first, and nothing here asks `instanceof` of it.
+ * Loaded as a module from Vite's server into the page `scripts/specimen.mjs` serves, a finished document with the engine's head spliced in, as `beltype print` serves one, so the sheets, the faces, the geometry and the browser are the root's own. The engine's modules this file reaches through `../src/` are a second instance beside the page's: `customElements.define` is guarded on both sides, so `<beltype-page>` is whichever registered first, and nothing here asks `instanceof` of it.
  *
  * The document is the served HTML fetched again and parsed, never the root's light DOM, which the intake has reordered (blocks, then fixed boxes, then running elements). Its body's children, less the scripts, the styles and the engine's own scaffolding, are seated in a hidden holder so the studio's structured marks can read their computed style (`boxReason`), parsed with the generic schema, and taken out.
  *
@@ -15,7 +15,7 @@
 
 import { EditorState } from 'prosemirror-state';
 import { FragmentedView, dirtied } from 'prosemirror-fragview';
-import * as g from 'beltype-studio-experiment/src/schema-generic.js';
+import * as g from 'prosemirror-fragview/schema-generic';
 import { ciceroContainers, ledger, ledgerKey, wordsOf, firstDifference } from '../src/index.js';
 import { findSites } from '@beltype/cicero/internal/reads';
 import { sheetReach } from '@beltype/cicero/internal/capture';

@@ -1368,3 +1368,29 @@ The integration review of 2026-11-04 found that the PDF comes from a second pagi
 
 Running it found a fault of this package's own. `clippedBy` computed the foot from the margin and the used height and left out the lead, so it warned on 43 of the showcase's 74 pages, on words that no page had lost. It now reads the flow box's bottom, and the showcase warns on three: page 49, a float crossing the cut (80 px of the flow, 91 of a parallel flow); page 52, a table's foot (11 px); and page 62, a `<pre>` (9 px). Those three were not traced further.
 
+# The measurement leaves the monorepo
+
+2026-11-07. `scripts/specimen.mjs` needed a BelType checkout's dev server for its page, and the old studio's checkout for its schema. BelType's Codeberg command line prints finished HTML and compiles no Markdown, so the fixtures were frozen once as finished HTML, under the sheets and fonts the old command line put beneath them, and the script now serves them itself with the engine's head.
+
+Every fixture was run on the new path against what the old command line cut it to:
+
+| Fixture | Pages, old | Pages, new | The guard, view against root |
+| :--- | ---: | ---: | :--- |
+| chrome | 16 | 16 | every page the same |
+| clipped | 7 | 7 | first difference on page 3, as recorded above |
+| dressing | 11 | 11 | every page the same |
+| end-gap | 6 | 6 | every page the same |
+| facsimile | 5 | 5 | every page the same |
+| flow | 26 | 26 | every page the same |
+| multicol | 6 | 6 | first difference on page 3 |
+| row | 13 | 13 | every page the same |
+| running | 13 | 13 | every page the same |
+| tall | 10 | 10 | every page the same |
+| specimen | 9 | 9 | every page the same |
+
+Multicol's difference is not this round's. On the old path too, its page 3 holds 174 words at the root and 170 in the view, with the same first and last word. It is the sliced two-column list.
+
+Only the page counts were compared with the old path, and multicol's words. The root on the old path was the monorepo's legacy Cicero, and here it is the pinned `@beltype/cicero`, the same copy the view runs. These runs set `FRAGVIEW` to a checkout of fragview's `main`, since the pin stands before `prosemirror-fragview/schema-generic`.
+
+On the new path, `--edits` on `fixtures/chrome` and `--bare` on `fixtures/specimen` hold every page the same. `--overtaken` on `fixtures/flow` reports 42 failures over 25 pairs and exits 1, the same output on the old path with the same fragview checkout, so it is not this round's. The later `found.md` entry for that case was not reopened.
+
