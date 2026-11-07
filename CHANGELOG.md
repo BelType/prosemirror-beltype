@@ -27,6 +27,8 @@ The measurement stands on its own.
 - `scripts/specimen.mjs` exits with an error when the view's pages and the CLI's hold different words on any page (the guard, `compareHosts`), where it used to print the difference and exit 0. Two differences are allowed, each named in the script's `ALLOWED` list with its fixture, its page and its reason: `multicol` page 3 and `clipped` page 3.
 - The harness gains the edits `throw`, `tail`, `past`, `beyond` and `carried`, and the fixture `clipped`, and `scripts/specimen.mjs` gains `--strict`, which exits with an error when an edited chain differs from a fresh fill.
 
+- The `prosemirror-fragview` dev pin moves to `805db68`, its `main` with the hint passed on every fill, `handleFillRejected`, the selected node's class on every piece and every `handleDOMEvents` key. Nothing in this package changed for it: `pnpm test` 67 of 67, and every fixture agrees with the CLI and with a fresh fill under `--strict` with the edits `start;key:2;delete:2;end;paste`.
+
 ## 0.1.1 (2026-11-04)
 
 No code change. The first version published by the workflow: a tag `v0.1.1` publishes by trusted publishing, with provenance.
