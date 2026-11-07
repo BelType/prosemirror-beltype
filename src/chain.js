@@ -410,14 +410,16 @@ export class Chain {
       run: (laid) => this.run(doc, /** @type {any} */ (laid), record, reason),
       blocksOf: () => state.blocks,
       originals: [...o.holder().children],
-      warm: value?.delivered ?? null,
-      warmFacts: value?.facts ?? null,
+      // Warm only for an incremental settle, as the driver goes warm only on a resume (`opts.prior && opts.dirtyAt`): a first fill, a restored state and an invalidation settle cold, so the editor lands where a reopen and the command line land.
+      warm: reason ? null : value?.delivered ?? null,
+      warmFacts: reason ? null : value?.facts ?? null,
       hide: 'beltype-page',
       keep: state.keep
     }).then((result) => {
       record.ms = performance.now() - record.started;
       record.result = { resumed: result.resumed, why: result.why, reads: result.reads, complete: result.complete };
-      if (this.view !== view || view.state.doc !== doc) return null;
+      // A settle that ended incomplete leaves the Ledger as it was: its tables would warm the next settle with numbers no complete layout produced.
+      if (this.view !== view || view.state.doc !== doc || !result.complete) return null;
       const settled = { delivered: result.delivered, facts: result.facts, resumed: result.resumed, why: result.why, reads: result.reads };
       view.dispatch(view.state.tr.setMeta(ledgerKey, { settled }).setMeta('addToHistory', false));
       return result;

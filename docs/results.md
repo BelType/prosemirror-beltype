@@ -1394,3 +1394,10 @@ Only the page counts were compared with the old path, and multicol's words. The 
 
 On the new path, `--edits` on `fixtures/chrome` and `--bare` on `fixtures/specimen` hold every page the same. `--overtaken` on `fixtures/flow` reports 42 failures over 25 pairs and exits 1, the same output on the old path with the same fragview checkout, so it is not this round's. The later `found.md` entry for that case was not reopened.
 
+# The settle starts cold where the driver does
+
+2026-11-07. A first fill, a restored state and `invalidate()` settled warm, from whatever tables the Ledger held, where the engine's driver goes warm only on a resume (`opts.prior && opts.dirtyAt`). So the editor could land on other page numbers than a reopen or the command line. `Chain.settle` now passes the warm tables only when the settle has no `reason`, which is an incremental one; a settle that ended incomplete writes nothing into the Ledger; and `Originals.forget()` blanks the total, which a page publishes as `pages T`. `test/settle.test.js` restores a Ledger whose page number is `"99"` and records every sheet the settle delivers: before the fix the restored page number was delivered before the first layout, and now none is, and the restored chain's tables equal a first fill's.
+
+## Not done
+
+This also makes the harness's `invalidate()` reference cold: a comparison of an edited chain with its fresh fill after `invalidate()` now compares with a settle that started from the reservations, not from the edited chain's tables. No fixture was run on it here.
