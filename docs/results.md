@@ -222,7 +222,7 @@ Each was found by a measurement that failed and was taken out of it by the fix; 
 
 - **The CLI round refuses a table with a `thead` whose row is cut** (BelType, the engine): the row fixture with a header row added, `BelType/Cicero refused to paginate this document — showing it unpaginated instead. entry position runs backward (I1: flow is forward)`, two pages cut. A case for the battery; the case document is the row fixture with `<thead><tr><th>Term</th><th>Gloss</th></tr></thead>` before its `tbody`.
 - **The continuation of a divided `pre` opens with blank lines** (BelType, the engine): the showcase's page 63, above.
-- **The hint reaches a page once** (the view, `fragmented-view.js`' `build`): a container refilled from a new `from` keeps the hint it was built with. A forced break's `forced`, a blank page and now a shell and a row's pieces all ride it. Opening: hand `fill` the hint of the entry before, or build a new container when the hint changed.
+- **The hint reaches a page once** (the view, `fragmented-view.js`' `build`): a container refilled from a new `from` keeps the hint it was built with. A forced break's `forced`, a blank page and now a shell and a row's pieces all ride it. Opening: hand `fill` the hint of the entry before, or build a new container when the hint changed. Closed 2026-11-07: fragview 805db68 hands every fill the hint as its fourth argument, and the page reads it there.
 - **A position names one page, and a row cut draws an earlier item's remainder on the page after the one that owns its positions** (this package and the view): the chain gives `[from, to)` to a page, and an earlier item's remainder is below the last item's place in the document and above it on the page. A caret placed there is drawn where the item was cut, on the page before. Not met by editing yet.
 - **A node's position is inferred from the renderer's spans** (the view, `slice-renderer.js`): the spans are clamped to the slice, so `nodeStart` reads a resumed node's position off its end, or, for a node divided at both ends, off the depth of the slice's first position. Opening: the renderer could record each element's unclamped node position beside its span.
 
@@ -732,7 +732,7 @@ A newer document overtakes a settle: its pending `run` rejects with `Overtaken`,
 
 ### Found on the way: a refilled page kept the hint it was built with
 
-Measured on the chrome fixture before the fix, `Folios` retitled `Folios, retitled`: the heading wraps, the chain refills from page 1 to a 17th page, and page 4, which now opens chapter II at a forced break, was refilled with `forced: false` and a lead of 27.72 px truncated, since the view hands a container its hint only when it builds it; every page from 4 on differed from a fresh fill (77 words against 83 on page 4). The page now takes, at every fill, the hint the page before it left last (`Chain.hintFor`, by index); the view's door is filed.
+Measured on the chrome fixture before the fix, `Folios` retitled `Folios, retitled`: the heading wraps, the chain refills from page 1 to a 17th page, and page 4, which now opens chapter II at a forced break, was refilled with `forced: false` and a lead of 27.72 px truncated, since the view hands a container its hint only when it builds it; every page from 4 on differed from a fresh fill (77 words against 83 on page 4). The page now takes, at every fill, the hint the page before it left last (`Chain.hintFor`, by index); the view's door is filed. Since 2026-11-07 the view hands it to every fill (fragview 805db68) and `Chain.hintFor` is gone: the same edit gives 17 of 17 pages equal to the fresh fill, and 5 of 17 with the page ignoring the hint it is handed.
 
 ### The chrome on an edit
 
@@ -1311,7 +1311,7 @@ A chain of ten edits (`start;key:2;key:3;key:4;end;delete:2;key:2;end;paste;key:
 
 ## Not done
 
-A page still answers one range of positions, so a key in a page's painted shell dirties by `reach` and not by what it shows (the review's finding on shells and row cuts). The pin stays at a4ac0a5 until fragview is pushed.
+A page still answers one range of positions, so a key in a page's painted shell dirties by `reach` and not by what it shows (the review's finding on shells and row cuts). The hint itself reached a refilled page only through `Chain.hintFor` until fragview 805db68 handed it to every fill (2026-11-07); that side channel is gone.
 
 # The silent faults
 
@@ -1332,7 +1332,7 @@ The rejected fill left its entry dirty and the chain stopped there. `CiceroPage.
 | Before | no, after 119 723 ms | pages 2, 3, 3 |
 | After | yes, 11 ms | pages 2, 3, 4, 5, 6, 7 |
 
-The fragmented view itself still stops at a fill that rejects: this package's page no longer rejects. The facsimile intake still reads the whole host document, so one PDF with no alt fails every page, each now showing one node. Whether the editor warns there and refuses only at print is Egildo's ruling, and so are timeouts on the image and font waits.
+The fragmented view itself still stops at a fill that rejects: this package's page no longer rejects. Since 2026-11-07 (fragview 805db68) the view asks `handleFillRejected`, and this package's, exported, answers a page whose safety net threw too past the node at its start (`test/settle.test.js`). The facsimile intake still reads the whole host document, so one PDF with no alt fails every page, each now showing one node. Whether the editor warns there and refuses only at print is Egildo's ruling, and so are timeouts on the image and font waits.
 
 ## What the foot cuts off
 

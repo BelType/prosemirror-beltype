@@ -7,7 +7,7 @@
 import { EditorState } from 'prosemirror-state';
 import { Schema } from 'prosemirror-model';
 import { FragmentedView } from 'prosemirror-fragview';
-import { ciceroContainers, ledger, ledgerKey } from '../src/index.js';
+import { ciceroContainers, ledger, ledgerKey, handleFillRejected } from '../src/index.js';
 
 const TEXT = 'Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ';
 const schema = new Schema({
@@ -30,10 +30,10 @@ const sheets = [];
 const replaceSync = CSSStyleSheet.prototype.replaceSync;
 CSSStyleSheet.prototype.replaceSync = function (text) { sheets.push(text); return replaceSync.call(this, text); };
 
-/** @param {EditorState} state */
-function mount(state) {
+/** @param {EditorState} state @param {Record<string, any>} [props] */
+function mount(state, props = {}) {
   const containers = /** @type {any} */ (ciceroContainers(document));
-  const view = new FragmentedView(/** @type {HTMLElement} */ (document.getElementById('mount')), { state, containers, words: { attribute: 'data-beltype' } });
+  const view = new FragmentedView(/** @type {HTMLElement} */ (document.getElementById('mount')), { state, containers, words: { attribute: 'data-beltype' }, ...props });
   return { view, chain: containers.chain };
 }
 
@@ -67,7 +67,7 @@ export async function run() {
   // A page whose rendering throws, as a node's `toDOM` that throws would: the safety net must still answer, the chain stand incomplete and the pages after it be reached.
   const page = m.view.fragments[1];
   const fill = page.container.fill.bind(page.container);
-  page.container.fill = (/** @type {any} */ d, /** @type {number} */ from) => fill(d, from, () => { throw new Error('toDOM threw'); });
+  page.container.fill = (/** @type {any} */ d, /** @type {number} */ from, /** @type {any} */ _render, /** @type {any} */ hint) => fill(d, from, () => { throw new Error('toDOM threw'); }, hint);
   let at = 0;
   m.view.state.doc.descendants((/** @type {any} */ n, /** @type {number} */ pos) => { if (!at && n.isTextblock && pos >= page.from) at = pos + 1; return !at; });
   const errors = console.error;
@@ -76,5 +76,27 @@ export async function run() {
   out.thrown = { answer: await settled(m), last: m.view.entries.at(-1).to, ledgerKept: delivered(m.view.state) === out.restored.delivered };
   console.error = errors;
   m.view.destroy();
+
+  // A page whose fill rejects, its safety net throwing too: unanswered, the chain stops at the page; answered by the page (`handleFillRejected`), it goes on past it.
+  for (const name of ['rejectedBare', 'rejected']) {
+    m = mount(EditorState.create({ doc, plugins: [plugin] }), name === 'rejected' ? { handleFillRejected } : {});
+    await settled(m);
+    const p = m.view.fragments[1];
+    p.container.cutAndDraw = async () => { throw new Error('the engine fell over'); };
+    p.container.failSafe = () => { throw new Error('the safety net fell over'); };
+    let at = 0;
+    m.view.state.doc.descendants((/** @type {any} */ n, /** @type {number} */ pos) => { if (!at && n.isTextblock && pos >= p.from) at = pos + 1; return !at; });
+    const raised = [];
+    const onError = (/** @type {ErrorEvent} */ e) => { raised.push(e.message); e.preventDefault(); };
+    window.addEventListener('error', onError);
+    console.error = () => {};
+    m.view.dispatch(m.view.state.tr.insertText('x', at));
+    const answer = await settled(m);
+    await new Promise((r) => setTimeout(r, 300));
+    console.error = errors;
+    window.removeEventListener('error', onError);
+    out[name] = { answer, raised, dirty: m.view.entries.filter((/** @type {any} */ e) => e.dirty).length, kind: p.container.account?.kind, last: m.view.entries.at(-1).to };
+    m.view.destroy();
+  }
   return out;
 }

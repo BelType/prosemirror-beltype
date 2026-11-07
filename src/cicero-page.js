@@ -15,7 +15,7 @@
  *
  * The page never throws (*the build cannot fail*, C2), and a fill that throws all the same shows the node at its start unmeasured and answers past it (`failSafe`). A verdict that maps to no position (a cut inside a leaf, which a schema's atom has none of) or to the page's own start with nothing entered or shrunk (`advances`) is an uncuttable run at the page's start: the node there is taken whole (`wholeAfter`), rendered as it is, its overflow clipped by the page as the engine's own page clips it, and the console says so once, with the page and the node's type.
  *
- * Where this departs from the driver's loop, each is a finding recorded in docs/results.md: the Cast-off's word estimate is the view's span; a parallel flow carried across a cut (a float, an absolutely positioned box) has no place in a position; a nested row cut inside a row item is taken whole; and the root's parity demand on the first page is not read. The page settles no reads of its own: the engine's reads loop runs around the whole chain (`Chain`, `chain.js`), which delivers `target-counter()` and `target-text()`, checks the flow sites that read a page fact against the chain's own facts, and redraws or dirties a page an edit left unfilled; the page tells it when a fill begins and ends, and takes at every fill the hint the page before it left last, since the view hands a container its hint only when it builds it.
+ * Where this departs from the driver's loop, each is a finding recorded in docs/results.md: the Cast-off's word estimate is the view's span; a parallel flow carried across a cut (a float, an absolutely positioned box) has no place in a position; a nested row cut inside a row item is taken whole; and the root's parity demand on the first page is not read. The page settles no reads of its own: the engine's reads loop runs around the whole chain (`Chain`, `chain.js`), which delivers `target-counter()` and `target-text()`, checks the flow sites that read a page fact against the chain's own facts, and redraws or dirties a page an edit left unfilled; the page tells it when a fill begins and ends, and takes at every fill the hint the view hands it, the one the page before it left last.
  *
  * The page resets the text mechanics the fragmented view's editing host sets (`white-space: break-spaces`, `overflow-wrap`, the ligatures and, from the editing host's own UA style, `line-break`) to what the document's body computes, because the trial in the measure context inherits from the body and the page's content inherits from the host. Measured 2026-10-24 with the reset left out: the cuts were the same, since the trial decides them, but the specimen's third page set its text on more lines than the trial had and its clip hid 21 of its 113 words, and the flow fixture differed from its first page.
  *
@@ -201,14 +201,15 @@ export class CiceroPage {
    * @param {PMNode} doc
    * @param {number} from
    * @param {SliceRenderer} render
+   * @param {(ContainerHint & { forced?: boolean }) | undefined} [hint] The hint the page before left at its last fill, which the view hands every fill; `undefined` keeps the page's own.
    * @returns {Promise<FillResult>}
    */
-  async fill(doc, from, render) {
+  async fill(doc, from, render, hint) {
     this.chain?.began(this);
     // The fill's own law holder, taken out of the document when the fill ends, normally or not; every trial of the fill writes it, one after another.
     const holder = lawHolder(this.doc, `__prosemirror-beltype-law-${++fills}`);
     try {
-      const answer = await this.cutAndDraw(doc, from, render, holder);
+      const answer = await this.cutAndDraw(doc, from, render, holder, hint);
       this.chain?.filled(this, doc, answer);
       return answer;
     } catch (error) {
@@ -252,6 +253,37 @@ export class CiceroPage {
       this.dom.setContent(...lawHolder(this.doc, '__prosemirror-beltype-staging').childNodes);
     }
     this.dom.setFlow({});
+    return this.failedAt(from, to, error);
+  }
+
+  /**
+   * A fill that rejected, its safety net included (`failSafe` threw): the page is shown empty and answers past the node at `from`, as `failSafe` answers, so the chain goes on. The chain already holds the failure, from `fill`'s `finally`. The view asks it through `handleFillRejected`.
+   * @param {PMNode} doc
+   * @param {number} from
+   * @param {any} error
+   * @returns {FillResult}
+   */
+  rejected(doc, from, error) {
+    console.error(`prosemirror-beltype: page ${this.index + 1}'s fill and its safety net threw; the page is shown empty and the chain goes on.`, error);
+    const { to } = wholeAfter(doc, from);
+    this.to = to;
+    try {
+      this.dom.setContent();
+      this.dom.setFlow({});
+    } catch {
+      // The page's own DOM is what threw: it stands as it is, and the answer still goes on.
+    }
+    return this.failedAt(from, to, error);
+  }
+
+  /**
+   * The answer and the account of a page that failed: past the node at `from`, with `kind` set to `failed`.
+   * @param {number} from
+   * @param {number | null} to
+   * @param {any} error
+   * @returns {FillResult}
+   */
+  failedAt(from, to, error) {
     const next = to == null ? undefined : { name: '' };
     this.account = { from, to, name: this.conditions.name, forced: false, cls: null, kind: 'failed', error: String(error?.message ?? error), next };
     return next ? { to, next } : { to };
@@ -263,11 +295,11 @@ export class CiceroPage {
    * @param {number} from
    * @param {SliceRenderer} render
    * @param {Element} holder The fill's law holder.
+   * @param {(ContainerHint & { forced?: boolean }) | undefined} [hint] The hint `fill` was handed.
    * @returns {Promise<FillResult>}
    */
-  async cutAndDraw(doc, from, render, holder) {
-    // The hint the page before left at its last fill, which the view hands a page only when it builds it: a page refilled in a ripple is otherwise cut under the hint of the layout before the edit (docs/found.md, "A refilled page keeps the hint it was built with").
-    const hint = this.chain?.hintFor(this);
+  async cutAndDraw(doc, from, render, holder, hint) {
+    // The hint the page before left at its last fill, handed to every fill: a page refilled in a ripple is otherwise cut under the hint it was built with (docs/found.md, "A refilled page keeps the hint it was built with").
     if (hint !== undefined && JSON.stringify(hint) !== JSON.stringify(this.hint)) {
       this.hint = hint;
       this.blank = !!hint.blank;
@@ -1049,4 +1081,16 @@ function textBefore(el, child) {
   let text = '';
   for (let n = walk.nextNode(); n && n !== child; n = walk.nextNode()) if (n.nodeType === 3) text += /** @type {Text} */ (n).data;
   return text;
+}
+
+/**
+ * The view's `handleFillRejected` prop for a chain of Cicero pages: a page whose fill rejected answers past the node at `from` (`CiceroPage.rejected`), so the pages after it are still cut; any other container is left unanswered, and the view raises its error.
+ * @param {{ state: { doc: PMNode } }} view
+ * @param {unknown} error
+ * @param {unknown} container
+ * @param {number} from
+ * @returns {FillResult | undefined}
+ */
+export function handleFillRejected(view, error, container, from) {
+  return container instanceof CiceroPage ? container.rejected(view.state.doc, from, error) : undefined;
 }
