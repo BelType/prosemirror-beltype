@@ -1,0 +1,3 @@
+/* The repage fixture's first geometry: the flow fixture's small page, the same on both sides. `b.css` is the second, which the harness edit `repage:b.css` links while the view is mounted, and which `fixtures/repage-b` links from the start, so the CLI measures it. */
+@page { size: 110mm 150mm; margin: 14mm 12mm; }
+p { orphans: 2; widows: 2; }

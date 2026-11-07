@@ -17,7 +17,7 @@
 
 import { mutateToContinuation, mutateToFirstFragment, pinTrack } from '@beltype/cicero/fragmentation';
 import { noteSource } from '@beltype/cicero/fragmentation';
-import { ADJOIN, AWAY, END, SHELL, SPLIT, START, hasWord, removeWord } from '@beltype/cicero/fragmentation';
+import { ADJOIN, AWAY, END, SHELL, SPLIT, START, addWord, hasWord, removeWord } from '@beltype/cicero/fragmentation';
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
 /** @import { RenderedSlice, Span } from 'prosemirror-fragview/src/fragmentainer.js' */
@@ -176,6 +176,59 @@ export function endAsShell(root, positions, doc, shell, law = null) {
   const source = law ?? el;
   mutateToFirstFragment(el, { cut: { path: [0], word: null, px: { remaining: shell.remaining, paint: shell.paint } }, source, cloneOf: new Map([[source, el]]) });
   return el;
+}
+
+/**
+ * The engine's first-fragment work on the boxes a slice cuts off at `at`, the ancestors of that position, each one its own root for `mutateToFirstFragment` with the law copy's element as its source: a box that clones its decoration keeps its block-end border and padding (`wrapped`), and on a page (`extPx` given) the innermost takes §5.3's extension as block-end padding and keeps its last line justified, as the root's constructed first fragment does.
+ *
+ * @remarks
+ * The slice already ends at the cut, so no cut is passed and nothing is truncated. The engine applies the extension and the justified line to the innermost divided box alone; its ancestors are `truncateFrom`'s chain, which only marks them, so the `text-align-last` the door writes on a justified ancestor is put back, and on a trial (`extPx` null, the driver's feed cut at its bound) on every box.
+ * @param {Element | DocumentFragment} root
+ * @param {{ get(node: Node): Span | undefined }} positions
+ * @param {PMNode} doc
+ * @param {number} at
+ * @param {(pos: number, el: Element) => Element | null} lawOf The law copy's element for the node at `pos`.
+ * @param {number | null} extPx
+ */
+export function endFirstFragment(root, positions, doc, at, lawOf, extPx) {
+  const $at = doc.resolve(at);
+  for (let d = 1; d <= $at.depth; d++) {
+    const el = nodeDom(root, positions, doc, $at.before(d));
+    if (!el || !hasWord(el, SPLIT) || hasWord(el, END) || hasWord(el, SHELL)) continue;
+    const law = lawOf($at.before(d), el);
+    if (law) noteSource(el, law);
+    const source = law ?? el;
+    const inner = extPx != null && d === $at.depth;
+    const kept = /** @type {HTMLElement} */ (el).style.textAlignLast;
+    mutateToFirstFragment(el, { extPx: inner ? extPx : 0, source, cloneOf: new Map([[source, el]]) });
+    if (!inner) /** @type {HTMLElement} */ (el).style.textAlignLast = kept;
+  }
+}
+
+/** The engine's word for a divided box that wraps each of its fragments whole, which its fragmentation face does not export. */
+const WRAPPED = 'wrapped';
+
+/**
+ * The engine's continuation dressing on the boxes a slice resumes at `at`, the ancestors of that position: a box that clones its decoration (css-break-3 §5.4) is `wrapped`, so the words sheet leaves it its block-start border and padding, as the engine's `truncateLeadingDecoration` leaves them on the root's continuation and on the driver's feed.
+ *
+ * @remarks
+ * `mutateToContinuation` would do it, but only by consuming a cut, and the slice already begins at its cut.
+ * ponytail: the word and the reading of `box-decoration-break` are spelled here, since Cicero 0.1.6 and 0.1.7 export neither `truncateLeadingDecoration` nor `WRAPPED`; this goes when the fragmentation face has the door.
+ * @param {Element | DocumentFragment} root
+ * @param {{ get(node: Node): Span | undefined }} positions
+ * @param {PMNode} doc
+ * @param {number} at
+ * @param {(pos: number, el: Element) => Element | null} lawOf The law copy's element for the node at `pos`.
+ */
+export function wrapResumed(root, positions, doc, at, lawOf) {
+  const $at = doc.resolve(at);
+  for (let d = 1; d <= $at.depth; d++) {
+    const el = nodeDom(root, positions, doc, $at.before(d));
+    if (!el || !hasWord(el, SPLIT) || hasWord(el, START) || hasWord(el, SHELL)) continue;
+    const law = lawOf($at.before(d), el);
+    const style = law?.isConnected ? getComputedStyle(law) : null;
+    if (style && (style.boxDecorationBreak || /** @type {any} */ (style).webkitBoxDecorationBreak) === 'clone') addWord(el, WRAPPED);
+  }
 }
 
 /**

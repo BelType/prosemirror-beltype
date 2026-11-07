@@ -1362,7 +1362,7 @@ The cut is not lowered and a float is not carried. Two paginated editors in one 
 
 # The guard: the words of two hosts' pages
 
-The integration review of 2026-11-04 found that the PDF comes from a second pagination nobody compares with the editor's pages. `wordsOf`, the reader the harness already used on both sides, moved into the package as `src/compare.js`, beside `firstDifference`, which names the first page where two hosts' words part. A host calls them before it writes a PDF, and what it does with a difference is its own. No host calls them yet: the studio takes this package from npm.
+The integration review of 2026-11-04 found that the PDF comes from a second pagination nobody compares with the editor's pages. `wordsOf`, the reader the harness already used on both sides, moved into the package as `src/compare.js`, beside `firstDifference`, which names the first page where two hosts' words part. A host calls them before it writes a PDF, and what it does with a difference is its own. No host calls them yet: the studio takes this package from npm. Since 2026-11-07 the harness fails on them: a default run of `scripts/specimen.mjs` exits 1 when the guard names a page, except the two recorded allowances in its `ALLOWED` list, `multicol` page 3 (the CLI's first glossary slice measures 9.59 px short, 174 words to the view's 170) and `clipped` page 3 (the fixture's rule scoped to the view's host). Before it, both read their difference and exited 0, and the per-page table called multicol's page 3 the same, since it reads only the first and last word. With the `multicol` entry taken out, the run exits 1. The specimen and the other eight fixtures exit 0.
 
 `scripts/specimen.mjs` now prints the guard's line. On the showcase it reads 74 pages against 76, first difference on page 50, which is the per-page table's answer. On `fixtures/clipped` it reads 7 against 7, first difference on page 3.
 
@@ -1405,3 +1405,91 @@ This also makes the harness's `invalidate()` reference cold: a comparison of an 
 # The safety net renders under its own guard
 
 2026-11-07. Where a node's `toDOM` throws, the page's safety net threw too: `failSafe` rendered the node again outside any guard, inside the fill's `catch`, so `Chain.failed` was skipped, the chain's `inflight` stayed up and `settled()` never answered. The harness's `throw` stubs `cutAndDraw`, so the render never threw there. `failSafe` now renders in a `try`, shows the page empty where the rendering throws and answers past the node, and the fill calls `Chain.failed` in a `finally`. `test/settle.test.js` makes page 2's rendering throw: before the fix `settled()` gave no answer in five seconds, and now it answers `{ complete: false, why: "page 2's fill threw: toDOM threw" }`, the last entry runs to the end and the Ledger keeps its tables. The harness's new edit `throw-render:2` on `fixtures/specimen` settles incomplete with that reason over 11 pages, two of them empty, against the fresh fill's 9; a `key:1` after it agrees with the fresh fill on 9 of 9.
+
+# The first fragment at an ordinary cut
+
+Written 2026-11-07, on the branch `fix/fidelity-and-zoom`. The page called the engine's `mutateToFirstFragment` only for a shell (`endAsShell`). At an ordinary cut it gave the extension to `setFlow` alone, so three things differed from print: the last line before the cut was set ragged, a box with `box-decoration-break: clone` lost its block-end border and padding, and no background reached the foot.
+
+`endFirstFragment` (`src/shells.js`) now hands each box the cut divides, the ancestors of `to`, to `mutateToFirstFragment` as its own root, with the law copy's element as its source. Nothing is truncated, since the slice already ends at the cut. The innermost box takes the extension and the justified line, as in the engine. The ancestors only take `split` and `wrapped`, so the `text-align-last` the door writes on a justified ancestor is put back. The trial does the same at its bound with no extension, on the trial and the law copy, because the Stonehand charges a cut through a cloned box what the law copy's style says.
+
+A box the page resumes needed the other half. The engine's `truncateLeadingDecoration` writes `wrapped` on a cloned box, and neither Cicero 0.1.6 nor 0.1.7 exports it or the word. `wrapResumed` spells the word and reads `box-decoration-break` here, and goes when the fragmentation face has the door.
+
+`fixtures/justified`: justified paragraphs on the flow fixture's small page, and a `div.boxed` with a 3 px border, 8 px padding, a background and `box-decoration-break: clone` across three pages. The harness now prints each cut-off piece's `text-align-last`, block-end border and padding where its box is justified or clones its decoration, and exits 1 when the two sides' cut-off edges differ. A resumed piece is left out of that check, since the root and the schema can name its outermost divided box differently with the same edge: the trattato in `@beltype/specimens` reads `main.testo` under the CLI and `section.parte` under the view on six pages.
+
+| | Before | After |
+| :-- | :-- | :-- |
+| Pages | 10 against 10, first difference page 4 | 10 against 10, none |
+| `text-align-last` on the cut-off `p` | `auto` on every page, the CLI's `justify` | `justify`, as the CLI |
+| `div.boxed` cut off, pages 4 to 6 | border 0, padding 0 | border 3 px, padding 8 px, as the CLI |
+| The extension on the cut-off `p` | 0 on every page | 11, 35, 23, 13, 23, 13, 35 and 20 px on pages 2 to 9, as the CLI |
+| The view's console | pages 4 to 6 cut off 11 px no page shows | nothing |
+
+With the first fragment alone and no `wrapResumed`, pages 1 to 5 agreed and page 6 differed: page 5, which resumes and cuts the box, cut off 22 px, its block-start border and padding missing from the trial.
+
+Every fixture under `fixtures/` and the specimen were run again with `--strict`. The guard's two allowances stand, and every other fixture is the same on every page and every divided edge. The edits `tail:2;past:4;key:3;delete:2;paste` on `justified`, `dressing` and `flow` each agree with a fresh fill on every page. `pnpm test` gives 63 of 63.
+
+# A zoom built on a transform
+
+Written 2026-11-07, on the branch `fix/fidelity-and-zoom`. A host that zooms the pages with a CSS transform on an ancestor made them refill once a frame. After a fill, the page recorded each node's height with `getBoundingClientRect`, which reads after the transform, and its observer compared that with `borderBoxSize`, which reads before it. At any scale but 1, every node differed by more than the quarter pixel at once, so the page dispatched `moved`, the view refilled it, and the next fill recorded the same wrong height. The page now records no height at the fill: the observer's first report, which `observe()` makes at once, is the baseline, in the observer's own units, so a transform cannot come between the two readings. `clippedBy` and the observer's fallback where `borderBoxSize` is missing divide by the page's scale through one `scale()`, read against the page's computed height. Dividing the recorded height by the scale was tried first and is wrong: the scale read against `offsetHeight`, which is rounded to a whole pixel, gave 0.9992 on the repage fixture's 170 mm page with no transform, and the fixture refilled its pages 5 to 7 for 72 fills where `main` fills 8 times. With the computed height it still filled 12 times, pages 1 to 4 recording a height of 0 at the fill. With the baseline it fills 8 times.
+
+`test/zoom.test.js` mounts eight paragraphs, every other one padded, inside a box scaled by `transform`, settles the chain and counts every `moved` over the next 30 frames, then once more after a keystroke.
+
+| | `scale(0.5)` idle, after a key | `scale(1.5)` idle, after a key |
+| :-- | :-- | :-- |
+| Before | 120, 120 | 120, 120 |
+| After | 0, 0 | 0, 0 |
+
+## The margin bands, which are Cicero's
+
+The page's margin bands keep a wrong width until reload, and that half is Cicero's. `layoutBands` in `chase.ts` reads each margin box's `max-content` and `min-content` widths with `getBoundingClientRect`, after the transform, and caches them in the module's `INTRINSICS` with no scale in the key. The first page that measures a set of margin boxes decides the widths for every later page in the load, at any scale. Measured on a page 400 by 300 px with three long margin boxes in the top band (`@top-left`, `@top-center` and `@top-right`), each order of scales in a fresh browser page:
+
+| First scale measured | Top band's columns at that scale | Then at scale 1 |
+| :-- | :-- | :-- |
+| 1 | 156.19, 47.62 and 156.19 px | the same |
+| 0.5 | 164.66, 30.69 and 164.66 px | the same, wrong |
+| 1.5 | 147.72, 64.55 and 147.72 px | the same, wrong |
+
+With short boxes that fit the band, the widths are the same at every scale, since a uniform scale does not change their ratio. The fix is Cicero's: divide the read widths by the page's scale, or put the scale in the cache's key.
+
+# The device pixel ratio
+
+Written 2026-11-07, on the branch `fix/fidelity-and-zoom`. The factory passes the engine's render-condition check at any device pixel ratio (`relaxDpr`, as the CLI's preview does), so a page is cut under the ratio of the moment. Nothing cut the chain again when the ratio changed, and nothing told the author that print runs at 1.
+
+## The drift, measured
+
+`scripts/specimen.mjs --dpr n` lays both sides out at a ratio of n. The run's heading names the ratio the page reports (`window.devicePixelRatio`), so the emulation is seen to apply. Each target was run at 1, 1.25, 1.5 and 2, and each ratio's run was compared with the run at 1 on each page's first word, last word and word count on both sides, and on every fill's record (`from`, `to`, the verdict's class and `y`, the lead, the used extent and the extension, to the hundredth of a pixel):
+
+| Target | Pages | View against CLI at each ratio | Against the run at 1 |
+| :-- | ---: | :-- | :-- |
+| the 12 fixtures (`specimen`, `chrome`, `clipped`, `dressing`, `end-gap`, `facsimile`, `flow`, `multicol`, `row`, `running`, `tall`, `justified`) | 5 to 26 | the same as at 1 | no page and no fill differs |
+| `@beltype/specimens`' `trattato` | 187 | every page the same | no page and no fill differs |
+| `paper`, `delibera` | 3 each | every page the same | no page and no fill differs |
+
+Headless Chromium lays these documents out independently of the ratio, so on this corpus the screen's cuts are print's. The ratio still reaches the engine's conditions (`dpr` in the driver's), and a face's hinting or an image's intrinsic size at another ratio can differ, so the page still says so. The run at 1 of the `trattato` exits 1 on a resumed piece's name, which the harness no longer compares (the first fragment's section above).
+
+## The recut and the signal
+
+The chain watches the ratio while a view is attached (`Chain.watchResolution`): a `resolution` media query at the current ratio, asked again at each new one, calls the view's `invalidate()` once the ratio has held for 250 ms, since a browser zoom steps through several. A page cut at a ratio other than 1 has `dpr` in its account, and the console says it once per document and ratio.
+
+`test/zoom.test.js` mounts the view at 1, where no account has `dpr`, then sets the ratio to 1.5 and at once to 2, narrowing the viewport with each as a browser zoom does: one `invalidate()`, every page's account `dpr: 2`, and one warning. Before the watch the same test read no `invalidate()`. Measured 2026-11-07: Chromium's device-metrics emulation fires no `resolution` change when the ratio changes and the viewport's size does not.
+
+# A new page geometry
+
+Written 2026-11-07, on the branch `fix/fidelity-and-zoom`. The factory reads the geometry table once, when it is made (`src/containers.js`), and its chain keeps each page name's sidedness (`Chain.sidedness`), so `view.invalidate()` on the same factory refills every page under the old `@page`. By reading, a new factory through fragview's `setProps` was the route: the view invalidates on a new `containers`, and the Ledger's plugin view moves to the new chain (`src/ledger.js`). It had not been run.
+
+`fixtures/repage` sets a 110 by 150 mm page with 14 and 12 mm margins. Its `b.css` sets 125 by 170 mm, 16 and 10 mm margins, and a 22 mm outer margin on each side (`:left`, `:right`), so the sidedness is read again. The harness edit `repage:b.css` links that sheet into the mounted document, gives the view `ciceroContainers(document)` through `setProps` and waits for quiet. It then reads the pages against a second view mounted fresh over the same state, and against the view's own fresh fill (`invalidate()` on the new factory). `fixtures/repage-b` links both sheets from the start, so the CLI measures the second geometry.
+
+| Page | After `setProps` | Fresh mount | CLI (`repage-b`) |
+| ---: | :-- | :-- | :-- |
+| 1 | `The` to `colophon`, 80 words, 472 × 642 | = | = |
+| 2 | `tympan` to `colophon.`, 120 | = | = |
+| 3 | `Dingbat` to `dingbat`, 108 | = | = |
+| 4 | `baseline` to `quire`, 122 | = | = |
+| 5 | `imposition` to `fragment.`, 97 | = | = |
+| 6 | `Part` to `imposition`, 112 | = | = |
+| 7 | `raised` to `furniture`, 117 | = | = |
+| 8 | `verso` to `fragment.`, 33 | = | = |
+
+The repaged chain settled in 8 fills, one per page. Its fresh fill agrees on 8 of 8 pages and on every page's state, and so does a keystroke after it. `repage-b` agrees with the CLI on every page and every fill's interval. So `setProps` with a new factory is the supported path, and the README and docs/plan.md say so.
+
+Running it found a fault of this round's own. Dividing the recorded height by the page's scale, the zoom's first fix, read the scale against `offsetHeight`, rounded to a whole pixel: 0.9992 on this 170 mm page with no transform, and the fixture filled 80 times where `main` fills 8. The baseline is now the observer's first report (the zoom's section above). Taking the read of each node's height out of the fill also took away the layout it forced. On a page that `content-visibility` skips, the flow's rect then read as zeros, and every page of the faces test said it cut off 280 to 1 326 px. `clippedBy` now reads each node's own rect before the flow's.

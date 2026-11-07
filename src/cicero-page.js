@@ -44,13 +44,16 @@ import { copyOf, isFixedBox, noteSource } from '@beltype/cicero/fragmentation';
 import { presentation } from '@beltype/cicero/fragmentation';
 import '@beltype/cicero/page';
 import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition, wholeAfter, advances, inFlowStart, carriedHint, startFrom, endsNowhere } from './turn.js';
-import { Positions, nodeDom, nodeStart, continueAsShell, endAsShell, seatPieces, shellsOf, endsOf, pinTracks } from './shells.js';
+import { Positions, nodeDom, nodeStart, continueAsShell, endAsShell, endFirstFragment, wrapResumed, seatPieces, shellsOf, endsOf, pinTracks } from './shells.js';
 import { stateOfPage, runningPlaced, sameElements } from './originals.js';
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
 /** @import { FillResult, RenderedSlice, SliceRenderer, ContainerHint } from 'prosemirror-fragview/src/fragmentainer.js' */
 /** @import { Shell, Piece } from './shells.js' */
 /** @import { Originals, OriginalsState } from './originals.js' */
+
+/** The device pixel ratios already said on each document's console. @type {WeakMap<Document, Set<number>>} */
+const WARNED_RATIOS = new WeakMap();
 
 /** The comparison tolerance the driver and the Stonehand share, far below a line. */
 const EPS = 0.25;
@@ -140,8 +143,8 @@ export class CiceroPage {
      * The border-box heights of the nodes the last fill gave the page, against which `moved` is judged; cleared at every fill, so it holds only what the page shows.
      *
      * @remarks
-     * The border box, recorded off `getBoundingClientRect()` and read off the observer's `borderBoxSize`, since padding and borders are what the cut was decided against. The observer's `contentRect` is a content box: measured 2026-10-25, the quiet press's `section.titlepage`, with a 151.18 px `padding-top`, recorded 522.81 against a content box of 371.64 on every observation, so every fill ended in `moved` and the view refilled the title page once a frame (docs/results.md, "Late truth, like with like"). The two readings agree while no transform scales the page and the node's writing mode is horizontal.
-     * @type {Map<Element, number>}
+     * The border box, read off the observer's `borderBoxSize`, since padding and borders are what the cut was decided against: null from the fill until the observer's first report, which `observe()` makes at once and which is then the baseline. The observer's `contentRect` is a content box: measured 2026-10-25, the quiet press's `section.titlepage`, with a 151.18 px `padding-top`, recorded 522.81 against a content box of 371.64 on every observation, so every fill ended in `moved` and the view refilled the title page once a frame (docs/results.md, "Late truth, like with like"). It was recorded off `getBoundingClientRect()` until 2026-11-07, which reads after a zoom's transform, so a scaled page refilled once a frame too (docs/results.md, "A zoom built on a transform").
+     * @type {Map<Element, number | null>}
      */
     this.heights = new Map();
     /** The last fill's own account, for a reader that compares it with the engine's. @type {Record<string, any> | null} */
@@ -161,11 +164,13 @@ export class CiceroPage {
     originals?.pages.add(this);
     this.observer = new ResizeObserver((entries) => {
       if (!this.rendered) return;
-      // Only a node the page still shows, judged by its border box; the observation `observe()` makes at once reads the recorded height and is dropped by `EPS`.
+      // Only a node the page still shows, judged by its border box against the first one the observer reported after the fill (`observe()` reports at once), in the observer's own units, which no transform scales: a height read off the page would be after a zoom's transform, and a whole page refilled at every frame.
       const changed = (/** @type {ResizeObserverEntry} */ e) => {
+        if (!this.heights.has(e.target) || !e.target.isConnected) return false;
+        const now = e.borderBoxSize?.[0]?.blockSize ?? e.target.getBoundingClientRect().height / this.scale();
         const recorded = this.heights.get(e.target);
-        if (recorded == null || !e.target.isConnected) return false;
-        return Math.abs((e.borderBoxSize?.[0]?.blockSize ?? e.target.getBoundingClientRect().height) - recorded) > EPS;
+        if (recorded == null) { this.heights.set(e.target, now); return false; }
+        return Math.abs(now - recorded) > EPS;
       };
       if (entries.some(changed)) {
         requestAnimationFrame(() => { if (this.rendered) this.moved.dispatchEvent(new Event('moved')); });
@@ -493,19 +498,19 @@ export class CiceroPage {
     const parallel = to == null ? 0 : this.parallelBelow(report, t, pageStart + flowPx, to);
     ctx.dispose();
 
-    this.show(this.page(doc, from, render, t, start, cut ?? { to }, tracks), forced);
+    this.show(this.page(doc, from, render, t, start, cut ?? { to }, tracks, extPx), forced);
     t.lawRoot.replaceChildren();
     this.dom.setFlow({ leadPx: pageStart, usedPx, extPx, costPx: extPx > 0 ? cost : 0 });
     this.to = to;
     if (to != null) this.span = to - from;
     for (const node of /** @type {Element[]} */ (this.given())) {
-      this.heights.set(node, node.getBoundingClientRect().height);
+      this.heights.set(node, null);
       this.observer.observe(node);
     }
     const clipped = whole || cut?.shell || cut?.pieces?.length || start.shell || start.pieces?.length ? null : this.clippedBy(parallel);
     const byEvent = event && to === eventTo;
     const next = to == null ? undefined : { ...hintAfter({ index: this.index, name: nextName, forced: !!byEvent, parity: byEvent ? event.parity : null }), ...carriedHint(to, cut?.next) };
-    this.account = { from, to, name: this.conditions.name, forced, cls: verdict?.cls ?? (byEvent ? 'A' : null), kind: whole ? 'whole' : verdict?.kind ?? (byEvent ? (event.namedSwitch ? 'name' : 'forced') : 'terminal'), y: verdict?.y ?? null, pageStart, usedPx, extPx, next, ...(clipped ? { clipped } : {}) };
+    this.account = { from, to, name: this.conditions.name, forced, cls: verdict?.cls ?? (byEvent ? 'A' : null), kind: whole ? 'whole' : verdict?.kind ?? (byEvent ? (event.namedSwitch ? 'name' : 'forced') : 'terminal'), y: verdict?.y ?? null, pageStart, usedPx, extPx, next, ...(clipped ? { clipped } : {}), ...this.ratio() };
     return next ? { to, next, reach } : { to, reach };
   }
 
@@ -529,21 +534,51 @@ export class CiceroPage {
   }
 
   /**
+   * The device pixel ratio the page was cut at, for its account, where it is not 1: print runs at 1, so a cut decided at another ratio is valid for the screen and may not be print's. Said once per document and ratio on the console.
+   * @returns {{ dpr?: number }}
+   */
+  ratio() {
+    const dpr = this.doc.defaultView?.devicePixelRatio ?? 1;
+    if (dpr === 1) return {};
+    const warned = (WARNED_RATIOS.get(this.doc) ?? WARNED_RATIOS.set(this.doc, new Set()).get(this.doc));
+    if (!warned?.has(dpr)) {
+      warned?.add(dpr);
+      console.warn(`prosemirror-beltype: the pages are cut at a device pixel ratio of ${dpr}, and print runs at 1; a page's cut may differ from the printed page's`);
+    }
+    return { dpr };
+  }
+
+  /**
+   * How much a transform on the page or an ancestor scales it on screen: its drawn height over its layout height, 1 where it has none.
+   *
+   * @remarks
+   * The layout height is the computed one and never `offsetHeight`, which is rounded to a whole pixel: measured 2026-11-07, a page 170 mm tall (642.52 px) read a scale of 0.9992 with no transform, every recorded height was 0.4 px off on a 500 px node, and the repage fixture refilled its pages 5 to 7 for 72 fills before it was quiet.
+   */
+  scale() {
+    const host = this.dom.getBoundingClientRect();
+    const st = getComputedStyle(this.dom);
+    const edges = st.boxSizing === 'border-box' ? 0 : ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth'].reduce((sum, k) => sum + (parseFloat(/** @type {any} */ (st)[k]) || 0), 0);
+    const layout = (parseFloat(st.height) || 0) + edges;
+    return (layout > 0 && host.height / layout) || 1;
+  }
+
+  /**
    * What the page's foot cuts off with no later page to show it, in pixels, or null: the shown tree standing taller than the trial it was measured as (a different tree, `docs/found.md`), and a parallel flow that starts on the page and runs below the cut, which this page does not carry. A page ending in a shell or a row is cut there on purpose and is not asked. Said once per page, and kept in the account.
    * @param {number} parallel What `parallelBelow` read.
    * @returns {{ flow: number, parallel: number } | null}
    */
   clippedBy(parallel) {
-    const host = this.dom.getBoundingClientRect();
-    const scale = host.height / (this.dom.offsetHeight || host.height) || 1;
-    const foot = /** @type {Element} */ (/** @type {ShadowRoot} */ (this.dom.shadowRoot).querySelector('.flow')).getBoundingClientRect().bottom;
     const range = this.doc.createRange();
     let bottom = -Infinity;
     for (const node of this.given()) {
+      // An element's own rect lays out what the page's `content-visibility` skips, its shadow flow included, and neither a range's nor the host's does: measured 2026-11-07, with no element read first the flow's rect was all zeros and every page of the faces test said it cut off 280 to 1 326 px. The reading of each node's height at the fill, which `moved` no longer needs, had been doing it.
+      /** @type {Element} */ (node).getBoundingClientRect();
       range.selectNode(node);
       const rect = range.getBoundingClientRect();
       if (rect.height > 0) bottom = Math.max(bottom, rect.bottom); // a node put away has no box
     }
+    const scale = this.scale();
+    const foot = /** @type {Element} */ (/** @type {ShadowRoot} */ (this.dom.shadowRoot).querySelector('.flow')).getBoundingClientRect().bottom;
     const flow = bottom === -Infinity ? 0 : Math.max(0, (bottom - foot) / scale);
     if (flow <= 1 && parallel <= 1) return null;
     const clipped = { flow: Math.round(flow), parallel: Math.round(parallel) };
@@ -624,6 +659,14 @@ export class CiceroPage {
       const el = continueAsShell(trial.fragment, tp, doc, shell, source);
       if (el && shell.paint == null) shelled.set(el, shell.pos);
     }
+    // The boxes the bound cuts off are the driver's feed cut at its place (`truncateFrom`): a box that clones its decoration is measured with its block-end border and padding, and its law copy wears them too, since the Stonehand charges a cut through it what the law copy's style says.
+    if (end != null) {
+      endFirstFragment(trial.fragment, tp, doc, end, (_, el) => lawOf.get(el) ?? null, null);
+      endFirstFragment(lawRoot, lp, doc, end, () => null, null);
+    }
+    // And the boxes it resumes keep their cloned block-start decoration, on both copies.
+    wrapResumed(trial.fragment, tp, doc, from, (_, el) => lawOf.get(el) ?? null);
+    wrapResumed(lawRoot, lp, doc, from, (_, el) => el);
     const blocks = [...lawRoot.children].filter((el) => !isFixedBox(el));
     return { trial: { ...trial, positions: /** @type {any} */ (tp) }, law: { ...law, positions: /** @type {any} */ (lp) }, lawOf, lawRoot, blocks, container: null, shelled };
   }
@@ -905,7 +948,7 @@ export class CiceroPage {
    * @param {Map<number, any>} tracks The trial's tables' and grids' tracks, by position (`pinTracks`).
    * @returns {RenderedSlice}
    */
-  page(doc, from, render, t, start, cut, tracks) {
+  page(doc, from, render, t, start, cut, tracks, extPx = 0) {
     const end = cut.end ?? (cut.to == null ? null : openedAt(doc, cut.to));
     const rendered = render(doc, from, end);
     const positions = new Positions(rendered.positions);
@@ -915,6 +958,9 @@ export class CiceroPage {
     const begins = shellsOf({ shell: start.shell, pieces: cut.pieces ?? start.pieces });
     for (const shell of begins) continueAsShell(root, positions, doc, shell, law(shell));
     for (const shell of endsOf(cut)) if (!begins.some((b) => b.pos === shell.pos && b.paint != null)) endAsShell(root, positions, doc, shell, law(shell));
+    // An ordinary cut: the boxes it divides are ended as the engine ends its constructed first fragment. A shell and a row's pieces are ended above.
+    if (cut.to != null && !cut.shell && !cut.pieces?.length) endFirstFragment(root, positions, doc, cut.to, (pos) => nodeDom(t.lawRoot, t.law.positions, doc, pos), extPx);
+    wrapResumed(root, positions, doc, from, (pos) => nodeDom(t.lawRoot, t.law.positions, doc, pos));
     pinTracks(root, positions, doc, tracks, rendered.from);
     return { ...rendered, positions: /** @type {any} */ (positions) };
   }

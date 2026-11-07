@@ -1,0 +1,4 @@
+/* The repage fixture's second geometry: a taller page, and margins that differ by side, so a page's sidedness is read again. */
+@page { size: 125mm 170mm; margin: 16mm 10mm; }
+@page :left { margin-left: 22mm; }
+@page :right { margin-right: 22mm; }

@@ -1,4 +1,4 @@
-// usage: node scripts/specimen.mjs [folder holding an index.html, `fixtures/specimen` when omitted] [--headed] [--keep] [--bare] [--no-ledger] [--retitle 'old=>new'] [--edits 'key:3;delete:2;paste;enter;start;end;retitle:old=>new'] [--keys page:n] [--reach 0|1|2] [--overtaken] [--strict] — the target is a path BelType's CLI takes, relative to its repository's root, `./test/specimen.md` by default; `BELTYPE_ROOT` names the BelType checkout whose CLI is spawned (default `/Users/egildo/Privata/dev/beltype`), so a worktree's engine can run on both sides, the CLI's and the view's (this package's `node_modules/@egildo/beltype-engine-cicero` is the view's); phase 1's measurement, one engine, two hosts, one answer. BelType's dev server serves the specimen under Cicero on a free port; Chromium opens it headless and waits for the CLI's round to be whole; every page the root presents is read (first and last visible word); then this package's harness is loaded from Vite into the same page, the view is mounted beside the root over the same served document and filled whole, and its pages are read the same way. Prints the pages side by side, the first difference, each page's chrome on both sides (every generated margin box's text, read as the browser laid out its `::before` and `::after` through a CDP DOM snapshot, with its slotted running element, and every flow element's generated text, a `target-counter()` read marked as the round 3 difference it is) and the state it is drawn from (each page's interval end in the engine's word positions, its counters, strings and running elements, the CLI's Ledger against the view's fills), what every divided piece's edges show on each side (its pseudo-elements' computed style), and the console's warnings on each side; docs/results.md records them. `--bare` takes every adopted sheet off the document after the CLI's pages are read and before the view is mounted, the CLI's root's among them, so the view is measured in a document no root has dressed. `--no-ledger` mounts the state without the Ledger plugin. `--retitle` and `--edits` edit the view's state by transactions (the harness's `editOf`), and compare each edited state with the view's fresh fill of it after `invalidate()`, which renders the originals whole: the pages' words, margin boxes and flow, each page's chrome state, the originals' reading and the delivered reads. `--keys page:n` types n characters on a page and prints each one's cost, then compares the same way. `--reach` settles the originals' memo under a reach of its own, whatever the sheets say, to measure what each reach keeps beside the engine's reading for a whole top-level box (`topLevelReach`). `--overtaken` mounts the view and fills each pair of neighbouring pages over the one document in one task (the harness's `overtaken`), prints the failures and the law holders left standing, and exits 1 if there are any, reading nothing else. Every run prints the sheets' reach under both units and the rules that give `sheetReach`'s.
+// usage: node scripts/specimen.mjs [folder holding an index.html, `fixtures/specimen` when omitted] [--headed] [--keep] [--bare] [--no-ledger] [--retitle 'old=>new'] [--edits 'key:3;delete:2;paste;enter;start;end;retitle:old=>new'] [--keys page:n] [--reach 0|1|2] [--overtaken] [--strict] [--dpr n] — the target is a path BelType's CLI takes, relative to its repository's root, `./test/specimen.md` by default; `BELTYPE_ROOT` names the BelType checkout whose CLI is spawned (default `/Users/egildo/Privata/dev/beltype`), so a worktree's engine can run on both sides, the CLI's and the view's (this package's `node_modules/@egildo/beltype-engine-cicero` is the view's); phase 1's measurement, one engine, two hosts, one answer. BelType's dev server serves the specimen under Cicero on a free port; Chromium opens it headless and waits for the CLI's round to be whole; every page the root presents is read (first and last visible word); then this package's harness is loaded from Vite into the same page, the view is mounted beside the root over the same served document and filled whole, and its pages are read the same way. Prints the pages side by side, the first difference, each page's chrome on both sides (every generated margin box's text, read as the browser laid out its `::before` and `::after` through a CDP DOM snapshot, with its slotted running element, and every flow element's generated text, a `target-counter()` read marked as the round 3 difference it is) and the state it is drawn from (each page's interval end in the engine's word positions, its counters, strings and running elements, the CLI's Ledger against the view's fills), what every divided piece's edges show on each side (its pseudo-elements' computed style), and the console's warnings on each side; docs/results.md records them. `--bare` takes every adopted sheet off the document after the CLI's pages are read and before the view is mounted, the CLI's root's among them, so the view is measured in a document no root has dressed. `--no-ledger` mounts the state without the Ledger plugin. `--retitle` and `--edits` edit the view's state by transactions (the harness's `editOf`), and compare each edited state with the view's fresh fill of it after `invalidate()`, which renders the originals whole: the pages' words, margin boxes and flow, each page's chrome state, the originals' reading and the delivered reads. `--keys page:n` types n characters on a page and prints each one's cost, then compares the same way. `--reach` settles the originals' memo under a reach of its own, whatever the sheets say, to measure what each reach keeps beside the engine's reading for a whole top-level box (`topLevelReach`). `--overtaken` mounts the view and fills each pair of neighbouring pages over the one document in one task (the harness's `overtaken`), prints the failures and the law holders left standing, and exits 1 if there are any, reading nothing else. Every run prints the sheets' reach under both units and the rules that give `sheetReach`'s. `--dpr n` lays both sides out at a device pixel ratio of n, 1 by default, which is the ratio print runs at. A run that is not `--overtaken` exits 1 when the guard (`compareHosts`) finds a page where the view's words and the CLI's part, unless `ALLOWED` names that target and that page with its reason; `--strict` adds an edited chain that differs from a fresh fill.
 import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import { createServer as createHttpServer } from 'node:http';
 import { createServer as createNetServer } from 'node:net';
@@ -18,7 +18,16 @@ const opt = (name) => (process.argv.includes(name) ? process.argv[process.argv.i
 const retitle = opt('--retitle');
 const keys = opt('--keys');
 const forcedReach = opt('--reach') == null ? null : Number(opt('--reach'));
-const target = process.argv.slice(2).find((a, i, all) => !a.startsWith('--') && !['--retitle', '--keys', '--reach', '--edits'].includes(all[i - 1])) ?? 'fixtures/specimen';
+const dpr = Number(opt('--dpr') ?? 1);
+const target = process.argv.slice(2).find((a, i, all) => !a.startsWith('--') && !['--retitle', '--keys', '--reach', '--edits', '--dpr'].includes(all[i - 1])) ?? 'fixtures/specimen';
+
+/**
+ * The fixtures whose view and CLI are known to hold different words on one page, each with the page and the reason: the default run exits with an error when the guard (`compareHosts`) names any other page, or any page on any other target.
+ */
+const ALLOWED = {
+  multicol: { page: 3, reason: "the CLI's own first slice of the two-column glossary measures the `dl` 9.59 px shorter than its second slice does, and the view's measures it as the second does, so the view's page 3 shows 170 words to the CLI's 174 with the same first and last word (docs/results.md, \"The one word count that differs\")" },
+  clipped: { page: 3, reason: 'the fixture is built to differ: a rule scoped to the view\'s own host (`#prosemirror-beltype-view p.taller`) makes the shown page taller than its trial, so the view\'s pages 3 and 4 cut off 108 and 267 px no page shows and say so, and the CLI never wears the rule (docs/results.md, "What the foot cuts off")' }
+};
 
 /** The ports no measurement may take: the ones Egildo keeps for other work. */
 const RESERVED = new Set([48760, 48761, 48762, 48789, 48791, 48792, 48794, 48796, 48798, 5173]);
@@ -68,7 +77,7 @@ let browser;
 try {
   const url = `http://127.0.0.1:${P}/${path.basename(folder)}/`;
   browser = await chromium.launch({ headless: !headed });
-  const context = await browser.newContext({ viewport: { width: 1400, height: 1000 }, deviceScaleFactor: 1 });
+  const context = await browser.newContext({ viewport: { width: 1400, height: 1000 }, deviceScaleFactor: dpr });
   const page = await context.newPage();
   /** The console's messages, by side: the CLI's round until the harness is loaded, the view's after. */
   const consoles = { cli: [], view: [] };
@@ -133,6 +142,7 @@ try {
   await page.evaluate(() => window.__beltypeCicero.run());
   await page.waitForFunction(() => window.__beltypeCicero?.last?.complete === true, null, { timeout: 120000 });
   const cliMs = await page.evaluate(() => window.__beltypeCicero.last.ms);
+  const shownDpr = await page.evaluate(() => window.devicePixelRatio);
   await page.evaluate(async () => { await document.querySelector('beltype-root').buildAll?.(); });
 
   side = 'view';
@@ -162,7 +172,7 @@ try {
 
   const n = Math.max(reference.length, view.pages.length);
   const cell = (s) => (s == null ? '·' : `\`${s}\``);
-  console.log(`\n## ${target}${bare ? ' (bare)' : ''}${noLedger ? ' (no Ledger)' : ''}${forcedReach != null ? ` (the memo settled under reach ${forcedReach})` : ''}, ${reference.length} pages under the CLI, ${view.pages.length} under the view\n`);
+  console.log(`\n## ${target}${bare ? ' (bare)' : ''}${noLedger ? ' (no Ledger)' : ''}${forcedReach != null ? ` (the memo settled under reach ${forcedReach})` : ''}${shownDpr !== 1 ? ` (at a device pixel ratio of ${shownDpr})` : ''}, ${reference.length} pages under the CLI, ${view.pages.length} under the view\n`);
   console.log(`The CLI's last \`run()\` call ${Math.round(cliMs)} ms (its bootstrap cuts the first screen, then the rest); the view's chain ${Math.round(view.ms)} ms over ${view.fills.length} fills; doc size ${view.docSize}.\n`);
   console.log('| Page | CLI first | CLI last | words | view first | view last | words | entry | fill | same |');
   console.log('| ---: | :-- | :-- | ---: | :-- | :-- | ---: | :-- | :-- | :-- |');
@@ -179,14 +189,22 @@ try {
   }
   const guard = await page.evaluate(() => window.__prosemirrorBeltype.compareHosts());
   console.log(`\nThe guard, view against CLI: ${guard.pages[0]} pages against ${guard.pages[1]}, ${guard.first == null ? 'every page holds the same words' : `first difference on page ${guard.first}`}.`);
+  const allowed = ALLOWED[path.basename(folder)];
+  if (guard.first != null) {
+    if (allowed?.page === guard.first) console.log(`The difference is allowed: ${allowed.reason}.`);
+    else { console.log('**The view and the CLI disagree**: this run exits with an error.'); process.exitCode = 1; }
+  }
   console.log(`\nPage sizes, CLI: ${reference.map((p) => p.size.join('×')).join(', ')}`);
   console.log(`Page sizes, view: ${view.pages.map((p) => p.size.join('×')).join(', ')}`);
   const objects = (pages) => pages.map((p, i) => (p.objects ?? []).map((o) => `page ${i + 1} ${o.is} ${o.size.join('×')}`)).flat().join(', ') || 'none';
   console.log(`\nObjects, CLI: ${objects(reference)}`);
   console.log(`Objects, view: ${objects(view.pages)}`);
-  const dressing = (pieces) => pieces.map((d) => `  page ${d.page} ${d.edge} ${d.el}: ${d.edge === 'cut-off' ? `::after ${d.after}` : `::before ${d.before}${d.marker != null ? `, ::marker ${d.marker}` : ''}, ::first-letter ${d.firstLetter}, ::first-line ${d.firstLine}, own ${d.own}`}`).join('\n') || '  none';
+  const dressing = (pieces) => pieces.map((d) => `  page ${d.page} ${d.edge} ${d.el}: ${d.edge === 'cut-off' ? `::after ${d.after}${d.textAlignLast ? `, text-align-last ${d.textAlignLast}, border-bottom ${d.borderBottom}, padding-bottom ${d.paddingBottom}` : ''}` : `::before ${d.before}${d.marker != null ? `, ::marker ${d.marker}` : ''}, ::first-letter ${d.firstLetter}, ::first-line ${d.firstLine}, own ${d.own}`}`).join('\n') || '  none';
   console.log(`\nDivided pieces' edges, CLI:\n${dressing(referenceDressing)}`);
   console.log(`\nDivided pieces' edges, view:\n${dressing(view.dressing)}`);
+  // The cut-off edges only, the first fragment's: a resumed piece is named by its outermost divided box, which the root's tree and the schema's can give differently with the same edge (the trattato's `main.testo` and `section.parte`).
+  const cutOff = (pieces) => dressing(pieces.filter((d) => d.edge === 'cut-off'));
+  if (cutOff(referenceDressing) !== cutOff(view.dressing)) { console.log("**The cut-off pieces' edges differ**: this run exits with an error."); process.exitCode = 1; }
   if (bare) console.log(`\nAdopted sheets taken off before the view was mounted (${view.removed.length}):\n${view.removed.map((s) => `  ${s}`).join('\n') || '  none'}`);
   console.log(`\nAdopted sheets after the view settled (${view.adopted.length}):\n${view.adopted.map((s) => `  ${s}`).join('\n') || '  none'}`);
   console.log(`\nFirst difference: ${first == null ? 'none' : `page ${first + 1}`}`);
@@ -280,6 +298,22 @@ try {
   for (const e of edits) {
     const [kind, ...rest] = e.split(':');
     const arg = rest.join(':');
+    if (kind === 'repage') {
+      // A new `@page` through the supported path, `setProps` with a new factory: the view's pages against a view mounted fresh over the same state, then (below) against its own fresh fill.
+      const done = await page.evaluate((href) => window.__prosemirrorBeltype.repage(href), arg);
+      const pages = (ps) => ps.map((p) => `${p.first}…${p.last} ${p.count} ${p.size.join('×')}`);
+      const same = JSON.stringify(pages(done.pages)) === JSON.stringify(pages(done.fresh));
+      console.log(`\n### Repaged with \`${arg}\` through \`setProps\`\n\nSettled: ${done.settled}; fills ${done.refilled.length}. ${done.pages.length} pages, a fresh mount ${done.fresh.length}: ${same ? 'every page the same' : '**they differ**'}.\n`);
+      console.log('| Page | first | last | words | size | fresh mount |');
+      console.log('| ---: | :-- | :-- | ---: | :-- | :-- |');
+      for (let i = 0; i < Math.max(done.pages.length, done.fresh.length); i++) {
+        const a = done.pages[i], b = done.fresh[i];
+        console.log(`| ${i + 1} | ${cell(a?.first)} | ${cell(a?.last)} | ${a?.count ?? '·'} | ${a?.size.join('×') ?? '·'} | ${pages([a])[0] === (b && pages([b])[0]) ? '=' : (b ? `${b.first}…${b.last} ${b.count} ${b.size.join('×')}` : '·')} |`);
+      }
+      if (!same) disagreed++;
+      await compare(`Repaged with \`${arg}\`, against its own fresh fill`, done);
+      continue;
+    }
     const done = await page.evaluate(([kind, arg]) => window.__prosemirrorBeltype.edit(kind, arg), [kind, arg]);
     await compare(kind === 'retitle' ? `Retitled \`${arg.split('=>')[0]}\` to \`${arg.split('=>')[1]}\` at ${done.at}` : `Edit \`${e}\` at ${done.at}`, done);
   }
