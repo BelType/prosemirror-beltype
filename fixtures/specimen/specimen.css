@@ -1,0 +1,107 @@
+/* The paged-media specimen — the reading furniture (Round A of the paged-media
+   sweep). Every construct here is specified (Paged Media L3, Fragmentation L3,
+   GCPM L3, Generated Content L3) and reachable as plain author CSS; this sheet
+   is what any engine behind the seam must render. Page geometry and running
+   furniture are author CSS, never config — the typographic look stays with the
+   addendum. */
+
+/* Parity pages: mirrored margins, folio on the outer edge (Paged Media L3
+   :left/:right). The shared box model lives on the bare @page; each parity
+   page mirrors the inner/outer margins and seats the folio outward. */
+@page {
+  size: A4;
+  margin-top: 22mm;
+  margin-bottom: 22mm;
+  @top-center { content: "BelType Manual"; font-size: 9pt; color: #666; }
+}
+
+/* The inner (binding-side) margin is the wide one: right on a left page, left
+   on a right page. Spelled with plain margin-left/right per parity — the spec
+   has no margin-inner/-outer shorthand. */
+@page :left {
+  margin-right: 28mm;
+  margin-left: 18mm;
+  @bottom-left { content: counter(page); font-size: 9pt; color: #666; }
+}
+
+@page :right {
+  margin-left: 28mm;
+  margin-right: 18mm;
+  @bottom-right { content: counter(page); font-size: 9pt; color: #666; }
+}
+
+/* The document's first page is the cover, and :first makes it bare (Paged
+   Media L3). The named cover page below also clears its furniture — the two
+   compose; :first is the one that speaks parity-independently. */
+@page :first {
+  margin-top: 60mm;
+  @top-center { content: none; }
+}
+
+/* Forced blanks are deliberate, not accidents (Paged Media L3 :blank). The
+   cover's back — the verso induced by the first chapter's recto opener — is
+   exactly such a page, and this is its treatment. */
+@page :blank {
+  @top-center { content: none; }
+  @bottom-center { content: "· intentionally blank ·"; font-size: 8pt; color: #999; }
+  @bottom-left { content: none; }
+  @bottom-right { content: none; }
+}
+
+/* The cover is its own named page with no running furniture. (The shell
+   mechanics also clear these; clearing them here keeps this sheet
+   self-contained rather than relying on cross-stylesheet named-page cascade.) */
+@page cover {
+  @top-center { content: none; }
+  @bottom-left { content: none; }
+  @bottom-right { content: none; }
+}
+
+/* Named chapter pages (Paged Media L3 `page`), addressable only because the
+   body articulates as sections: the selector needs the element that SPANS the
+   chapter, and section:has(> h1) is that element. The name survives the page
+   turn — verified against the engine (continuation pages keep the style and
+   its furniture; the probe is recorded in the sweep plan). Chapter openers
+   open on a right-hand page (Fragmentation L3 break-before: recto). */
+section:has(> h1) {
+  page: chapter;
+  break-before: recto;
+}
+
+@page chapter {
+  @top-center { content: string(chaptertitle); font-size: 9pt; color: #666; }
+  @top-left { content: element(mark); }
+}
+
+/* Running furniture, both kinds side by side. string-set (GCPM L3) carries the
+   chapter title as TEXT; position: running() (GCPM L3) removes the .running-mark
+   element from the flow and re-seats it in the margin box WITH its markup —
+   the thing string() cannot carry. */
+h1 { string-set: chaptertitle content(); }
+.running-mark { position: running(mark); font-size: 8pt; color: #999; }
+
+/* Chapter numbering is a CSS counter — never a digit typed into a heading,
+   where the generated id would start with a digit and kill pagination. The
+   increment sits ON THE HEADING, not its section, and that seat is load-
+   bearing: Paged.js resolves target-counter() from the target element's OWN
+   increment (an ancestor's is invisible to it — measured: a section-seated
+   counter made the .xref.chap reference below read "Chapter 0"). */
+body { counter-reset: chapter; }
+section:has(> h1) > h1 { counter-increment: chapter; }
+section:has(> h1) > h1::before { content: counter(chapter, upper-roman) ". "; }
+
+/* A cross-reference carrying the target's words and its page (Generated
+   Content L3 target-text(), target-counter()). Scoped under `section` so the
+   TOC's own entries — same hrefs, at root — keep their mechanics numbering. */
+section a[href="#configuration"]::after {
+  content: " (" target-text(attr(href url)) ", p. " target-counter(attr(href url), page) ")";
+  font-style: italic;
+}
+
+/* The generalized :ref (the :ref generalization round): the author's class
+   picks the counter — target-counter()'s counter name is a static ident, so
+   each reference kind is its own small rule. This one reads this sheet's own
+   chapter counter, and both halves override the mechanics' figure default.
+   The site reads it too (the site reads, 2026-10-19). */
+.xref.chap::before { content: "Chapter "; }
+.xref.chap::after  { content: target-counter(attr(href url), chapter, upper-roman); }

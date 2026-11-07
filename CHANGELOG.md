@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+The measurement stands on its own.
+
+- `scripts/specimen.mjs` no longer starts a BelType checkout's dev server. It serves a finished document's folder itself, with the engine's head spliced in as `beltype print` does, and asks the engine for its whole run. `BELTYPE_ROOT` and `BELTYPE_STUDIO` are gone.
+- The fixtures are finished HTML, `fixtures/<name>/index.html`, on `fixtures/base.css` and `fixtures/fonts`, which freeze what the old command line put under a document. The specimen is `fixtures/specimen`, and it is the default target. A target is now a folder, so `@beltype/specimens`' documents can be measured too.
+- The harness parses with `prosemirror-fragview/schema-generic`. That needs fragview after 0.1.1: until the pin moves, set `FRAGVIEW` to a checkout.
+
 - `CiceroPage` answers `reach`, how far its decision read: every box that can stand on the page, the first textblock of the first in-flow box that cannot, and the whole of a table, flex or grid container it stands in. With `prosemirror-fragview` after 0.1.1, a change in the tail of a divided paragraph now refills the page before it. With an older view the answer is ignored.
 - A hint carries its shell and row positions relative to the cut, so a page no longer drops a hint because an earlier edit shifted the document. With `prosemirror-fragview` after 0.1.1, a hint that changes under an equal `to` also fills the next page.
 - `collapsedSpaces` no longer binds words: spaces typed one by one at a line's end, then a word, alternate as the same run inserted at once does. They used to stay as two U+00A0 in the saved document.

@@ -1,12 +1,13 @@
-// usage: [BELTYPE_ROOT=<BelType checkout>] node scripts/specimen.mjs [target] [--headed] [--keep] [--bare] [--no-ledger] [--retitle 'old=>new'] [--edits 'key:3;delete:2;paste;enter;start;end;retitle:old=>new'] [--keys page:n] [--reach 0|1|2] [--overtaken] [--strict] — the target is a path BelType's CLI takes, relative to its repository's root, `./test/specimen.md` by default; `BELTYPE_ROOT` names the BelType checkout whose CLI is spawned (default `/Users/egildo/Privata/dev/beltype`), so a worktree's engine can run on both sides, the CLI's and the view's (this package's `node_modules/@egildo/beltype-engine-cicero` is the view's); phase 1's measurement, one engine, two hosts, one answer. BelType's dev server serves the specimen under Cicero on a free port; Chromium opens it headless and waits for the CLI's round to be whole; every page the root presents is read (first and last visible word); then this package's harness is loaded from Vite into the same page, the view is mounted beside the root over the same served document and filled whole, and its pages are read the same way. Prints the pages side by side, the first difference, each page's chrome on both sides (every generated margin box's text, read as the browser laid out its `::before` and `::after` through a CDP DOM snapshot, with its slotted running element, and every flow element's generated text, a `target-counter()` read marked as the round 3 difference it is) and the state it is drawn from (each page's interval end in the engine's word positions, its counters, strings and running elements, the CLI's Ledger against the view's fills), what every divided piece's edges show on each side (its pseudo-elements' computed style), and the console's warnings on each side; docs/results.md records them. `--bare` takes every adopted sheet off the document after the CLI's pages are read and before the view is mounted, the CLI's root's among them, so the view is measured in a document no root has dressed. `--no-ledger` mounts the state without the Ledger plugin. `--retitle` and `--edits` edit the view's state by transactions (the harness's `editOf`), and compare each edited state with the view's fresh fill of it after `invalidate()`, which renders the originals whole: the pages' words, margin boxes and flow, each page's chrome state, the originals' reading and the delivered reads. `--keys page:n` types n characters on a page and prints each one's cost, then compares the same way. `--reach` settles the originals' memo under a reach of its own, whatever the sheets say, to measure what each reach keeps beside the engine's reading for a whole top-level box (`topLevelReach`). `--overtaken` mounts the view and fills each pair of neighbouring pages over the one document in one task (the harness's `overtaken`), prints the failures and the law holders left standing, and exits 1 if there are any, reading nothing else. Every run prints the sheets' reach under both units and the rules that give `sheetReach`'s.
-import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+// usage: node scripts/specimen.mjs [folder holding an index.html, `fixtures/specimen` when omitted] [--headed] [--keep] [--bare] [--no-ledger] [--retitle 'old=>new'] [--edits 'key:3;delete:2;paste;enter;start;end;retitle:old=>new'] [--keys page:n] [--reach 0|1|2] [--overtaken] [--strict] — the target is a path BelType's CLI takes, relative to its repository's root, `./test/specimen.md` by default; `BELTYPE_ROOT` names the BelType checkout whose CLI is spawned (default `/Users/egildo/Privata/dev/beltype`), so a worktree's engine can run on both sides, the CLI's and the view's (this package's `node_modules/@egildo/beltype-engine-cicero` is the view's); phase 1's measurement, one engine, two hosts, one answer. BelType's dev server serves the specimen under Cicero on a free port; Chromium opens it headless and waits for the CLI's round to be whole; every page the root presents is read (first and last visible word); then this package's harness is loaded from Vite into the same page, the view is mounted beside the root over the same served document and filled whole, and its pages are read the same way. Prints the pages side by side, the first difference, each page's chrome on both sides (every generated margin box's text, read as the browser laid out its `::before` and `::after` through a CDP DOM snapshot, with its slotted running element, and every flow element's generated text, a `target-counter()` read marked as the round 3 difference it is) and the state it is drawn from (each page's interval end in the engine's word positions, its counters, strings and running elements, the CLI's Ledger against the view's fills), what every divided piece's edges show on each side (its pseudo-elements' computed style), and the console's warnings on each side; docs/results.md records them. `--bare` takes every adopted sheet off the document after the CLI's pages are read and before the view is mounted, the CLI's root's among them, so the view is measured in a document no root has dressed. `--no-ledger` mounts the state without the Ledger plugin. `--retitle` and `--edits` edit the view's state by transactions (the harness's `editOf`), and compare each edited state with the view's fresh fill of it after `invalidate()`, which renders the originals whole: the pages' words, margin boxes and flow, each page's chrome state, the originals' reading and the delivered reads. `--keys page:n` types n characters on a page and prints each one's cost, then compares the same way. `--reach` settles the originals' memo under a reach of its own, whatever the sheets say, to measure what each reach keeps beside the engine's reading for a whole top-level box (`topLevelReach`). `--overtaken` mounts the view and fills each pair of neighbouring pages over the one document in one task (the harness's `overtaken`), prints the failures and the law holders left standing, and exits 1 if there are any, reading nothing else. Every run prints the sheets' reach under both units and the rules that give `sheetReach`'s.
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
+import { createServer as createHttpServer } from 'node:http';
 import { createServer as createNetServer } from 'node:net';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
+import { ciceroEngine } from '@beltype/cicero/engine';
 
-const BELTYPE = process.env.BELTYPE_ROOT ?? '/Users/egildo/Privata/dev/beltype';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const headed = process.argv.includes('--headed');
 const bare = process.argv.includes('--bare');
@@ -17,11 +18,10 @@ const opt = (name) => (process.argv.includes(name) ? process.argv[process.argv.i
 const retitle = opt('--retitle');
 const keys = opt('--keys');
 const forcedReach = opt('--reach') == null ? null : Number(opt('--reach'));
-const target = process.argv.slice(2).find((a, i, all) => !a.startsWith('--') && !['--retitle', '--keys', '--reach', '--edits'].includes(all[i - 1])) ?? './test/specimen.md';
+const target = process.argv.slice(2).find((a, i, all) => !a.startsWith('--') && !['--retitle', '--keys', '--reach', '--edits'].includes(all[i - 1])) ?? 'fixtures/specimen';
 
-/** The ports no measurement may take: the engine repository's preview seats, and the ones Egildo keeps for other work. */
-const launch = JSON.parse(readFileSync(`${BELTYPE}/.claude/launch.json`, 'utf8'));
-const RESERVED = new Set([48760, 48761, 48762, 48789, 48791, 48792, 48794, 48796, 48798, 5173, ...launch.configurations.map((c) => c.port).filter(Boolean)]);
+/** The ports no measurement may take: the ones Egildo keeps for other work. */
+const RESERVED = new Set([48760, 48761, 48762, 48789, 48791, 48792, 48794, 48796, 48798, 5173]);
 
 /** @returns {Promise<number>} */
 async function freePort() {
@@ -37,22 +37,36 @@ async function freePort() {
 }
 
 const P = await freePort();
-const beltype = spawn(process.execPath, ['bin/beltype.js', target, '--engine', 'cicero', '--port', String(P)], { cwd: BELTYPE, stdio: ['ignore', 'pipe', 'pipe'] });
-let serverLog = '';
-beltype.stdout.on('data', (d) => { serverLog += d; });
-beltype.stderr.on('data', (d) => { serverLog += d; });
+const folder = path.resolve(target);
+if (!existsSync(path.join(folder, 'index.html'))) throw new Error(`${target} holds no index.html: a target is a finished document's folder`);
+const TYPES = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.mjs': 'text/javascript', '.svg': 'image/svg+xml', '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.gif': 'image/gif', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.otf': 'font/otf' };
+/** The file a `/_beltype/` path names, from the engine's own table of what a page asks it for. */
+function engineFile(/** @type {string} */ rest) {
+  const { files, dirs } = ciceroEngine.vendorAssets();
+  if (files[rest]) return files[rest];
+  const dir = Object.keys(dirs).find((d) => rest.startsWith(`${d}/`));
+  return dir ? path.join(dirs[dir], rest.slice(dir.length + 1)) : null;
+}
+/** The document served with the engine's head ahead of its own, as `beltype print` serves one, from the folder's parent, so a base beside the fixtures is in reach and a document's own relative references hold. */
+const beltype = createHttpServer((req, res) => {
+  const pathname = decodeURIComponent(new URL(/** @type {string} */ (req.url), 'http://x').pathname);
+  if (pathname === `/${path.basename(folder)}/`) {
+    res.setHeader('content-type', 'text/html');
+    return res.end(readFileSync(path.join(folder, 'index.html'), 'utf8').replace(/<head\b[^>]*>/i, (head) => `${head}\n  ${ciceroEngine.headHtml('/')}`));
+  }
+  const file = pathname.startsWith('/_beltype/') ? engineFile(pathname.slice('/_beltype/'.length)) : path.join(path.dirname(folder), pathname);
+  if (!file || !existsSync(file) || !statSync(file).isFile()) { res.statusCode = 404; return res.end(); }
+  res.setHeader('content-type', TYPES[path.extname(file)] ?? 'application/octet-stream');
+  createReadStream(file).pipe(res);
+});
+await new Promise((resolve) => beltype.listen(P, '127.0.0.1', resolve));
 const V = await freePort();
 const vite = await createServer({ root, logLevel: 'error', server: { port: V, strictPort: true, host: '127.0.0.1' } });
 await vite.listen();
 let browser;
 
 try {
-  const url = `http://127.0.0.1:${P}/`;
-  for (let i = 0; ; i++) {
-    try { if ((await fetch(url)).ok) break; } catch {}
-    if (i > 600) throw new Error(`BelType's dev server did not answer on ${url}:\n${serverLog}`);
-    await new Promise((r) => setTimeout(r, 100));
-  }
+  const url = `http://127.0.0.1:${P}/${path.basename(folder)}/`;
   browser = await chromium.launch({ headless: !headed });
   const context = await browser.newContext({ viewport: { width: 1400, height: 1000 }, deviceScaleFactor: 1 });
   const page = await context.newPage();
@@ -114,6 +128,9 @@ try {
     }));
   };
   await page.goto(url);
+  await page.waitForFunction(() => window.__beltypeCicero?.run, null, { timeout: 60000 });
+  // The engine's whole run, which a host asks for: no `until`.
+  await page.evaluate(() => window.__beltypeCicero.run());
   await page.waitForFunction(() => window.__beltypeCicero?.last?.complete === true, null, { timeout: 120000 });
   const cliMs = await page.evaluate(() => window.__beltypeCicero.last.ms);
   await page.evaluate(async () => { await document.querySelector('beltype-root').buildAll?.(); });
@@ -135,7 +152,7 @@ try {
     for (const f of r.failures) console.log(`  ${f}`);
     await browser.close();
     await vite.close();
-    beltype.kill();
+    beltype.closeAllConnections(); beltype.close();
     process.exit(r.failures.length || r.holders ? 1 : 0);
   }
   const viewChrome = await chromeOf('view', 'window.__prosemirrorBeltype.viewPagesOf()');
@@ -280,5 +297,5 @@ try {
 } finally {
   await browser?.close();
   await vite.close();
-  beltype.kill();
+  beltype.closeAllConnections(); beltype.close();
 }

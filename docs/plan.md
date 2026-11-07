@@ -14,7 +14,7 @@ The fragmented view renders a ProseMirror state into a chain of fragmentainers, 
 | `prosemirror-fragview` | ProseMirror; no engine | no import reaches an engine; the naming sweep is to do until the words registry is a parameter |
 | `prosemirror-beltype` | both | every import under `src/` is ProseMirror, the view, the engine or a sibling (`test/layers.test.js`) |
 
-The engine is unpublished (private in BelType's monorepo), so this package reaches it by a `file:` link to `../../../../Users/egildo/Privata/dev/beltype/packages/engine-cicero` for now (four levels up from `/Volumes/dev/Codeberg/prosemirror-beltype`; three, as first written, lands in `/Volumes`), as fragview reaches the studio. A published `@egildo/beltype-engine-cicero` replaces the link the day it exists; the import specifiers are already its.
+The engine comes from npm as `@beltype/cicero`, its source in `codeberg.org/BelType/cicero`.
 
 ## What this package consumes
 
@@ -89,6 +89,6 @@ Each phase is a branch of this repository, measured by a script, recorded in `do
 
 - The record: `../beltype/.claude/decisions/project/the-engine-knows-no-view.md`; the doors: `../beltype/.claude/NEEDED-FIXES.md`, entry of 2026-10-24.
 - The view's seam: `prosemirror-fragview/src/fragmentainer.js` (the types), `slice-renderer.js` (the words and the two sheets), `overflow-box.js` (candidate zero), `docs/plan.md`.
-- The engine: `../beltype/packages/engine-cicero/src/` (`driver.js` for the loop this package turns into `fill`, `stonehand.js`, `gauge.js`, `measure.js`, `chase.js`, `document-state.js`, `reads.js`, `capture.js`, `data-beltype.js`), `seam/` (`rewrite-document.js`, `client.js` for how the one-round host wires the same objects).
+- The engine: `../BelType/cicero/src/ (TypeScript; the names below are its modules)` (`driver.js` for the loop this package turns into `fill`, `stonehand.js`, `gauge.js`, `measure.js`, `chase.js`, `document-state.js`, `reads.js`, `capture.js`, `data-beltype.js`), `seam/` (`rewrite-document.js`, `client.js` for how the one-round host wires the same objects).
 - The studio's orchestrator this replaces: `../beltype-studio-experiment/src/positions.js`, `src/patching.js`.
 - The demo of the view alone: `/Volumes/dev/alpha`.
