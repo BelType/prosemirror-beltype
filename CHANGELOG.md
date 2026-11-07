@@ -5,6 +5,7 @@
 Cicero 0.1.9 (2026-11-07).
 
 - The Cicero dev pin moves from 0.1.6 to 0.1.9. Two fills of one document in flight no longer share the engine's measure container, so the overtaken case on the flow fixture, which gave 42 wrong answers over 25 pairs, gives none, and the random edits that failed on nearly every fixture pass. Clear `node_modules/.vite` after the pin moves, or Vite keeps serving the old copy.
+- `wrapResumed` (`src/shells.js`) takes `WRAPPED` and `clonesDecoration` from Cicero's fragmentation face, where it spelled the word and read `box-decoration-break` itself. The peer range rises to `^0.1.9`, the first release that exports them. Nothing a page draws changes.
 - The harness's overtaken case counts the law holders left standing once the chain is quiet, not while a refill of the view's own is still in flight, which it used to report as one left behind.
 
 A page that shows the rest of a table row or a flex row (2026-11-07, `incremental-correctness-4`).

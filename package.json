@@ -31,7 +31,7 @@
     "specimen": "node scripts/specimen.mjs"
   },
   "peerDependencies": {
-    "@beltype/cicero": "^0.1.6",
+    "@beltype/cicero": "^0.1.9",
     "prosemirror-fragview": "*",
     "prosemirror-model": "^1.25.0",
     "prosemirror-state": "^1.4.0",
