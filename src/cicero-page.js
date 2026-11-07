@@ -165,7 +165,7 @@ export class CiceroPage {
       const changed = (/** @type {ResizeObserverEntry} */ e) => {
         const recorded = this.heights.get(e.target);
         if (recorded == null || !e.target.isConnected) return false;
-        return Math.abs((e.borderBoxSize?.[0]?.blockSize ?? e.target.getBoundingClientRect().height) - recorded) > EPS;
+        return Math.abs((e.borderBoxSize?.[0]?.blockSize ?? e.target.getBoundingClientRect().height / this.scale()) - recorded) > EPS;
       };
       if (entries.some(changed)) {
         requestAnimationFrame(() => { if (this.rendered) this.moved.dispatchEvent(new Event('moved')); });
@@ -498,8 +498,10 @@ export class CiceroPage {
     this.dom.setFlow({ leadPx: pageStart, usedPx, extPx, costPx: extPx > 0 ? cost : 0 });
     this.to = to;
     if (to != null) this.span = to - from;
+    // In the observer's own units, its `borderBoxSize`, which no transform scales: a zoom built on one would otherwise read as a move on every node at every fill.
+    const scale = this.scale();
     for (const node of /** @type {Element[]} */ (this.given())) {
-      this.heights.set(node, node.getBoundingClientRect().height);
+      this.heights.set(node, node.getBoundingClientRect().height / scale);
       this.observer.observe(node);
     }
     const clipped = whole || cut?.shell || cut?.pieces?.length || start.shell || start.pieces?.length ? null : this.clippedBy(parallel);
@@ -528,14 +530,19 @@ export class CiceroPage {
     return below;
   }
 
+  /** How much a transform on the page or an ancestor scales it on screen: its drawn height over its layout height, 1 where it has none. */
+  scale() {
+    const host = this.dom.getBoundingClientRect();
+    return host.height / (this.dom.offsetHeight || host.height) || 1;
+  }
+
   /**
    * What the page's foot cuts off with no later page to show it, in pixels, or null: the shown tree standing taller than the trial it was measured as (a different tree, `docs/found.md`), and a parallel flow that starts on the page and runs below the cut, which this page does not carry. A page ending in a shell or a row is cut there on purpose and is not asked. Said once per page, and kept in the account.
    * @param {number} parallel What `parallelBelow` read.
    * @returns {{ flow: number, parallel: number } | null}
    */
   clippedBy(parallel) {
-    const host = this.dom.getBoundingClientRect();
-    const scale = host.height / (this.dom.offsetHeight || host.height) || 1;
+    const scale = this.scale();
     const foot = /** @type {Element} */ (/** @type {ShadowRoot} */ (this.dom.shadowRoot).querySelector('.flow')).getBoundingClientRect().bottom;
     const range = this.doc.createRange();
     let bottom = -Infinity;

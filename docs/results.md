@@ -1427,3 +1427,26 @@ A box the page resumes needed the other half. The engine's `truncateLeadingDecor
 With the first fragment alone and no `wrapResumed`, pages 1 to 5 agreed and page 6 differed: page 5, which resumes and cuts the box, cut off 22 px, its block-start border and padding missing from the trial.
 
 Every fixture under `fixtures/` and the specimen were run again with `--strict`. The guard's two allowances stand, and every other fixture is the same on every page and every divided edge. The edits `tail:2;past:4;key:3;delete:2;paste` on `justified`, `dressing` and `flow` each agree with a fresh fill on every page. `pnpm test` gives 63 of 63.
+
+# A zoom built on a transform
+
+Written 2026-11-07, on the branch `fix/fidelity-and-zoom`. A host that zooms the pages with a CSS transform on an ancestor made them refill once a frame. After a fill, the page recorded each node's height with `getBoundingClientRect`, which reads after the transform, and its observer compared that with `borderBoxSize`, which reads before it. At any scale but 1, every node differed by more than the quarter pixel at once, so the page dispatched `moved`, the view refilled it, and the next fill recorded the same wrong height. `clippedBy` already divided by the page's scale. The record does too now, through one `scale()`, and so does the observer's fallback where `borderBoxSize` is missing.
+
+`test/zoom.test.js` mounts eight paragraphs, every other one padded, inside a box scaled by `transform`, settles the chain and counts every `moved` over the next 30 frames, then once more after a keystroke.
+
+| | `scale(0.5)` idle, after a key | `scale(1.5)` idle, after a key |
+| :-- | :-- | :-- |
+| Before | 120, 120 | the test stopped at the first scale |
+| After | 0, 0 | 0, 0 |
+
+## The margin bands, which are Cicero's
+
+The page's margin bands keep a wrong width until reload, and that half is Cicero's. `layoutBands` in `chase.ts` reads each margin box's `max-content` and `min-content` widths with `getBoundingClientRect`, after the transform, and caches them in the module's `INTRINSICS` with no scale in the key. The first page that measures a set of margin boxes decides the widths for every later page in the load, at any scale. Measured on a page 400 by 300 px with three long margin boxes in the top band (`@top-left`, `@top-center` and `@top-right`), each order of scales in a fresh browser page:
+
+| First scale measured | Top band's columns at that scale | Then at scale 1 |
+| :-- | :-- | :-- |
+| 1 | 156.19, 47.62 and 156.19 px | the same |
+| 0.5 | 164.66, 30.69 and 164.66 px | the same, wrong |
+| 1.5 | 147.72, 64.55 and 147.72 px | the same, wrong |
+
+With short boxes that fit the band, the widths are the same at every scale, since a uniform scale does not change their ratio. The fix is Cicero's: divide the read widths by the page's scale, or put the scale in the cache's key.
