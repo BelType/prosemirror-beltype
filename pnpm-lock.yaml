@@ -15,8 +15,8 @@ importers:
         specifier: 1.63.0
         version: 1.63.0
       prosemirror-fragview:
-        specifier: git+https://codeberg.org/egildo/prosemirror-fragview.git#805db68ee7cad515ba4dc322c0bffaae9ddda551
-        version: git+https://codeberg.org/egildo/prosemirror-fragview.git#805db68ee7cad515ba4dc322c0bffaae9ddda551(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-transform@1.12.2)
+        specifier: git+https://codeberg.org/egildo/prosemirror-fragview.git#c715783a34673d60bfb60c804f7b1cf9bcde89df
+        version: git+https://codeberg.org/egildo/prosemirror-fragview.git#c715783a34673d60bfb60c804f7b1cf9bcde89df(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-transform@1.12.2)
       prosemirror-history:
         specifier: 1.5.1
         version: 1.5.1
@@ -352,8 +352,8 @@ packages:
     resolution: {integrity: sha512-LJlKCCAUFKOuZxipUdYw1NzIITEsPcgyOG9LkvRJvuKj/bRzbuRY0ARXvL0pWGpsZvn8jku+LMep2eU0seHp8g==}
     engines: {node: ^10 || ^12 || >=14}
 
-  prosemirror-fragview@git+https://codeberg.org/egildo/prosemirror-fragview.git#805db68ee7cad515ba4dc322c0bffaae9ddda551:
-    resolution: {commit: 805db68ee7cad515ba4dc322c0bffaae9ddda551, repo: https://codeberg.org/egildo/prosemirror-fragview.git, type: git}
+  prosemirror-fragview@git+https://codeberg.org/egildo/prosemirror-fragview.git#c715783a34673d60bfb60c804f7b1cf9bcde89df:
+    resolution: {commit: c715783a34673d60bfb60c804f7b1cf9bcde89df, repo: https://codeberg.org/egildo/prosemirror-fragview.git, type: git}
     version: 0.1.1
     peerDependencies:
       prosemirror-model: ^1.25.0
@@ -630,7 +630,7 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.2
 
-  prosemirror-fragview@git+https://codeberg.org/egildo/prosemirror-fragview.git#805db68ee7cad515ba4dc322c0bffaae9ddda551(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-transform@1.12.2):
+  prosemirror-fragview@git+https://codeberg.org/egildo/prosemirror-fragview.git#c715783a34673d60bfb60c804f7b1cf9bcde89df(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-transform@1.12.2):
     dependencies:
       prosemirror-model: 1.25.12
       prosemirror-state: 1.4.4

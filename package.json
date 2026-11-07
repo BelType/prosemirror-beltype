@@ -40,7 +40,7 @@
   "devDependencies": {
     "@beltype/cicero": "0.1.6",
     "playwright": "1.63.0",
-    "prosemirror-fragview": "git+https://codeberg.org/egildo/prosemirror-fragview.git#805db68ee7cad515ba4dc322c0bffaae9ddda551",
+    "prosemirror-fragview": "git+https://codeberg.org/egildo/prosemirror-fragview.git#c715783a34673d60bfb60c804f7b1cf9bcde89df",
     "prosemirror-history": "1.5.1",
     "prosemirror-model": "1.25.12",
     "prosemirror-state": "1.4.4",
