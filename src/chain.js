@@ -68,7 +68,7 @@ export class Chain {
     this.entries = [];
     /** Rows computed for a document, waiting for a transaction on it (`takeRows`). @type {{ doc: PMNode | null, rows: Map<number, Row> }} */
     this.pending = { doc: null, rows: new Map() };
-    /** @type {{ doc: PMNode, resolve: (v: { complete: boolean, why: string | null }) => void, reject: (e: Error) => void }[]} */
+    /** @type {{ doc: PMNode, resolve: (v: { complete: boolean, why: string | null, clipped?: { page: number, flow: number, parallel: number }[] }) => void, reject: (e: Error) => void }[]} */
     this.waiters = [];
     /** Fills begun and not ended. */
     this.inflight = 0;
@@ -88,6 +88,8 @@ export class Chain {
     this.settles = [];
     /** The pages whose last fill threw, by index, with the document it threw on. @type {Map<number, { doc: PMNode, why: string }>} */
     this.failures = new Map();
+    /** The pages whose last fill cut off what no page shows (the account's `clipped`), by index, with the document they were cut on. @type {Map<number, { doc: PMNode, clipped: { flow: number, parallel: number } }>} */
+    this.clips = new Map();
     /** The last settle's promise, for a reader that awaits it. @type {Promise<any> | null} */
     this.settling = null;
     /** @type {Map<string, boolean>} */
@@ -124,6 +126,9 @@ export class Chain {
   filled(page, doc, _answer) {
     this.inflight--;
     this.failures.delete(page.index);
+    const clipped = page.account?.clipped;
+    if (clipped) this.clips.set(page.index, { doc, clipped });
+    else this.clips.delete(page.index);
     this.counts.fills++;
     // A fill of a document a newer one overtook is the view's to discard, and so is its row.
     if (!this.view || doc !== this.doc) return;
@@ -142,6 +147,7 @@ export class Chain {
    */
   failed(page, doc, error) {
     this.inflight--;
+    this.clips.delete(page.index);
     this.failures.set(page.index, { doc, why: `page ${page.index + 1}'s fill threw: ${error?.message ?? error}` });
   }
 
@@ -282,9 +288,11 @@ export class Chain {
     const done = entries.length > 0 && !entries.some((e) => e.dirty) && entries[entries.length - 1].to == null && !this.owed;
     const stopped = !done && !this.owed && this.inflight === 0;
     const failure = [...this.failures.values()].find((f) => f.doc === doc);
+    const clipped = [...this.clips].filter(([i, c]) => c.doc === doc && i < entries.length).sort(([a], [b]) => a - b).map(([i, c]) => ({ page: i + 1, ...c.clipped }));
+    const also = clipped.length ? { clipped } : {};
     this.waiters = this.waiters.filter((w) => {
       if (w.doc !== doc) w.reject(new Overtaken());
-      else if (done) w.resolve(failure ? { complete: false, why: failure.why } : { complete: true, why: null });
+      else if (done) w.resolve(failure ? { complete: false, why: failure.why, ...also } : { complete: true, why: null, ...also });
       else if (stopped) w.resolve({ complete: false, why: 'the view filled no dirty entry after its update: the window policy left it unbuilt, or the browser is composing' });
       else return true;
       return false;
@@ -293,8 +301,11 @@ export class Chain {
 
   /**
    * The first door: the chain settled for `doc`.
+   *
+   * @remarks
+   * `clipped`, where it is present, names every page that cuts off what no page shows, from 1, with the pixels of the flow and of a parallel flow it loses (the page's `clippedBy`): a float or an absolutely positioned box that crosses a cut is lost on screen, while the CLI carries it to the page after, so the host can say so. It is absent where no page clips, and it does not make the chain incomplete.
    * @param {PMNode} doc
-   * @returns {Promise<{ complete: boolean, why: string | null }>}
+   * @returns {Promise<{ complete: boolean, why: string | null, clipped?: { page: number, flow: number, parallel: number }[] }>}
    */
   settled(doc) {
     return new Promise((resolve, reject) => {

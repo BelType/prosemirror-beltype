@@ -539,7 +539,9 @@ export class CiceroPage {
       this.heights.set(node, null);
       this.observer.observe(node);
     }
-    const clipped = whole || cut?.shell || cut?.pieces?.length || start.shell || start.pieces?.length ? null : this.clippedBy(parallel);
+    // A page that begins or ends in a shell or a row is cut there on purpose, so only its parallel flow is asked.
+    const shaped = !!(cut?.shell || cut?.pieces?.length || start.shell || start.pieces?.length);
+    const clipped = whole ? null : this.clippedBy(parallel, !shaped);
     const byEvent = event && to === eventTo;
     const next = to == null ? undefined : { ...hintAfter({ index: this.index, name: nextName, forced: !!byEvent, parity: byEvent ? event.parity : null }), ...carriedHint(to, cut?.next) };
     this.account = { from, to, name: this.conditions.name, forced, cls: verdict?.cls ?? (byEvent ? 'A' : null), kind: whole ? 'whole' : verdict?.kind ?? (byEvent ? (event.namedSwitch ? 'name' : 'forced') : 'terminal'), y: verdict?.y ?? null, pageStart, usedPx, extPx, next, ...(clipped ? { clipped } : {}), ...this.ratio() };
@@ -547,7 +549,10 @@ export class CiceroPage {
   }
 
   /**
-   * How far below the cut a parallel flow runs that starts on the page, read while the law copy is standing. The geometry first: only a box that crosses the cut has its style read.
+   * How far below the cut a parallel flow runs that starts on the page, read while the law copy is standing. The geometry and the position first: only a box that runs below the cut and starts before the page's end has its style read.
+   *
+   * @remarks
+   * A box that starts on the page and stands wholly below the cut is lost whole, and is counted: measured 2026-11-07, a float placed after a paragraph on a page that begins in a shell stood 10 px below its page's cut, its position two before the page's end (`test/clipped.test.js`).
    * @param {any} report
    * @param {Trial} t
    * @param {number} cutY
@@ -556,11 +561,11 @@ export class CiceroPage {
   parallelBelow(report, t, cutY, to) {
     let below = 0;
     for (const box of report.boxes()) {
-      if (box.rect.top >= cutY || box.rect.bottom <= cutY + 1) continue;
+      if (box.rect.bottom <= cutY + 1) continue;
       const law = t.lawOf.get(box.el);
-      if (!law || !isOutOfFlow(getComputedStyle(law))) continue;
-      const start = t.law.positions.get(law)?.start;
-      if (start != null && start < to) below = Math.max(below, box.rect.bottom - cutY);
+      const start = law && t.law.positions.get(law)?.start;
+      if (start == null || start >= to || !isOutOfFlow(getComputedStyle(law))) continue;
+      below = Math.max(below, box.rect.bottom - cutY);
     }
     return below;
   }
@@ -595,20 +600,25 @@ export class CiceroPage {
   }
 
   /**
-   * What the page's foot cuts off with no later page to show it, in pixels, or null: the shown tree standing taller than the trial it was measured as (a different tree, `docs/found.md`), and a parallel flow that starts on the page and runs below the cut, which this page does not carry. A page ending in a shell or a row is cut there on purpose and is not asked. Said once per page, and kept in the account.
+   * What the page's foot cuts off with no later page to show it, in pixels, or null: the shown tree standing taller than the trial it was measured as (a different tree, `docs/found.md`), and a parallel flow that starts on the page and runs below the cut, which this page does not carry. A page that begins or ends in a shell or a row is cut there on purpose, so its flow is not asked and its parallel flow is. Said once per page, kept in the account, and named by the chain's `settled()` (`clipped`), which is the host's door.
+   *
+   * @remarks
+   * The tail of a parallel flow is lost on screen while the CLI carries it to the page after: carrying it (the engine's `adjudicateFlow` and a carried range in the hint) is owed, and this says where it is lost until then.
    * @param {number} parallel What `parallelBelow` read.
+   * @param {boolean} [flowToo] Whether the flow is asked too; false on a page that begins or ends in a shell or a row.
    * @returns {{ flow: number, parallel: number } | null}
    */
-  clippedBy(parallel) {
+  clippedBy(parallel, flowToo = true) {
     const range = this.doc.createRange();
     let bottom = -Infinity;
-    for (const node of this.given()) {
+    for (const node of flowToo ? this.given() : []) {
       // An element's own rect lays out what the page's `content-visibility` skips, its shadow flow included, and neither a range's nor the host's does: measured 2026-11-07, with no element read first the flow's rect was all zeros and every page of the faces test said it cut off 280 to 1 326 px. The reading of each node's height at the fill, which `moved` no longer needs, had been doing it.
       /** @type {Element} */ (node).getBoundingClientRect();
       range.selectNode(node);
       const rect = range.getBoundingClientRect();
       if (rect.height > 0) bottom = Math.max(bottom, rect.bottom); // a node put away has no box
     }
+    if (bottom === -Infinity && parallel <= 1) return null;
     const scale = this.scale();
     const foot = /** @type {Element} */ (/** @type {ShadowRoot} */ (this.dom.shadowRoot).querySelector('.flow')).getBoundingClientRect().bottom;
     const flow = bottom === -Infinity ? 0 : Math.max(0, (bottom - foot) / scale);

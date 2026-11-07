@@ -41,3 +41,26 @@ test('a page whose fill threw leaves the chain incomplete for its document until
   c.view = { state };
   assert.deepEqual(await c.settled(doc), { complete: true, why: null });
 });
+
+test('settled() names the pages whose last fill clipped, for the document they clipped on, and drops a page that filled again unclipped or threw', async () => {
+  const schema = new Schema({ nodes: { doc: { content: 'text*' }, text: {} } });
+  let state = EditorState.create({ schema, plugins: [fragmentsPlugin()] });
+  state = state.apply(refilled(state.tr, 0, null));
+  const c = chain();
+  c.view = { state };
+  const { doc } = state;
+  const page = /** @type {any} */ ({ index: 0, account: { clipped: { flow: 0, parallel: 120 } } });
+  c.inflight = 1;
+  c.filled(page, doc, { to: null });
+  assert.deepEqual(await c.settled(doc), { complete: true, why: null, clipped: [{ page: 1, flow: 0, parallel: 120 }] });
+  page.account = {};
+  c.inflight = 1;
+  c.filled(page, doc, { to: null });
+  assert.deepEqual(await c.settled(doc), { complete: true, why: null });
+  page.account = { clipped: { flow: 3, parallel: 0 } };
+  c.inflight = 1;
+  c.filled(page, doc, { to: null });
+  c.inflight = 1;
+  c.failed(page, doc, new Error('no alt'));
+  assert.deepEqual(await c.settled(doc), { complete: false, why: "page 1's fill threw: no alt" });
+});
