@@ -318,6 +318,15 @@ function editOf(view, kind, arg = '') {
     const at = b.pos + 1;
     return { tr: view.state.tr.insertText('x', at), at };
   }
+  // `throw` again, but the page's rendering is what throws, as a node's `toDOM` that throws would: the safety net renders too, and must still answer.
+  if (kind === 'throw-render') {
+    const f = view.fragments[Number(arg) - 1];
+    const fill = f.container.fill.bind(f.container);
+    f.container.fill = (/** @type {any} */ d, /** @type {number} */ from) => fill(d, from, () => { throw new Error('the harness\'s toDOM threw'); });
+    const b = /** @type {any} */ (blocks.find((x) => x.pos >= f.from && x.node.textContent.length > 8));
+    const at = b.pos + 1;
+    return { tr: view.state.tr.insertText('x', at), at };
+  }
   // The first page from page `arg` on that begins with a shell or row pieces, dirtied by the same transaction that types a character on page one: the page before it stays clean and its hint with it, and the page reads that hint at a `from` the character moved. One transaction, because the comparison's fresh fill after each edit would otherwise renew every hint.
   if (kind === 'carried') {
     const pages = view.fragments;

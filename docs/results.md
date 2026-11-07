@@ -1390,7 +1390,18 @@ Every fixture was run on the new path against what the old command line cut it t
 
 Multicol's difference is not this round's. On the old path too, its page 3 holds 174 words at the root and 170 in the view, with the same first and last word. It is the sliced two-column list.
 
-Only the page counts were compared with the old path, and multicol's words. The root on the old path was the monorepo's legacy Cicero, and here it is the pinned `@beltype/cicero`, the same copy the view runs. These runs set `FRAGVIEW` to a checkout of fragview's `main`, since the pin stands before `prosemirror-fragview/schema-generic`.
+Only the page counts were compared with the old path, and multicol's words. The root on the old path was the monorepo's legacy Cicero, and here it is the pinned `@beltype/cicero`, the same copy the view runs. These runs set `FRAGVIEW` to a checkout of fragview's `main`, since the pin then stood before `prosemirror-fragview/schema-generic`; it has moved since.
 
-On the new path, `--edits` on `fixtures/chrome` and `--bare` on `fixtures/specimen` hold every page the same. `--overtaken` on `fixtures/flow` reports 42 failures over 25 pairs and exits 1, the same output on the old path with the same fragview checkout, so it is not this round's. The later `found.md` entry for that case was not reopened.
+On the new path, `--edits` on `fixtures/chrome` and `--bare` on `fixtures/specimen` hold every page the same. `--overtaken` on `fixtures/flow` reports 42 failures over 25 pairs and exits 1, the same output on the old path with the same fragview checkout, so it is not this round's. Traced the same day: the 42 failures are not fragview's either. They are Cicero 0.1.6's measure container, one per document, which two fills in flight share; under Cicero `main`, which gives each measure context its own container (20aa979, unreleased), the case gives 0 over 25 with either fragview (`found.md`, "The measure container is one element for every fill of a document").
 
+# The settle starts cold where the driver does
+
+2026-11-07. A first fill, a restored state and `invalidate()` settled warm, from whatever tables the Ledger held, where the engine's driver goes warm only on a resume (`opts.prior && opts.dirtyAt`). So the editor could land on other page numbers than a reopen or the command line. `Chain.settle` now passes the warm tables only when the settle has no `reason`, which is an incremental one; a settle that ended incomplete writes nothing into the Ledger; and `Originals.forget()` blanks the total, which a page publishes as `pages T`. `test/settle.test.js` restores a Ledger whose page number is `"99"` and records every sheet the settle delivers: before the fix the restored page number was delivered before the first layout, and now none is, and the restored chain's tables equal a first fill's.
+
+## Not done
+
+This also makes the harness's `invalidate()` reference cold: a comparison of an edited chain with its fresh fill after `invalidate()` now compares with a settle that started from the reservations, not from the edited chain's tables. No fixture was run on it here.
+
+# The safety net renders under its own guard
+
+2026-11-07. Where a node's `toDOM` throws, the page's safety net threw too: `failSafe` rendered the node again outside any guard, inside the fill's `catch`, so `Chain.failed` was skipped, the chain's `inflight` stayed up and `settled()` never answered. The harness's `throw` stubs `cutAndDraw`, so the render never threw there. `failSafe` now renders in a `try`, shows the page empty where the rendering throws and answers past the node, and the fill calls `Chain.failed` in a `finally`. `test/settle.test.js` makes page 2's rendering throw: before the fix `settled()` gave no answer in five seconds, and now it answers `{ complete: false, why: "page 2's fill threw: toDOM threw" }`, the last entry runs to the end and the Ledger keeps its tables. The harness's new edit `throw-render:2` on `fixtures/specimen` settles incomplete with that reason over 11 pages, two of them empty, against the fresh fill's 9; a `key:1` after it agrees with the fresh fill on 9 of 9.

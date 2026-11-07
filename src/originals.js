@@ -232,10 +232,11 @@ export class Originals {
   }
 
   /**
-   * Forget the rendering and every kept part: the conditions every rendering was read under moved (the view's `invalidate()`, which the chain hears as every page released), so the next state is rendered whole.
+   * Forget the rendering and every kept part: the conditions every rendering was read under moved (the view's `invalidate()`, which the chain hears as every page released), so the next state is rendered whole and the total is blank until a page runs to the end again.
    */
   forget() {
     this.state = null;
+    this.total = null;
     this.memo.clear();
   }
 
