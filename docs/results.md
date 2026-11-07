@@ -1311,7 +1311,7 @@ A chain of ten edits (`start;key:2;key:3;key:4;end;delete:2;key:2;end;paste;key:
 
 ## Not done
 
-A page still answers one range of positions, so a key in a page's painted shell dirties by `reach` and not by what it shows (the review's finding on shells and row cuts). The hint itself reached a refilled page only through `Chain.hintFor` until fragview 805db68 handed it to every fill (2026-11-07); that side channel is gone.
+A page answered one range of positions, so a key in a page's painted shell dirtied by `reach` and not by what it shows (the review's finding on shells and row cuts), until a page answered `shows` (2026-11-07, "A page shows what lies outside its range" below). The hint itself reached a refilled page only through `Chain.hintFor` until fragview 805db68 handed it to every fill (2026-11-07); that side channel is gone.
 
 # The silent faults
 
@@ -1358,7 +1358,7 @@ Each fixture under `--strict` with `start;key:2;delete:2;end;paste`, and the spe
 
 ## Not done
 
-The cut is not lowered and a float is not carried. Two paginated editors in one document still share a holder, which waits on a ruling. The measure container is still one per document, for the Cicero round. `user-select: none` on the bands and the margin cells is the engine's.
+The cut is not lowered and a float is not carried. Two paginated editors in one document still share a holder, which waits on a ruling. The measure container is still one per document under the pinned Cicero 0.1.6; Cicero 0.1.8 gives each measure context its own. `user-select: none` on the bands and the margin cells is the engine's.
 
 # The guard: the words of two hosts' pages
 
@@ -1493,3 +1493,31 @@ Written 2026-11-07, on the branch `fix/fidelity-and-zoom`. The factory reads the
 The repaged chain settled in 8 fills, one per page. Its fresh fill agrees on 8 of 8 pages and on every page's state, and so does a keystroke after it. `repage-b` agrees with the CLI on every page and every fill's interval. So `setProps` with a new factory is the supported path, and the README and docs/plan.md say so.
 
 Running it found a fault of this round's own. Dividing the recorded height by the page's scale, the zoom's first fix, read the scale against `offsetHeight`, rounded to a whole pixel: 0.9992 on this 170 mm page with no transform, and the fixture filled 80 times where `main` fills 8. The baseline is now the observer's first report (the zoom's section above). Taking the read of each node's height out of the fill also took away the layout it forced. On a page that `content-visibility` skips, the flow's rect then read as zeros, and every page of the faces test said it cut off 280 to 1 326 px. `clippedBy` now reads each node's own rect before the flow's.
+
+# A page shows what lies outside its range
+
+2026-11-07, on `fix/shows-range`, for `incremental-correctness-4`. A cut through a row ends at the last item's place, so the rest of an earlier item lies, by position, inside the page before. A same-length replacement or a mark there refilled only that page, whose cut and hint stayed the same, and the page that shows the text kept the old text. A `CiceroPage` now answers `shows` from its fill: from the lowest place of the row items it resumes, where that is below its start, to the end its own slice was rendered to, where that is past its cut (a painted shell, a row's end). The fragmented view keeps it on the entry and dirties the page when an edit touches it. A page holding a row's pieces answers `pointAt` with null for a position between its pieces that it does not render, and finds a resumed item's rest below its own start in the item's own element, so the view gives the caret to the page whose `shows` holds it.
+
+`test/shows.test.js`, a flex row whose first column runs over five pages, red before. `pnpm test` 71 of 71 on the branch with fragview linked; on `main`, with the dev pin at fragview `c715783`, 74 pass and 1 todo.
+
+## Not done
+
+The top of a painted shell: the page after a painted cut holds the whole box, the part already shown pulled above its clip, so a caret there still lands on the page after. Telling them apart needs the page's geometry in `pointAt`.
+
+# What the foot cuts off, answered to the host
+
+2026-11-07, on `fix/clipped-door`, the short term of `css-fidelity-parallel-flows`. `chain.settled(doc)` answers `clipped`, one `{ page, flow, parallel }` for every page whose account has `clipped`, and leaves it out when no page clips; it does not make the chain incomplete. A page that begins or ends in a shell or a row, skipped before, is asked about its parallel flow, not its flow. A float that starts on the page and stands wholly below the cut is counted, where only one crossing the cut was. `test/clipped.test.js` has a page that begins in the flow and one that begins in a shell; `pnpm test` 70 of 70 on the branch.
+
+## Not done
+
+The tail is still lost on screen, where the CLI carries it to the next page. Carrying it needs the engine's `adjudicateFlow` exported and a carried range in the hint. No host shows `clipped` yet.
+
+# Random edits
+
+2026-11-07, on `fix/harness-random-edits`, for `incremental-correctness-10`. `node scripts/specimen.mjs <fixture> --random seed:n[:runs]` makes `n` seeded edits aimed at the cuts: typing, deletes, Enter, joins, `setNodeMarkup` on headings, a wrap, a lift, undo, redo and `redraw`, a third of them inside shells and row items. It waits for no fill between two edits and compares the whole run once, at its end, with the cold fill after `invalidate()`. `--paced` waits for quiet after every edit and `--skip i,j` draws edits without making them, to narrow a seed. It is not in `pnpm test`.
+
+It found two faults, both in [found.md](found.md). Under Cicero 0.1.6 nearly every fixture fails unpaced, the shared measure container, already known and healed in Cicero 0.1.8: the row seeds 1 to 10 pass linked to Cicero `main`. And the specimen's seed 6, under both, leaves a page cut for a page name the cold fill does not see; it is a `todo` case in `test/random.test.js`.
+
+## Not done
+
+The paced seeds that fail on the pinned Cicero only (`row` 4 and 6, `flow` 4 and 6, `facsimile` 3) are not narrowed, and no CI runs the random mode.
