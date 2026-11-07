@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+A release is published by hand. `scripts/release.sh` installs, tests and publishes from a clean checkout of HEAD, then tags and pushes, signed in to npm with Egildo's security key. `.github/workflows/release.yml` is gone, and with it the token and the provenance attestation; the record is *a release moves three remotes at once*, amended 2026-11-07.
+
 The measurement stands on its own.
 
 - `scripts/specimen.mjs` no longer starts a BelType checkout's dev server. It serves a finished document's folder itself, with the engine's head spliced in as `beltype print` does, and asks the engine for its whole run. `BELTYPE_ROOT` and `BELTYPE_STUDIO` are gone.
@@ -21,7 +23,7 @@ The measurement stands on its own.
 
 ## 0.1.1 (2026-11-04)
 
-No code change. The first version published by the workflow: a tag `v0.1.1` publishes by trusted publishing, with provenance.
+No code change. The first version published by the workflow: a tag `v0.1.1` publishes by trusted publishing, with provenance. Corrected 2026-11-07: npm shows this version published by hand, with no attestation.
 
 ## 0.1.0 (2026-11-04)
 
