@@ -1332,7 +1332,7 @@ The rejected fill left its entry dirty and the chain stopped there. `CiceroPage.
 | Before | no, after 119 723 ms | pages 2, 3, 3 |
 | After | yes, 11 ms | pages 2, 3, 4, 5, 6, 7 |
 
-The fragmented view itself still stops at a fill that rejects: this package's page no longer rejects. The facsimile intake still reads the whole host document, so one PDF with no alt fails every page, each now showing one node. Whether the editor warns there and refuses only at print is Egildo's ruling, and so are timeouts on the image and font waits.
+The fragmented view itself still stops at a fill that rejects: this package's page no longer rejects. Since 2026-11-07 (fragview 805db68) the view asks `handleFillRejected`, and this package's, exported, answers a page whose safety net threw too past the node at its start (`test/settle.test.js`). The facsimile intake still reads the whole host document, so one PDF with no alt fails every page, each now showing one node. Whether the editor warns there and refuses only at print is Egildo's ruling, and so are timeouts on the image and font waits.
 
 ## What the foot cuts off
 

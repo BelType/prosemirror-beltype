@@ -31,6 +31,8 @@ The measurement stands on its own.
 - A page reads its hint from `fill`'s fourth argument, which `prosemirror-fragview` 805db68 hands every fill, and `Chain.hintFor`, the side channel that read it by index, is gone. On the chrome fixture, retitling `Folios` gives 17 of 17 pages equal to a fresh fill, and 5 of 17 when the page ignores the hint it is handed. A view older than 805db68 refills a page under the hint it was built with.
 
 - `handleFillRejected`, exported, is the view's prop for a chain of Cicero pages, as `prosemirror-fragview` 805db68 defines it. A fill whose safety net threw too used to leave its page dirty and every page after it waiting, with the error raised and nothing else. The page now shows empty, answers past the node at its start with `failed` in its account, and the chain goes on, while `chain.settled(doc)` answers incomplete naming the page (`test/settle.test.js`, with the bare view's stop beside it). Any other container is left to the view.
+- The README says how to host the pages: the two props, prefixing author ids so Cicero's `target-text()` cannot read a host app's element of the same id, and that the `near` window is not supported with Cicero pages.
+- Late truth stays on the page's own `ResizeObserver`. `@beltype/cicero` 0.1.8 has `watchLateTruth` in `dist/seam/rim.js`, used by its client, but no export reaches it: `./internal/*` maps `dist/src` only. Seating it in `ciceroContainers` needs Cicero to export it, for instance a `./rim` entry for `dist/seam/rim.js` with `watchLateTruth`, `bringsNewFace` and `knowLoadedFaces`, and the page to answer its `presented`, `pageHolding` and `measured` questions from the chain's pages. The Cicero dev pin stays at 0.1.6.
 
 ## 0.1.1 (2026-11-04)
 
