@@ -41,3 +41,9 @@ Prefix the ids in the author's content, or keep the host app's own ids out of th
 The view's `window: { build: 'near' }` is not supported with Cicero pages: the chain stays incomplete there, and the engine's reads loop takes a partial chain for a whole one. Use the default window.
 
 Late truth, a size or element that arrives after a fill, is heard through the page's own `ResizeObserver` over its top-level nodes, not through the engine's rim (`watchLateTruth` in Cicero's `seam/rim`), which no public export of `@beltype/cicero` reaches yet, 0.1.9 included. The fragmented view refills the page that moved and the page before it, whose cut may have read the content that moved.
+
+`collapsedSpaces()` is a trade: it writes U+00A0 into the model wherever a typed space would collapse, as the platform's own contenteditable does in its DOM, so the saved document holds non-breaking spaces where the author typed plain ones. A host that wants a clean model leaves the plugin out and accepts that a double space, or a space at a line's edge, collapses on the page as it does in print.
+
+## Browsers
+
+Desktop browsers of the Chromium family are the measured target: the CLI round, the guard and every suite here run Chromium. Elsewhere the view loads and edits, but it is not WYSIWYG, since the pages are laid out by another engine than the one the measurements were taken in, and nothing measures the difference; Caster, the printer, refuses outside Chromium as it already does. Android is unsupported for now: a host on Android should mount a plain `EditorView` from `prosemirror-view` over the same state, without the pages.

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+Browser scope and `collapsedSpaces`, by the rulings of 2026-11-07.
+
+- The README says which browsers are measured: desktop browsers of the Chromium family. Elsewhere the view loads and edits but is not WYSIWYG, and the printer refuses as it already does. Android is unsupported for now, and a host there should mount a plain `EditorView`.
+- The README states `collapsedSpaces()`'s trade: it writes U+00A0 into the model where a typed space would collapse, as the platform's own contenteditable does, so a host that wants a clean model leaves the plugin out and accepts the collapse.
+
 Cicero 0.1.9 (2026-11-07).
 
 - The Cicero dev pin moves from 0.1.6 to 0.1.9. Two fills of one document in flight no longer share the engine's measure container, so the overtaken case on the flow fixture, which gave 42 wrong answers over 25 pairs, gives none, and the random edits that failed on nearly every fixture pass. Clear `node_modules/.vite` after the pin moves, or Vite keeps serving the old copy.
