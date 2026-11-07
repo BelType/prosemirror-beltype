@@ -1390,7 +1390,7 @@ Every fixture was run on the new path against what the old command line cut it t
 
 Multicol's difference is not this round's. On the old path too, its page 3 holds 174 words at the root and 170 in the view, with the same first and last word. It is the sliced two-column list.
 
-Only the page counts were compared with the old path, and multicol's words. The root on the old path was the monorepo's legacy Cicero, and here it is the pinned `@beltype/cicero`, the same copy the view runs. These runs set `FRAGVIEW` to a checkout of fragview's `main`, since the pin stands before `prosemirror-fragview/schema-generic`.
+Only the page counts were compared with the old path, and multicol's words. The root on the old path was the monorepo's legacy Cicero, and here it is the pinned `@beltype/cicero`, the same copy the view runs. These runs set `FRAGVIEW` to a checkout of fragview's `main`, since the pin then stood before `prosemirror-fragview/schema-generic`; it has moved since.
 
 On the new path, `--edits` on `fixtures/chrome` and `--bare` on `fixtures/specimen` hold every page the same. `--overtaken` on `fixtures/flow` reports 42 failures over 25 pairs and exits 1, the same output on the old path with the same fragview checkout, so it is not this round's. The later `found.md` entry for that case was not reopened.
 

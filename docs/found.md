@@ -417,3 +417,10 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Layer**: the studio's wiring, `src/fragmented.js`.
 - **Fix**: one line: `ledger()` from `prosemirror-beltype` among the plugins the mount adds.
 - **State**: CLOSED 2026-10-25, studio f54ba3c: the mount installs `ledger()` beside `collapsedSpaces()`.
+
+### A leaf's node view leaves its page while the page fills
+
+- **Where**: a leaf with a node view on a `CiceroPage`. `setContent` takes the page's light children off in one act, so the view parks the host's element off screen before the fill and puts it back after.
+- **Measured 2026-11-07**: with no image loading it is out for 5 ms on a small page and no frame paints. When the page holds a picture that has not loaded, the fill waits for it and the element is gone for that wait: 217 ms and 14 frames with a picture served in 200 ms.
+- **Fix, if it is ever wanted**: a door in the engine's `setContent` that keeps a node already among the page's children in place. Not built: the blink shows when a picture first arrives on the page, not while typing.
+
