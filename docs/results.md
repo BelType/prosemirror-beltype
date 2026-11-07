@@ -1521,3 +1521,7 @@ It found two faults, both in [found.md](found.md). Under Cicero 0.1.6 nearly eve
 ## Not done
 
 The paced seeds that fail on the pinned Cicero only (`row` 4 and 6, `flow` 4 and 6, `facsimile` 3) are not narrowed, and no CI runs the random mode.
+
+## On Cicero 0.1.9
+
+2026-11-07, on `wire/cicero-pin-and-scope`. The dev pin moves from Cicero 0.1.6 to 0.1.9, which gives each measure context its own container. Every fixture under `fixtures/` passes `--strict`, fourteen of them, each the same on every page as the CLI. `--overtaken` gives 0 failures over 25 pairs on `flow` and 0 over 8 on the specimen, and no law holder is left once the chain is quiet; the harness used to count a refill of the view's own still in flight as one left behind. `--random 1:20:8` unpaced passes every run on `row`, `flow`, `justified`, `dressing`, `running`, `multicol` and `facsimile`, and the paced seeds above that failed on 0.1.6 (`row` 4 and 6, `flow` 4 and 6, `facsimile` 3) pass, so they were the shared container too and need no narrowing. `pnpm test` 74 pass, 1 todo (the specimen's seed 6, which fails under both). The peer range is `^0.1.9`: `wrapResumed` now takes the engine's word and reading, `WRAPPED` and `clonesDecoration`, from the fragmentation face, which exports them from 0.1.9 on, where it used to spell the word and read `box-decoration-break` itself. It does not call `truncateLeadingDecoration`, whose continuation mark is already on every box it reaches and which reads through a `noteSource` registration that would also copy the source's words onto the slice.

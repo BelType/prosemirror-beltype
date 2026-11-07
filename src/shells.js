@@ -18,6 +18,7 @@
 import { mutateToContinuation, mutateToFirstFragment, pinTrack } from '@beltype/cicero/fragmentation';
 import { noteSource } from '@beltype/cicero/fragmentation';
 import { ADJOIN, AWAY, END, SHELL, SPLIT, START, addWord, hasWord, removeWord } from '@beltype/cicero/fragmentation';
+import { WRAPPED, clonesDecoration } from '@beltype/cicero/fragmentation';
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
 /** @import { RenderedSlice, Span } from 'prosemirror-fragview/src/fragmentainer.js' */
@@ -205,15 +206,11 @@ export function endFirstFragment(root, positions, doc, at, lawOf, extPx) {
   }
 }
 
-/** The engine's word for a divided box that wraps each of its fragments whole, which its fragmentation face does not export. */
-const WRAPPED = 'wrapped';
-
 /**
  * The engine's continuation dressing on the boxes a slice resumes at `at`, the ancestors of that position: a box that clones its decoration (css-break-3 §5.4) is `wrapped`, so the words sheet leaves it its block-start border and padding, as the engine's `truncateLeadingDecoration` leaves them on the root's continuation and on the driver's feed.
  *
  * @remarks
- * `mutateToContinuation` would do it, but only by consuming a cut, and the slice already begins at its cut.
- * ponytail: the word and the reading of `box-decoration-break` are spelled here, since Cicero 0.1.6 and 0.1.7 export neither `truncateLeadingDecoration` nor `WRAPPED`; this goes when the fragmentation face has the door.
+ * `mutateToContinuation` would do it, but only by consuming a cut, and the slice already begins at its cut. The word and the reading of `box-decoration-break` are the engine's (`WRAPPED`, `clonesDecoration`), asked of the law copy's element, which is laid out where the slice may not be. `truncateLeadingDecoration` is not called: its continuation mark is already on every box this reaches, and it reads through `noteSource`'s registration, which this would have to make and which also copies the source's words.
  * @param {Element | DocumentFragment} root
  * @param {{ get(node: Node): Span | undefined }} positions
  * @param {PMNode} doc
@@ -226,8 +223,7 @@ export function wrapResumed(root, positions, doc, at, lawOf) {
     const el = nodeDom(root, positions, doc, $at.before(d));
     if (!el || !hasWord(el, SPLIT) || hasWord(el, START) || hasWord(el, SHELL)) continue;
     const law = lawOf($at.before(d), el);
-    const style = law?.isConnected ? getComputedStyle(law) : null;
-    if (style && (style.boxDecorationBreak || /** @type {any} */ (style).webkitBoxDecorationBreak) === 'clone') addWord(el, WRAPPED);
+    if (law && clonesDecoration(law)) addWord(el, WRAPPED);
   }
 }
 
