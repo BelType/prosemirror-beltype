@@ -52,6 +52,38 @@ import { stateOfPage, runningPlaced, sameElements } from './originals.js';
 /** @import { Shell, Piece } from './shells.js' */
 /** @import { Originals, OriginalsState } from './originals.js' */
 
+/**
+ * What a page shows outside its range, as the fill's `shows`: from the lowest place of the row items it resumes, where that is below `from`, to the end its own slice was rendered to, where that is past `to`. Undefined where it shows its range alone.
+ * @param {number} from
+ * @param {number | null} to
+ * @param {Start} start
+ * @param {Cut | null} cut
+ * @returns {{ from: number, to: number | null } | undefined}
+ */
+function showsOf(from, to, start, cut) {
+  const low = Math.min(from, ...(start.pieces ?? []).filter((p) => !p.empty).map((p) => p.from ?? p.pos));
+  const high = to == null ? null : Math.max(to, cut?.end ?? to);
+  return low < from || (to != null && /** @type {number} */ (high) > to) ? { from: low, to: high } : undefined;
+}
+
+/**
+ * Whether a DOM point the position map gave for `pos` stands between two mapped nodes neither of which holds `pos`: a position the page does not render, which `pointAt` answers with the nearest point.
+ * @param {{ node: Node, offset: number }} point
+ * @param {number} pos
+ * @param {{ get(node: Node): any }} positions
+ */
+function inGap({ node, offset }, pos, positions) {
+  if (node.nodeType === 3) return false;
+  const kids = node.childNodes;
+  let before = null, after = null;
+  for (let i = offset - 1; i >= 0 && !before; i--) before = positions.get(kids[i]) ?? null;
+  for (let i = offset; i < kids.length && !after; i++) after = positions.get(kids[i]) ?? null;
+  if (before && before.end >= pos) return false;
+  if (after && after.start <= pos) return false;
+  if (!before && !after) return false;
+  return true;
+}
+
 /** The device pixel ratios already said on each document's console. @type {WeakMap<Document, Set<number>>} */
 const WARNED_RATIOS = new WeakMap();
 
@@ -235,6 +267,7 @@ export class CiceroPage {
     console.error(`prosemirror-beltype: page ${this.index + 1}'s fill threw; the node at ${from} is shown unmeasured and the chain goes on.`, error);
     const { to } = wholeAfter(doc, from);
     this.to = to;
+    this.pieced = false;
     this.observer.disconnect();
     this.heights.clear();
     let rendered = null;
@@ -378,6 +411,7 @@ export class CiceroPage {
    */
   async cutOnce(doc, from, render, holder) {
     this.to = null;
+    this.pieced = false;
     this.observer.disconnect();
     this.heights.clear();
     if (this.blank) {
@@ -511,7 +545,11 @@ export class CiceroPage {
     const byEvent = event && to === eventTo;
     const next = to == null ? undefined : { ...hintAfter({ index: this.index, name: nextName, forced: !!byEvent, parity: byEvent ? event.parity : null }), ...carriedHint(to, cut?.next) };
     this.account = { from, to, name: this.conditions.name, forced, cls: verdict?.cls ?? (byEvent ? 'A' : null), kind: whole ? 'whole' : verdict?.kind ?? (byEvent ? (event.namedSwitch ? 'name' : 'forced') : 'terminal'), y: verdict?.y ?? null, pageStart, usedPx, extPx, next, ...(clipped ? { clipped } : {}), ...this.ratio() };
-    return next ? { to, next, reach } : { to, reach };
+    // A row's pieces show positions outside the page's range: the rest of an earlier item, below `from`, on the page that resumes the row, and the rest of the row past `to` on the page that cuts it; a box shown whole past `to` likewise (a painted shell).
+    this.pieced = !!(start.pieces?.length || cut?.pieces?.length);
+    const shows = showsOf(from, to, start, cut);
+    const answer = next ? { to, next, reach } : { to, reach };
+    return shows ? { ...answer, shows } : answer;
   }
 
   /**
@@ -992,11 +1030,24 @@ export class CiceroPage {
     return [...this.dom.childNodes].filter((n) => n.nodeType === 1 && !this.chromeNodes.has(/** @type {Element} */ (n)));
   }
 
-  /** @param {number} pos */
+  /**
+   * The DOM point that shows `pos`, null where the page does not show it. A page holding a row's pieces does not show every position between its first and its last: an item's rest is the next page's, and its start the page before's, so a point that falls in such a gap (`inGap`) is null, and the view gives the position to the page whose fill answered `shows` over it. A resumed item's rest, below the page's `from`, is found in the item's own element.
+   * @param {number} pos
+   */
   pointAt(pos) {
     if (!this.rendered) return null;
     if (this.to != null && pos > this.rendered.to && pos <= this.to) pos = this.rendered.to;
-    return pointAt(this.dom, this.rendered.positions, pos);
+    const positions = this.rendered.positions;
+    const point = pointAt(this.dom, positions, pos);
+    if (!this.pieced || (point && !inGap(point, pos, positions))) return point;
+    // A resumed item's rest lies below the slice's own start, inside an ancestor whose span the slice clamped: the first element whose own span holds `pos` answers, in document order.
+    for (const el of this.dom.querySelectorAll('*')) {
+      const span = positions.get(el);
+      if (!span || pos < span.start || pos > span.end) continue;
+      const inner = pointAt(el, positions, pos);
+      if (inner && !inGap(inner, pos, positions)) return inner;
+    }
+    return null;
   }
 
   /**
