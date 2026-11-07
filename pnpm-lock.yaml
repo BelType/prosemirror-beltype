@@ -9,8 +9,8 @@ importers:
   .:
     devDependencies:
       '@beltype/cicero':
-        specifier: 0.1.6
-        version: 0.1.6
+        specifier: 0.1.9
+        version: 0.1.9
       playwright:
         specifier: 1.63.0
         version: 1.63.0
@@ -35,8 +35,8 @@ importers:
 
 packages:
 
-  '@beltype/cicero@0.1.6':
-    resolution: {integrity: sha512-N0ApCaEQ63bKFfEqimP9EtOowZ9yS+4j9NLLfKp8Zi7ZbqXQAs0Z2h11UMfGMuh0HUureF+mbLsIm/PbqABlYg==}
+  '@beltype/cicero@0.1.9':
+    resolution: {integrity: sha512-HPANVLjdGziO4oGSehq7o1B/dOH0KxTcpBv9PkSAlCkh9TiIyA/xCxWuSSvw7uc7lqbu8LXeXemVEZYr3fAeeQ==}
     engines: {node: '>=22'}
 
   '@beltype/common@0.1.2':
@@ -436,7 +436,7 @@ packages:
 
 snapshots:
 
-  '@beltype/cicero@0.1.6':
+  '@beltype/cicero@0.1.9':
     dependencies:
       '@beltype/common': 0.1.2
       css-tree: 3.2.1

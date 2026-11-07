@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+Cicero 0.1.9 (2026-11-07).
+
+- The Cicero dev pin moves from 0.1.6 to 0.1.9. Two fills of one document in flight no longer share the engine's measure container, so the overtaken case on the flow fixture, which gave 42 wrong answers over 25 pairs, gives none, and the random edits that failed on nearly every fixture pass. Clear `node_modules/.vite` after the pin moves, or Vite keeps serving the old copy.
+- The harness's overtaken case counts the law holders left standing once the chain is quiet, not while a refill of the view's own is still in flight, which it used to report as one left behind.
+
 A page that shows the rest of a table row or a flex row (2026-11-07, `incremental-correctness-4`).
 
 - A same-length replacement or a mark in the rest of a row item that is not the last one now reaches the page that shows it. That text's positions lie inside the page before, which the cut through the row ends at the last item's place, so the edit refilled only the page before; its cut and its hint stayed the same, and the page after kept the old text. A `CiceroPage` now answers `shows` from its fill: from the lowest place of the row items it resumes, where that is below its start, to the end its own slice was rendered to, where that is past its cut (a painted shell, a row's end). The fragmented view dirties a page whose `shows` an edit touches.

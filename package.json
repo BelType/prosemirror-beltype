@@ -38,7 +38,7 @@
     "prosemirror-transform": "^1.12.0"
   },
   "devDependencies": {
-    "@beltype/cicero": "0.1.6",
+    "@beltype/cicero": "0.1.9",
     "playwright": "1.63.0",
     "prosemirror-fragview": "git+https://codeberg.org/egildo/prosemirror-fragview.git#c715783a34673d60bfb60c804f7b1cf9bcde89df",
     "prosemirror-history": "1.5.1",

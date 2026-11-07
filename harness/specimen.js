@@ -575,7 +575,7 @@ export async function randomEdits(seed, n, skip = [], paced = false) {
 }
 
 /**
- * The overtaken fill (docs/found.md, "A fill overtaken by a second transaction in the same task throws in the grab"): for each pair of neighbouring pages of the settled chain, both pages are filled from their own entry's `from` over the one document in the same task, so the first is suspended at its measurement when the second's trial begins. Each fill must answer the `to` its entry holds; a fill that throws is named with its message. Also the law holders still standing in the document once every fill has ended, which is none.
+ * The overtaken fill (docs/found.md, "A fill overtaken by a second transaction in the same task throws in the grab"): for each pair of neighbouring pages of the settled chain, both pages are filled from their own entry's `from` over the one document in the same task, so the first is suspended at its measurement when the second's trial begins. Each fill must answer the `to` its entry holds; a fill that throws is named with its message. Also the law holders still standing in the document once every fill has ended and the chain is quiet, which is none.
  */
 export async function overtaken() {
   const { view } = mounted;
@@ -596,6 +596,8 @@ export async function overtaken() {
   }
   const after = pagesOf();
   before.forEach((p, i) => { if (JSON.stringify(p) !== JSON.stringify(after[i])) failures.push(`page ${i + 1} shows ${after[i]?.first} … ${after[i]?.last} (${after[i]?.count} words) where it showed ${p.first} … ${p.last} (${p.count})`); });
+  // A refill of the view's own that the case's fills set off holds its law holder until it ends; a holder still standing once the chain is quiet is one left behind.
+  await quiet(view, mounted.factory);
   return { pairs: entries.length - 1, failures, holders: document.querySelectorAll('[id^="__prosemirror-beltype-law"]').length };
 }
 
