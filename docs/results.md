@@ -1414,7 +1414,7 @@ Written 2026-11-07, on the branch `fix/fidelity-and-zoom`. The page called the e
 
 A box the page resumes needed the other half. The engine's `truncateLeadingDecoration` writes `wrapped` on a cloned box, and neither Cicero 0.1.6 nor 0.1.7 exports it or the word. `wrapResumed` spells the word and reads `box-decoration-break` here, and goes when the fragmentation face has the door.
 
-`fixtures/justified`: justified paragraphs on the flow fixture's small page, and a `div.boxed` with a 3 px border, 8 px padding, a background and `box-decoration-break: clone` across three pages. The harness now prints each cut-off piece's `text-align-last`, block-end border and padding where its box is justified or clones its decoration, and exits 1 when the two sides' edges differ.
+`fixtures/justified`: justified paragraphs on the flow fixture's small page, and a `div.boxed` with a 3 px border, 8 px padding, a background and `box-decoration-break: clone` across three pages. The harness now prints each cut-off piece's `text-align-last`, block-end border and padding where its box is justified or clones its decoration, and exits 1 when the two sides' cut-off edges differ. A resumed piece is left out of that check, since the root and the schema can name its outermost divided box differently with the same edge: the trattato in `@beltype/specimens` reads `main.testo` under the CLI and `section.parte` under the view on six pages.
 
 | | Before | After |
 | :-- | :-- | :-- |
@@ -1450,3 +1450,25 @@ The page's margin bands keep a wrong width until reload, and that half is Cicero
 | 1.5 | 147.72, 64.55 and 147.72 px | the same, wrong |
 
 With short boxes that fit the band, the widths are the same at every scale, since a uniform scale does not change their ratio. The fix is Cicero's: divide the read widths by the page's scale, or put the scale in the cache's key.
+
+# The device pixel ratio
+
+Written 2026-11-07, on the branch `fix/fidelity-and-zoom`. The factory passes the engine's render-condition check at any device pixel ratio (`relaxDpr`, as the CLI's preview does), so a page is cut under the ratio of the moment. Nothing cut the chain again when the ratio changed, and nothing told the author that print runs at 1.
+
+## The drift, measured
+
+`scripts/specimen.mjs --dpr n` lays both sides out at a ratio of n. The run's heading names the ratio the page reports (`window.devicePixelRatio`), so the emulation is seen to apply. Each target was run at 1, 1.25, 1.5 and 2, and each ratio's run was compared with the run at 1 on each page's first word, last word and word count on both sides, and on every fill's record (`from`, `to`, the verdict's class and `y`, the lead, the used extent and the extension, to the hundredth of a pixel):
+
+| Target | Pages | View against CLI at each ratio | Against the run at 1 |
+| :-- | ---: | :-- | :-- |
+| the 12 fixtures (`specimen`, `chrome`, `clipped`, `dressing`, `end-gap`, `facsimile`, `flow`, `multicol`, `row`, `running`, `tall`, `justified`) | 5 to 26 | the same as at 1 | no page and no fill differs |
+| `@beltype/specimens`' `trattato` | 187 | every page the same | no page and no fill differs |
+| `paper`, `delibera` | 3 each | every page the same | no page and no fill differs |
+
+Headless Chromium lays these documents out independently of the ratio, so on this corpus the screen's cuts are print's. The ratio still reaches the engine's conditions (`dpr` in the driver's), and a face's hinting or an image's intrinsic size at another ratio can differ, so the page still says so. The run at 1 of the `trattato` exits 1 on a resumed piece's name, which the harness no longer compares (the first fragment's section above).
+
+## The recut and the signal
+
+The chain watches the ratio while a view is attached (`Chain.watchResolution`): a `resolution` media query at the current ratio, asked again at each new one, calls the view's `invalidate()` once the ratio has held for 250 ms, since a browser zoom steps through several. A page cut at a ratio other than 1 has `dpr` in its account, and the console says it once per document and ratio.
+
+`test/zoom.test.js` mounts the view at 1, where no account has `dpr`, then sets the ratio to 1.5 and at once to 2, narrowing the viewport with each as a browser zoom does: one `invalidate()`, every page's account `dpr: 2`, and one warning. Before the watch the same test read no `invalidate()`. Measured 2026-11-07: Chromium's device-metrics emulation fires no `resolution` change when the ratio changes and the viewport's size does not.

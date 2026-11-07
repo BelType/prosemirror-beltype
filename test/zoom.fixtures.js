@@ -52,3 +52,25 @@ export async function run(s) {
   view.destroy();
   return out;
 }
+
+/** The view mounted at the page's device pixel ratio and settled, kept for `resolutionChanged`; every `invalidate()` and every warning counted. */
+export async function mountForResolution() {
+  const containers = /** @type {any} */ (ciceroContainers(document));
+  const view = new FragmentedView(/** @type {HTMLElement} */ (document.getElementById('mount')), { state: EditorState.create({ doc, plugins: [ledger()] }), containers, words: { attribute: 'data-beltype' } });
+  const log = { invalidated: 0, warnings: /** @type {string[]} */ ([]) };
+  const invalidate = view.invalidate.bind(view);
+  view.invalidate = () => { log.invalidated++; invalidate(); };
+  const warn = console.warn;
+  console.warn = (...a) => { log.warnings.push(a.join(' ')); warn(...a); };
+  await containers.chain.settled(view.state.doc);
+  Object.assign(window, { __resolution: { view, containers, log }, });
+  return { dpr: devicePixelRatio, accounts: view.fragments.map((/** @type {any} */ f) => f.container.account?.dpr ?? null) };
+}
+
+/** After the host changed the ratio: wait past the debounce, settle, and read what the pages say. */
+export async function resolutionChanged() {
+  const { view, containers, log } = /** @type {any} */ (window).__resolution;
+  await new Promise((r) => setTimeout(r, 600));
+  await containers.chain.settled(view.state.doc);
+  return { dpr: devicePixelRatio, invalidated: log.invalidated, warnings: log.warnings.filter((w) => w.includes('device pixel ratio')).length, accounts: view.fragments.map((/** @type {any} */ f) => f.container.account?.dpr ?? null) };
+}

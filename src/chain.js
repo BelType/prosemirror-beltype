@@ -38,6 +38,9 @@ export class Overtaken extends Error {
   }
 }
 
+/** How long the device pixel ratio must hold before the chain is cut again: a browser zoom steps through ratios, and one recut is owed for the last. */
+const RESOLUTION_SETTLE_MS = 250;
+
 /** How many settles the chain keeps for the measurement. */
 const SETTLES_KEPT = 64;
 const same = (/** @type {unknown} */ a, /** @type {unknown} */ b) => JSON.stringify(a) === JSON.stringify(b);
@@ -209,10 +212,36 @@ export class Chain {
   /** @param {any} view */
   attach(view) {
     this.view = view;
+    this.watchResolution();
     this.update(view);
   }
 
+  /**
+   * Cut the chain again when the device pixel ratio changes, once it has held for `RESOLUTION_SETTLE_MS`: the engine decides a cut under the ratio of the moment (`relaxDpr`, as the CLI's preview does), so a browser zoom or a move to another screen leaves the pages cut for the old one. A `resolution` query matches one ratio, so each change asks again at the new one.
+   */
+  watchResolution() {
+    this.unwatch?.();
+    const win = this.document.defaultView;
+    if (!win?.matchMedia) return;
+    let timer = 0;
+    let query = /** @type {MediaQueryList | null} */ (null);
+    const changed = () => {
+      listen();
+      win.clearTimeout(timer);
+      timer = win.setTimeout(() => this.view?.invalidate(), RESOLUTION_SETTLE_MS);
+    };
+    const listen = () => {
+      query?.removeEventListener('change', changed);
+      query = win.matchMedia(`(resolution: ${win.devicePixelRatio}dppx)`);
+      query.addEventListener('change', changed);
+    };
+    listen();
+    /** Stops the watch. @type {(() => void) | null} */
+    this.unwatch = () => { query?.removeEventListener('change', changed); win.clearTimeout(timer); this.unwatch = null; };
+  }
+
   detach() {
+    this.unwatch?.();
     for (const w of this.waiters) w.reject(new Overtaken());
     this.waiters = [];
     this.view = null;

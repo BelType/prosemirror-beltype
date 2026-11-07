@@ -52,6 +52,9 @@ import { stateOfPage, runningPlaced, sameElements } from './originals.js';
 /** @import { Shell, Piece } from './shells.js' */
 /** @import { Originals, OriginalsState } from './originals.js' */
 
+/** The device pixel ratios already said on each document's console. @type {WeakMap<Document, Set<number>>} */
+const WARNED_RATIOS = new WeakMap();
+
 /** The comparison tolerance the driver and the Stonehand share, far below a line. */
 const EPS = 0.25;
 
@@ -507,7 +510,7 @@ export class CiceroPage {
     const clipped = whole || cut?.shell || cut?.pieces?.length || start.shell || start.pieces?.length ? null : this.clippedBy(parallel);
     const byEvent = event && to === eventTo;
     const next = to == null ? undefined : { ...hintAfter({ index: this.index, name: nextName, forced: !!byEvent, parity: byEvent ? event.parity : null }), ...carriedHint(to, cut?.next) };
-    this.account = { from, to, name: this.conditions.name, forced, cls: verdict?.cls ?? (byEvent ? 'A' : null), kind: whole ? 'whole' : verdict?.kind ?? (byEvent ? (event.namedSwitch ? 'name' : 'forced') : 'terminal'), y: verdict?.y ?? null, pageStart, usedPx, extPx, next, ...(clipped ? { clipped } : {}) };
+    this.account = { from, to, name: this.conditions.name, forced, cls: verdict?.cls ?? (byEvent ? 'A' : null), kind: whole ? 'whole' : verdict?.kind ?? (byEvent ? (event.namedSwitch ? 'name' : 'forced') : 'terminal'), y: verdict?.y ?? null, pageStart, usedPx, extPx, next, ...(clipped ? { clipped } : {}), ...this.ratio() };
     return next ? { to, next, reach } : { to, reach };
   }
 
@@ -528,6 +531,21 @@ export class CiceroPage {
       if (start != null && start < to) below = Math.max(below, box.rect.bottom - cutY);
     }
     return below;
+  }
+
+  /**
+   * The device pixel ratio the page was cut at, for its account, where it is not 1: print runs at 1, so a cut decided at another ratio is valid for the screen and may not be print's. Said once per document and ratio on the console.
+   * @returns {{ dpr?: number }}
+   */
+  ratio() {
+    const dpr = this.doc.defaultView?.devicePixelRatio ?? 1;
+    if (dpr === 1) return {};
+    const warned = (WARNED_RATIOS.get(this.doc) ?? WARNED_RATIOS.set(this.doc, new Set()).get(this.doc));
+    if (!warned?.has(dpr)) {
+      warned?.add(dpr);
+      console.warn(`prosemirror-beltype: the pages are cut at a device pixel ratio of ${dpr}, and print runs at 1; a page's cut may differ from the printed page's`);
+    }
+    return { dpr };
   }
 
   /** How much a transform on the page or an ancestor scales it on screen: its drawn height over its layout height, 1 where it has none. */
