@@ -1436,7 +1436,7 @@ Written 2026-11-07, on the branch `fix/fidelity-and-zoom`. A host that zooms the
 
 | | `scale(0.5)` idle, after a key | `scale(1.5)` idle, after a key |
 | :-- | :-- | :-- |
-| Before | 120, 120 | the test stopped at the first scale |
+| Before | 120, 120 | 120, 120 |
 | After | 0, 0 | 0, 0 |
 
 ## The margin bands, which are Cicero's
