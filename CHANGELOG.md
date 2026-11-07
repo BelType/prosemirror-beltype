@@ -20,6 +20,7 @@ The measurement stands on its own.
 - The running copies in the margin boxes are `inert`, not editable and not spellchecked.
 - The Ledger follows the chain when `setProps` gives the view a new factory.
 - `Chain.settles` and `Originals.timings` keep the last 64 records, the settle record holds no document, and the per-state element count is gone.
+- `scripts/specimen.mjs` exits with an error when the view's pages and the CLI's hold different words on any page (the guard, `compareHosts`), where it used to print the difference and exit 0. Two differences are allowed, each named in the script's `ALLOWED` list with its fixture, its page and its reason: `multicol` page 3 and `clipped` page 3.
 - The harness gains the edits `throw`, `tail`, `past`, `beyond` and `carried`, and the fixture `clipped`, and `scripts/specimen.mjs` gains `--strict`, which exits with an error when an edited chain differs from a fresh fill.
 
 ## 0.1.1 (2026-11-04)
