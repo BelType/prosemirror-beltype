@@ -253,6 +253,37 @@ export class CiceroPage {
       this.dom.setContent(...lawHolder(this.doc, '__prosemirror-beltype-staging').childNodes);
     }
     this.dom.setFlow({});
+    return this.failedAt(from, to, error);
+  }
+
+  /**
+   * A fill that rejected, its safety net included (`failSafe` threw): the page is shown empty and answers past the node at `from`, as `failSafe` answers, so the chain goes on. The chain already holds the failure, from `fill`'s `finally`. The view asks it through `handleFillRejected`.
+   * @param {PMNode} doc
+   * @param {number} from
+   * @param {any} error
+   * @returns {FillResult}
+   */
+  rejected(doc, from, error) {
+    console.error(`prosemirror-beltype: page ${this.index + 1}'s fill and its safety net threw; the page is shown empty and the chain goes on.`, error);
+    const { to } = wholeAfter(doc, from);
+    this.to = to;
+    try {
+      this.dom.setContent();
+      this.dom.setFlow({});
+    } catch {
+      // The page's own DOM is what threw: it stands as it is, and the answer still goes on.
+    }
+    return this.failedAt(from, to, error);
+  }
+
+  /**
+   * The answer and the account of a page that failed: past the node at `from`, with `kind` set to `failed`.
+   * @param {number} from
+   * @param {number | null} to
+   * @param {any} error
+   * @returns {FillResult}
+   */
+  failedAt(from, to, error) {
     const next = to == null ? undefined : { name: '' };
     this.account = { from, to, name: this.conditions.name, forced: false, cls: null, kind: 'failed', error: String(error?.message ?? error), next };
     return next ? { to, next } : { to };
@@ -1050,4 +1081,16 @@ function textBefore(el, child) {
   let text = '';
   for (let n = walk.nextNode(); n && n !== child; n = walk.nextNode()) if (n.nodeType === 3) text += /** @type {Text} */ (n).data;
   return text;
+}
+
+/**
+ * The view's `handleFillRejected` prop for a chain of Cicero pages: a page whose fill rejected answers past the node at `from` (`CiceroPage.rejected`), so the pages after it are still cut; any other container is left unanswered, and the view raises its error.
+ * @param {{ state: { doc: PMNode } }} view
+ * @param {unknown} error
+ * @param {unknown} container
+ * @param {number} from
+ * @returns {FillResult | undefined}
+ */
+export function handleFillRejected(view, error, container, from) {
+  return container instanceof CiceroPage ? container.rejected(view.state.doc, from, error) : undefined;
 }

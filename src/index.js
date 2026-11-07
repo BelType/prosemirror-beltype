@@ -4,7 +4,7 @@
  * @packageDocumentation
  */
 
-export { CiceroPage } from './cicero-page.js';
+export { CiceroPage, handleFillRejected } from './cicero-page.js';
 export { ciceroContainers } from './containers.js';
 export { Originals, wordsBeforePoint, wordPositionOf, wordAddressOf, stateOfPage, totalAfter } from './originals.js';
 export { ledger, ledgerKey, pageOf, accountOf, keyOf, applyLedger, ledgerToJSON, ledgerFromJSON } from './ledger.js';

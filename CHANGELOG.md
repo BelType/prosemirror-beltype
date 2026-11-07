@@ -30,6 +30,8 @@ The measurement stands on its own.
 - The `prosemirror-fragview` dev pin moves to `805db68`, its `main` with the hint passed on every fill, `handleFillRejected`, the selected node's class on every piece and every `handleDOMEvents` key. Nothing in this package changed for it: `pnpm test` 67 of 67, and every fixture agrees with the CLI and with a fresh fill under `--strict` with the edits `start;key:2;delete:2;end;paste`.
 - A page reads its hint from `fill`'s fourth argument, which `prosemirror-fragview` 805db68 hands every fill, and `Chain.hintFor`, the side channel that read it by index, is gone. On the chrome fixture, retitling `Folios` gives 17 of 17 pages equal to a fresh fill, and 5 of 17 when the page ignores the hint it is handed. A view older than 805db68 refills a page under the hint it was built with.
 
+- `handleFillRejected`, exported, is the view's prop for a chain of Cicero pages, as `prosemirror-fragview` 805db68 defines it. A fill whose safety net threw too used to leave its page dirty and every page after it waiting, with the error raised and nothing else. The page now shows empty, answers past the node at its start with `failed` in its account, and the chain goes on, while `chain.settled(doc)` answers incomplete naming the page (`test/settle.test.js`, with the bare view's stop beside it). Any other container is left to the view.
+
 ## 0.1.1 (2026-11-04)
 
 No code change. The first version published by the workflow: a tag `v0.1.1` publishes by trusted publishing, with provenance.

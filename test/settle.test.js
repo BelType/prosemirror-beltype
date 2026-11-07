@@ -40,3 +40,14 @@ test('a page whose rendering throws still answers: the chain stands incomplete, 
   assert.equal(read.thrown.last, null);
   assert.equal(read.thrown.ledgerKept, true);
 });
+
+test('a fill that rejects, its safety net included, stops the chain at its page unless the page answers it through handleFillRejected', () => {
+  assert.ok(read.rejectedBare.raised.length > 0, 'unanswered, the rejection is raised');
+  assert.ok(read.rejectedBare.dirty > 0, 'unanswered, the page stays dirty and the pages after it wait');
+  assert.deepEqual(read.rejected.raised, [], 'answered, nothing is raised');
+  assert.equal(read.rejected.dirty, 0, 'answered, every page is filled');
+  assert.equal(read.rejected.kind, 'failed');
+  assert.equal(read.rejected.last, null, 'the chain runs to the end');
+  assert.equal(read.rejected.answer.complete, false);
+  assert.match(read.rejected.answer.why, /page 2's fill threw: the engine fell over/);
+});
