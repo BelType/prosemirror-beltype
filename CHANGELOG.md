@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+A chapter named by `:has()` keeps its page name on a page that divides it (2026-11-07, `pmb-random-edit-page-name`).
+
+- A page whose slice divides a top-level box named through a rewritten `:has()`, such as the specimen's `section:has(> h1) { page: chapter }`, now reads the box's page name, its `break-before` and every other rule of that selector as the cold fill does. The slice renderer writes `fragment` on the root of every divided piece, and Cicero's has-words rewrite gives such a root only its `has:` words, which nothing wrote here, so the root fell back to `page: auto`. The originals now answer each top-level node's `has:` words from its original (`hasWordsOf`, the engine's `askBox`), and every slice a page renders gets them on its divided root: the trial, the law copy and the shown page.
+- Found by the random edits (seed 6, six edits): a page refilled with its last span bounded its trial inside the chapter, read the chapter as unnamed and was cut in two for a page name, so the table of contents gave page 6 for page 5. The same reading hit any page that resumes a top-level named chapter. `test/random.test.js` holds the run as a real test now.
+
 A page that shows the rest of a table row or a flex row (2026-11-07, `incremental-correctness-4`).
 
 - A same-length replacement or a mark in the rest of a row item that is not the last one now reaches the page that shows it. That text's positions lie inside the page before, which the cut through the row ends at the last item's place, so the edit refilled only the page before; its cut and its hint stayed the same, and the page after kept the old text. A `CiceroPage` now answers `shows` from its fill: from the lowest place of the row items it resumes, where that is below its start, to the end its own slice was rendered to, where that is past its cut (a painted shell, a row's end). The fragmented view dirties a page whose `shows` an edit touches.

@@ -9,6 +9,6 @@ import { promisify } from 'node:util';
 const root = new URL('..', import.meta.url).pathname;
 const run = (/** @type {string[]} */ args) => promisify(execFile)('node', ['scripts/specimen.mjs', ...args], { cwd: root, maxBuffer: 1 << 26 }).then(() => 0, (/** @type {any} */ e) => e.code);
 
-test('specimen, seed 6: a chapter heading split and lifted out of its section, after a redraw, leaves a page cut for a page name the cold fill does not see', { todo: 'open, docs/found.md "Random edits leave a page cut for a page name the cold fill does not see"' }, async () => {
+test('specimen, seed 6: a chapter heading split and lifted out of its section, after a redraw, leaves a page cut for a page name the cold fill does not see', async () => {
   assert.equal(await run(['fixtures/specimen', '--random', '6:20', '--paced', '--skip', '1,2,10,11,12,13,14,15,16,17,18,19,20']), 0);
 });
