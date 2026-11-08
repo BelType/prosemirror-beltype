@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+Block node views on the page (2026-11-08, the record `a-block-with-no-content-hole-is-a-face-where-it-stands-whole`).
+
+- `test/block-faces.test.js` proves fragview's block faces under `CiceroPage`, with a node view for a `<table>` that has no content hole and draws the same table from the node. A table that fits gets its face, keeps the same element through a refill, a move to the next page whole and a move back to the page before, and the arrows step over it. A table the page divides keeps `toDOM`'s drawing on each page and its view is never made. `break-inside: avoid` moves a straddling faced table whole, and a tall one divides all the same. A tall leaf sliced as a painted shell has one face, on its first page. In every case the chain is the one the same document has with no node view, and a divided table under the wrapper is pinned to its tracks and laid out as the bare one, piece by piece. Until the fragview pin moves, the file runs against a checkout of fragview's `fix/block-faces` named by `FRAGVIEW` (its header says how); against the pinned fragview the table's view is refused. Nothing the page does changes: its header now names the block wrapper as a mapped element like any other.
+
 Browser scope and `collapsedSpaces`, by the rulings of 2026-11-07.
 
 - The README says which browsers are measured: desktop browsers of the Chromium family. Elsewhere the view loads and edits but is not WYSIWYG, and the printer refuses as it already does. Android is unsupported for now, and a host there should mount a plain `EditorView`.
