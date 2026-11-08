@@ -1,5 +1,5 @@
 /**
- * The chain's settle and its safety net on real `CiceroPage`s, in a browser: a restored Ledger's first fill starts cold and lands where a first fill lands, and a page whose rendering throws still answers, so `settled()` answers too.
+ * The chain's settle and its safety net on real `CiceroPage`s, in a browser: a restored Ledger's first fill starts cold and lands where a first fill lands, and a page whose rendering throws still answers, so `settled()` answers too; and a settle clears the engine's `cicero:` timing entries and no others.
  */
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -25,6 +25,12 @@ after(async () => {
 test('a first fill settles complete and leaves its tables in the Ledger', () => {
   assert.deepEqual(read.cold.answer, { complete: true, why: null });
   assert.notEqual(read.cold.delivered, '[]');
+});
+
+test('a settle clears the engine\'s timing entries it has read, and leaves a measure of another name', () => {
+  assert.deepEqual(read.cold.measures.filter((n) => n.startsWith('cicero:')), [], 'no cicero: measure is left after the settle');
+  assert.deepEqual(read.cold.marks.filter((n) => n.startsWith('cicero:')), [], 'no cicero: mark is left after the settle');
+  assert.ok(read.cold.measures.includes('host:before-mount'), 'a measure of another name survives');
 });
 
 test('a restored Ledger\'s first fill passes no warm table, and lands where a first fill lands', () => {
