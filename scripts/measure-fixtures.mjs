@@ -21,7 +21,9 @@ ${body}
 </body>
 </html>
 `;
-const write = (name, html) => { mkdirSync(path.join(out, name), { recursive: true }); writeFileSync(path.join(out, name, 'index.html'), html); };
+let extra = false;
+// `node scripts/measure-fixtures.mjs --extra` writes only the last block (the rest is generated, to keep the random sequence, and not written).
+const write = (name, html) => { if (process.argv.includes('--extra') && !extra) return; mkdirSync(path.join(out, name), { recursive: true }); writeFileSync(path.join(out, name, 'index.html'), html); };
 
 // Rows per page (measured, A4 20 mm margins): see measure.mjs output; ROWS is rows per target page.
 const ROWS = { auto: 32.5, fixed: 32.5, flex: 32.5 };
@@ -43,4 +45,11 @@ for (const pages of [5, 20, 50]) write(`para-${pages}`, page('One paragraph', ''
 {
   const block = (i) => `<h2 id="s${i}">Section ${i}</h2>\n<p>${words(110)}.</p>\n<p>${words(90)}.</p>\n<h3 id="s${i}a">Section ${i}.a</h3>\n<ul>\n${Array.from({ length: 5 }, () => `<li>${words(12)}</li>`).join('\n')}\n</ul>\n<p>${words(120)}.</p>\n<blockquote><p>${words(40)}.</p></blockquote>\n<pre><code>${Array.from({ length: 4 }, (_, k) => `line ${k + 1} ${words(4)}`).join('\n')}</code></pre>\n<p>${words(100)}.</p>`;
   write('chapter-30', page('Chapter', '', `<section><h1 id="chapter">Chapter</h1>\n${Array.from({ length: 17 }, (_, i) => block(i + 1)).join('\n')}\n</section>`));
+}
+
+// Fixed-layout tables set the same rows taller (equal columns wrap): 32.5 rows per page made 30 pages at '20' and 58 at '40' (measured), so the sizes asked for are made here at 22.5 rows per page. These overwrite table-fixed-80 and -200 of the loop above, which were never run.
+extra = true;
+for (const pages of [40, 80, 200]) {
+  const rows = Array.from({ length: Math.round(22.5 * pages) }, (_, i) => `<tr><td>${i + 1}</td><td>${words(3)}</td><td>${words(4)}</td></tr>`).join('\n');
+  write(pages === 40 ? 'table-fixed-40n' : `table-fixed-${pages}`, page('Table fixed', 'table{width:100%;border-collapse:collapse;table-layout:fixed} td,th{border:1px solid #888;padding:2px 4px;text-align:left}', `<h1>Table</h1>\n<table class="fixed"><thead><tr><th>No.</th><th>Term</th><th>Note</th></tr></thead><tbody>\n${rows}\n</tbody></table>`));
 }
