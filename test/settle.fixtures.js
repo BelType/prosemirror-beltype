@@ -51,9 +51,12 @@ export async function run() {
   document.head.insertAdjacentHTML('beforeend', '<style>a::after { content: " p. " var(--beltype-read-counter-attr-href-page-decimal, ""); }</style>');
   const out = /** @type {any} */ ({});
 
-  // A first fill, cold, and its Ledger saved.
+  // A first fill, cold, and its Ledger saved; a measure of another name written before it, and what the timeline holds after it.
+  performance.measure('host:before-mount', { start: 0, end: 1 });
   let m = mount(EditorState.create({ doc, plugins: [plugin] }));
-  out.cold = { answer: await settled(m), delivered: delivered(m.view.state) };
+  const answer0 = await settled(m);
+  const names = (/** @type {string} */ type) => performance.getEntriesByType(type).map((e) => e.name);
+  out.cold = { answer: answer0, delivered: delivered(m.view.state), measures: names('measure'), marks: names('mark') };
   const json = m.view.state.toJSON({ ledger: plugin });
   m.view.destroy();
 

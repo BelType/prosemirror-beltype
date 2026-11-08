@@ -11,6 +11,8 @@
  *
  * THE LOOP SEATED (*the engine knows no view*, ruling 3: the loop is the engine's, `run` is the door). Once per document, after the view's update that started its first fill (`update`, through the Ledger's plugin view), `settleReads` runs with `blocksOf` the originals' blocks, `originals` the holder's children, the Ledger's warm tables, `hide` scoped to `beltype-page`, `keep` the engine memo's door the originals settled for the state (so the site search, the position index and the written facts take the parts of the top-level boxes the edit did not replace), and `run` this object's: the first attempt is the chain as the view fills it for that state, awaited `settled`; a later one dirties the pages `resume.at` names and awaits `settled` again. Each returns `{ account, index, resumed, why, laidFacts }`, `laidFacts` the page values each page was laid out under, which the loop compares the truth with. The settle is synchronous up to its first `await run`, so its delivery sheet and its reservations are adopted before the first trial of the state is measured (a fill measures after its first `await`). A newer document overtakes a settle: its pending `run` rejects, and since the loop delivers only after a `run` returns, an overtaken settle never writes again; its results are not recorded. The loop's result (`delivered`, `facts`, `resumed`, `why`, `reads`) is written into the Ledger by one transaction outside the history.
  *
+ * THE TIMELINE CLEARED (*the run keeps time*, amended 2026-11-08: the long-lived host clears what it has read). The engine writes a `performance.measure` named `cicero:…` per phase and never clears, and the browser keeps every entry for the page's life, so at the end of each settle that is still the view's, the `cicero:` measures are totalled by name onto the settle's record (`measures`, what the harness reads) and cleared with the `cicero:` marks; an overtaken settle clears nothing, since the entries since its start are the newer settle's too.
+ *
  * THE CHROME OF CLEAN PAGES (docs/found.md, "A page an edit does not refill keeps the chrome it was drawn with"). On a new document every clean page's interval, translated by the view's mapping, is read again off the new rendering (`stateOfPage`), and its row is staged for the next transaction on that document; a page whose counters, strings or running elements moved, by value or by a running element it places being replaced by one of other content (`runningPlaced`, `sameElements`), has its chrome redrawn without a refill (`drawChrome`), unless its strings moved and a flow site that reads a page fact stands on it (`Originals.sitesIn`), which is a line that may move, so the page is dirtied (`dirtied`, deferred to a microtask so the view's update is not re-entered). Counters are chrome (*the run resumes from an entry*: named strings, running elements and counters reach no cut).
  *
  * THE VIEW'S INVALIDATION. `invalidate()` releases every built container at once, which nothing else does (the window policy keeps the near ones built): the last release tells the originals to forget their rendering and its kept parts (`Originals.forget`), before the first new fill asks for them, so the conditions that moved are read afresh over a whole rendering.
@@ -43,6 +45,20 @@ const RESOLUTION_SETTLE_MS = 250;
 
 /** How many settles the chain keeps for the measurement. */
 const SETTLES_KEPT = 64;
+/**
+ * The engine's `cicero:` measures, totalled by name, then cleared with its `cicero:` marks; null in a realm without `performance.clearMeasures`.
+ * @returns {Record<string, number> | null}
+ */
+function takeTiming() {
+  const p = globalThis.performance;
+  if (typeof p?.clearMeasures !== 'function') return null;
+  /** @type {Record<string, number>} */
+  const totals = {};
+  for (const e of p.getEntriesByType('measure')) if (e.name.startsWith('cicero:')) totals[e.name] = (totals[e.name] ?? 0) + e.duration;
+  for (const name of Object.keys(totals)) p.clearMeasures(name);
+  for (const e of p.getEntriesByType('mark')) if (e.name.startsWith('cicero:')) p.clearMarks(e.name);
+  return totals;
+}
 const same = (/** @type {unknown} */ a, /** @type {unknown} */ b) => JSON.stringify(a) === JSON.stringify(b);
 
 export class Chain {
@@ -432,7 +448,7 @@ export class Chain {
     const value = ledgerKey.getState(view.state);
     const reason = this.reason;
     this.reason = null;
-    const record = { started: performance.now(), runs: /** @type {any[]} */ ([]), ms: 0, result: /** @type {any} */ (null), overtaken: false };
+    const record = { started: performance.now(), runs: /** @type {any[]} */ ([]), ms: 0, result: /** @type {any} */ (null), overtaken: false, measures: /** @type {Record<string, number> | null} */ (null) };
     this.settles.push(record);
     if (this.settles.length > SETTLES_KEPT) this.settles.shift();
     this.settling = settleReads(this.document, {
@@ -447,8 +463,10 @@ export class Chain {
     }).then((result) => {
       record.ms = performance.now() - record.started;
       record.result = { resumed: result.resumed, why: result.why, reads: result.reads, complete: result.complete };
+      if (this.view !== view || view.state.doc !== doc) return null;
+      record.measures = takeTiming();
       // A settle that ended incomplete leaves the Ledger as it was: its tables would warm the next settle with numbers no complete layout produced.
-      if (this.view !== view || view.state.doc !== doc || !result.complete) return null;
+      if (!result.complete) return null;
       const settled = { delivered: result.delivered, facts: result.facts, resumed: result.resumed, why: result.why, reads: result.reads };
       view.dispatch(view.state.tr.setMeta(ledgerKey, { settled }).setMeta('addToHistory', false));
       return result;
