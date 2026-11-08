@@ -2,7 +2,7 @@
  * A block node view with no content hole on a real `CiceroPage`, in a browser: the face follows the cut, and the cut never follows the face (the record *a block with no content hole is a face where it stands whole*). A table that fits keeps one face through a refill and a move; a table the page divides keeps `toDOM`'s drawing on every page; `break-inside: avoid` moves a straddling table whole; a tall leaf sliced as a painted shell has one face. In every case the chain is the one the same document has with no node view.
  *
  * @remarks
- * Fragview gave a block a node view on its branch `fix/block-faces`, which no pin names yet. Until the pin moves, run this file against a checkout of that branch named by `FRAGVIEW`, which `vite.config.js` reads: `FRAGVIEW=/Volumes/dev/Codeberg/prosemirror-fragview/.claude/worktrees/block-faces node --test test/block-faces.test.js`, after `rm -rf node_modules/.vite`. Against the pinned fragview every case is refused at the prop.
+ * Fragview gives a block a node view from 0.1.2, which the dev pin names. To run this file against another fragview, name its checkout with `FRAGVIEW`, which `vite.config.js` reads, after `rm -rf node_modules/.vite`; against a fragview before 0.1.2 every case is refused at the prop.
  */
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';

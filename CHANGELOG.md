@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+prosemirror-fragview 0.1.2 (2026-11-08).
+
+- The `prosemirror-fragview` dev pin moves from the git commit `c715783` to `0.1.2` on npm, and the peer range from `*` to `^0.1.2`: block node views, the paced ripple, the one-step delete and the browser scope. `test/block-faces.test.js` runs green without `FRAGVIEW`. 88 of 88 serially against the pin.
+
 The view's paced ripple (prosemirror-fragview's `fix/ripple-yields`, 2026-11-08).
 
 - `settled()` waits while the view is `rippling`. The fragmented view now fills the pages in view and one more before the next paint and the rest in idle slices, so between two slices it holds a dirty entry with no fill in flight, which `Chain.check` took for a chain stopped short: the reads loop settled over the first pages, delivered their reads, and never read again when the slices filled the rest, so the contents' page numbers were those of the half-filled chain (seed 6 of `test/random.test.js` against fragview main: pages 1, 2 and 5 read 5 where the cold fill reads 7). A view with no `rippling`, the pinned one among them, reads as one that never pauses. `test/chain.test.js` has the case, red before the change.
