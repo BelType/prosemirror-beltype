@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EditorState } from 'prosemirror-state';
 import { Schema } from 'prosemirror-model';
-import { fragmentsPlugin, refilled } from 'prosemirror-fragview';
+import { dirtied, fragmentsPlugin, refilled } from 'prosemirror-fragview';
 import { Chain } from '../src/chain.js';
 
 const chain = () => new Chain({ originals: /** @type {any} */ ({ state: null }), table: { pageFor: () => ({}) }, document: /** @type {any} */ ({}) });
@@ -63,4 +63,21 @@ test('settled() names the pages whose last fill clipped, for the document they c
   c.inflight = 1;
   c.failed(page, doc, new Error('no alt'));
   assert.deepEqual(await c.settled(doc), { complete: false, why: "page 1's fill threw: no alt" });
+});
+
+test('a dirty entry while the view is rippling is a ripple paused, not a chain stopped short: settled() waits for the idle slices', async () => {
+  const schema = new Schema({ nodes: { doc: { content: 'text*' }, text: {} } });
+  const empty = EditorState.create({ schema, plugins: [fragmentsPlugin()] });
+  const filled = empty.apply(refilled(empty.tr, 0, null));
+  const dirty = filled.apply(dirtied(filled.tr));
+  const c = chain();
+  c.view = { state: dirty, rippling: true };
+  let answer = null;
+  const settled = c.settled(dirty.doc).then((a) => { answer = a; });
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(answer, null, 'a paused ripple does not answer');
+  c.view = { state: dirty.apply(refilled(dirty.tr, 0, null)), rippling: false };
+  c.check(c.view);
+  await settled;
+  assert.deepEqual(answer, { complete: true, why: null });
 });
