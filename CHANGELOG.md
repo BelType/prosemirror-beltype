@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `pnpm test` runs the test files one at a time (`--test-concurrency=1`). In parallel the files, each opening Chromium and a vite server, failed two to four tests in a different file on every run, and the serial run passed 79 of 79. The shared cause was not hunted.
 - The Cicero dev pin moves from 0.1.9 to 0.1.10 and the peer range to `^0.1.10`, the first release whose facsimile `install` knows `missingAlt`; `test/facsimile.test.js` no longer skips.
 - A settle clears the engine's timing entries (*the run keeps time*, amended 2026-11-08: the long-lived host clears what it has read). Cicero writes a `cicero:` measure per phase and never clears, and the browser keeps every entry for the page's life, so a long session accumulated them without limit. At the end of each settle that is still the view's, `Chain` totals the `cicero:` measures by name onto the settle's record (`measures`), then clears them and the `cicero:` marks; an overtaken settle clears nothing, and a realm without `performance.clearMeasures` is left alone. The harness's keystroke reading takes `cicero:reads` from the record. `test/settle.test.js` has the case, red before the change.
 Egildo's ruling of 2026-11-08: the intake warns, and the waits time out.
