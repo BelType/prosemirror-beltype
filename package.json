@@ -1,6 +1,6 @@
 {
   "name": "prosemirror-beltype",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "BelType's fragmentainer for prosemirror-fragview: Cicero's page implementing fill over the engine's own objects, with the gaps filled the ProseMirror way.",
   "type": "module",
   "license": "MIT",
