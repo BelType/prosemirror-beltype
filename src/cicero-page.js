@@ -145,16 +145,18 @@ export class CiceroPage {
    * @param {(ContainerHint & { forced?: boolean }) | undefined} [a.hint] What the fill before this page left for it.
    * @param {Document} [a.document]
    * @param {() => Promise<void>} [a.intake] What the presenters need before a trial is presented, the factory's (`takeFacsimile`); nothing by default.
+   * @param {(host: Element) => void} [a.mounted] Told the view's element at every fill that finds the page placed in it, the factory's (`warnScopedRules` once); nothing by default.
    * @param {Originals | null} [a.originals] The chain's rendering of the whole state, the factory's (`originals.js`), which the page's chrome is read from; without it the page draws no chrome, as in phase 1.
    * @param {import('./chain.js').Chain | null} [a.chain] The factory's chain object, told when a fill begins and ends (`chain.js`); none in a test.
    * @param {number | null} [a.key] The key of the chain entry the page was made for.
    */
-  constructor({ table, index, hint, document = globalThis.document, intake = async () => {}, originals = null, chain = null, key = null }) {
+  constructor({ table, index, hint, document = globalThis.document, intake = async () => {}, mounted = () => {}, originals = null, chain = null, key = null }) {
     this.table = table;
     this.originals = originals;
     this.chain = chain;
     this.key = key;
     this.intake = intake;
+    this.mounted = mounted;
     this.index = index;
     this.hint = hint ?? {};
     this.doc = document;
@@ -239,6 +241,7 @@ export class CiceroPage {
    * @returns {Promise<FillResult>}
    */
   async fill(doc, from, render, hint) {
+    if (this.dom.parentElement) this.mounted(this.dom.parentElement);
     this.chain?.began(this);
     // The fill's own law holder, taken out of the document when the fill ends, normally or not; every trial of the fill writes it, one after another.
     const holder = lawHolder(this.doc, `__prosemirror-beltype-law-${++fills}`);
