@@ -60,24 +60,32 @@ const PDF_OBJECT = 'object[type="application/pdf"]';
 /** The facsimile module, once its presenter is registered in this package's registry. One per module instance, as the registry is. @type {Promise<typeof import('@beltype/cicero/facsimile')> | null} */
 let facsimile = null;
 
+/** The `data` of every PDF `<object>` an intake has taken, so a later slice that holds only these asks nothing again. */
+const taken = new Set();
+
 /**
  * The one-round host's intake for a facsimile, taken for what the document holds now: the module loaded and its presenter registered the first time the document holds a PDF `<object>`, and the size of every page the document then embeds read, so a copy made after it is given the page's ratio synchronously.
  *
  * @remarks
  * `install` is called once with this package's `present` and after that with none, since a second registration would be a second presenter for the same selector; the sizes it reads are the module's own cache, which `make` reads. In BelType's own page (the measurement's harness) the page's copy of the engine has loaded the module, defined `beltype-facsimile` and registered the presenter in its own registry already: `install` guards the element's definition, so the class that draws is the page's, and the registry and the size cache this package's copy reads are filled here.
+ * `missingAlt: 'warn'` is Egildo's ruling of 2026-11-08: an embed with no fallback `alt` is told once with a `console.warn` naming it and copied with no `aria-label`, so every page still fills and Caster refuses the figure at print. A Cicero before the release that carries the option ignores it and refuses at intake, as before.
  * @param {Document} doc
- * @throws {Error} when the module cannot load, as the one-round host refuses the run, or when a source has no fallback `alt` (`install`'s refusal).
+ * @throws {Error} when the module cannot load, as the one-round host refuses the run, or, under a Cicero without the option, when a source has no fallback `alt`.
  */
 export async function takeFacsimile(doc) {
-  if (!doc.querySelector(PDF_OBJECT)) return;
+  const urls = [...doc.querySelectorAll(PDF_OBJECT)].map((el) => el.getAttribute('data') ?? '');
+  if (!urls.length) return;
   const first = !facsimile;
+  // A later intake whose embeds were all taken has nothing to read, and would tell each one with no alt again.
+  if (!first && urls.every((url) => taken.has(url))) return;
   facsimile ??= import('@beltype/cicero/facsimile').then(
-    async (module) => { await module.install(doc, present); return module; },
+    async (module) => { await module.install(doc, present, { missingAlt: 'warn' }); return module; },
     (error) => { throw new Error(`BelType/Cicero: the document embeds a PDF and the module that draws it did not load (${error?.message ?? error})`); }
   );
   const pending = facsimile;
   // A failed intake is tried again by the next slice, as the client's is.
   pending.catch(() => { if (facsimile === pending) facsimile = null; });
   const module = await pending;
-  if (!first) await module.install(doc, () => {});
+  if (!first) await module.install(doc, () => {}, { missingAlt: 'warn' });
+  for (const url of urls) taken.add(url);
 }

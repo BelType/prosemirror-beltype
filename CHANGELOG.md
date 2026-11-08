@@ -3,6 +3,10 @@
 ## Unreleased
 
 - A settle clears the engine's timing entries (*the run keeps time*, amended 2026-11-08: the long-lived host clears what it has read). Cicero writes a `cicero:` measure per phase and never clears, and the browser keeps every entry for the page's life, so a long session accumulated them without limit. At the end of each settle that is still the view's, `Chain` totals the `cicero:` measures by name onto the settle's record (`measures`), then clears them and the `cicero:` marks; an overtaken settle clears nothing, and a realm without `performance.clearMeasures` is left alone. The harness's keystroke reading takes `cicero:reads` from the record. `test/settle.test.js` has the case, red before the change.
+Egildo's ruling of 2026-11-08: the intake warns, and the waits time out.
+
+- `takeFacsimile` passes `missingAlt: 'warn'` to Cicero's facsimile `install`, so a PDF embed with no fallback `alt` is warned of by its `data` and copied with no `aria-label`, and the pages fill; Caster refuses it at print. A later intake whose embeds were all taken returns at once. Cicero 0.1.9 ignores the option and refuses as before, until the pin moves. `test/facsimile.test.js` checks it under a Cicero that knows the option and skips under one that does not.
+- A page's font and image waits race `WAIT_MS`, 4000 ms (`CiceroPage.waitMs` for a test). A wait that runs out leaves the page measured with what it has, its account `provisional: true`, one `console.warn` naming the page and what ran out, and a refill when the fonts are ready or a missing image loads or fails, which clears it. A wait that runs out is not waited again by the same fill's later trials. A page whose waits finish in time is cut as before. `test/waits.test.js` proves the three cases.
 
 ## 0.1.2 (2026-11-08)
 
