@@ -8,7 +8,7 @@
  * 1. Conditions. The page's name is the effective page name at its first in-flow box at or after `from` (`inFlowStart`: a running element, a fixed box or a whitespace leaf at `from` is passed over, since the driver's intake took them out before its cursor ever stood there), read off the trial's law copy (below) as the driver's `nameAt` reads it off the source; its geometry is the table's for that name, its side (`parityAt`), `:first` for the first page and `:blank` for a blank one.
  * 2. Trial. The slice from `from` is rendered twice: once into the engine's measure context (`createMeasureContext` at the page's content width, which neutralizes the native break properties and transforms inside it), and once into a hidden holder outside it, the LAW COPY. The two are the same tree, paired element by element, and the copy answers `sourceOf`: the Stonehand reads `break-*`, `orphans`, `widows` and the monolith grounds from the source because the measure context neutralizes them on what it lays out, so a slice cannot be its own source in the measure context. The trial is bounded as `OverflowBox` bounds its own (`firstSpan`), at a block boundary and never inside a box the driver's bound never cuts inside (`boundAt`, `sealedEnd`, the Cast-off's `neverCutInside`), and doubled until it reaches below the page's edge (`reachesBelowTheEdge`, the Cast-off's check) or the document's end. A fixed box or a running element (`isFixedBox`) is put away (`away`) on both copies and on the page, at any depth, which is the engine's zero footprint for both; the page that begins with one holds its positions, invisible. Its copy in a margin box is the chrome's (below). What the page begins with besides its slice, a shell or a row's pieces (below), is built on both copies before they are measured, as the driver's feed is built with them.
  * 3. The grab. The engine's `forcingIndexOf` is built over the law copy's top-level blocks with readers this package supplies, and asked for the first forcing event strictly after the page's start, its first in-flow box, so an event there (a named page, a `break-before`) names the page or sets its side and does not end it; where it finds one in the trial, the trial is rendered again up to the event, as the driver cuts its feed there.
- * 4. Judgement. The fonts and the trial's images are awaited (`awaitFonts`, `awaitCloneImages`), the report taken (`takeReport`), the lead read (`report.contentTop` and the spent extent above a resumed box, `spentLead`), and the page's in-flow bottom compared with its content height as the driver compares it. A page that fits ends at the forced event or at the document's end; one that does not has the Stonehand rank the candidates (`adjudicate`).
+ * 4. Judgement. The fonts and the trial's images are awaited (`awaitFonts`, `awaitCloneImages`), each raced against `WAIT_MS` (4 s): a wait that runs out leaves the page measured with what it has, its account `provisional` and the page drawn again when the truth arrives (`provisional`), the report taken (`takeReport`), the lead read (`report.contentTop` and the spent extent above a resumed box, `spentLead`), and the page's in-flow bottom compared with its content height as the driver compares it. A page that fits ends at the forced event or at the document's end; one that does not has the Stonehand rank the candidates (`adjudicate`).
  * 5. The verdict as the page's end (`cutOf`). A Class A boundary before a box is that box's position entered down its first-child chain (`enter`), the fragmented view's convention for a cut; a Class B cut between lines is the position of the first character the line after the cut shows, a word and, where the line begins inside it, a character (`placeAt`, `wordPoint`), so the breaking space before it stays on this page; a start-edge Class C resumes before the child after the gap. The three verdicts that continue a box in a form one position cannot say are built as the engine builds them (`shells.js` says what each side shows): the page edge's cut through a box (`E`) ends the page at the box's own position and the page after paints it, an end-gap Class C ends it after the box and the page after shows it as a blank shell, and a cut through a row ends it at the last item's place and gives every other item a piece of its own. Each is said to the page after in the hint (`next`: `at`, the position it was left for, `shell` and `row.items`).
  * 6. The page. The slice from `from` to the cut's own end (`openedAt(doc, to)`, or past `to` to the end of a box the page shows whole) is rendered into the page (`setContent`), the row pieces seated, the shells made, the tables and grids the page divides pinned to the tracks the trial laid them out at (`pinTracks`), the flow given the lead, the extent the verdict used and the extension a divided box takes (`setFlow`, `extensionPx`), and the answer is `{ to, next }` (`hintAfter`).
  * 7. The chrome, as the root draws it (`drawChrome`, `root.js`' `#chrome`): the page's state read off the chain's one rendering of the whole state (`Originals`, `originals.js`) over the page's interval in the engine's word positions, its counters at its first word, its strings and running elements in their four readings; the margin boxes' `content` transliterated and dressed, `setCounters` with `page N` and, once the chain is complete, `pages T`, `setStrings`, each running element a copy of the originals' slotted into its box, and the bands measured. The trial is measured wearing what the page publishes (`publish`), and a page whose strings a flow site reads is cut again when its interval reads them otherwise (`fill`).
@@ -137,7 +137,32 @@ function lawHolder(/** @type {Document} */ doc, id = '__prosemirror-beltype-law'
 /** The fills that have begun, for each one's holder's id. */
 let fills = 0;
 
+/**
+ * How long a fill waits for the fonts, and for its trial's images, before it measures with what it has, in milliseconds.
+ *
+ * @remarks
+ * Egildo's ruling of 2026-11-08: four seconds is long enough for a slow image on a real network, and short enough that an author is not left with a stalled editor. A page whose wait ran out is accounted `provisional` and drawn again when the truth arrives. A test sets it shorter through `CiceroPage.waitMs`; `Infinity` waits as the engine does, with no race.
+ */
+export const WAIT_MS = 4000;
+
+/**
+ * Whether `promise` settled within `ms`; true at once where `ms` is not finite, after the promise settles.
+ * @param {Promise<unknown>} promise
+ * @param {number} ms
+ * @returns {Promise<boolean>}
+ */
+function within(promise, ms) {
+  const settled = promise.then(() => true, () => true);
+  if (!Number.isFinite(ms)) return settled;
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let timer;
+  return Promise.race([settled, new Promise((resolve) => { timer = setTimeout(() => resolve(false), ms); })]).finally(() => clearTimeout(timer));
+}
+
 export class CiceroPage {
+  /** The wait every page's fill races its fonts and images against ({@link WAIT_MS}). */
+  static waitMs = WAIT_MS;
+
   /**
    * @param {object} a
    * @param {{ pageFor: (cond: { name?: string, first?: boolean, parity?: string, blank?: boolean }) => Geometry }} a.table The geometry table, `readGeometryTable(document)`.
@@ -183,6 +208,8 @@ export class CiceroPage {
     this.heights = new Map();
     /** The last fill's own account, for a reader that compares it with the engine's. @type {Record<string, any> | null} */
     this.account = null;
+    /** The waits that ran out in the current fill (`measure`), `fonts` and `images`. @type {Set<'fonts' | 'images'>} */
+    this.late = new Set();
     /** What the page's chrome is drawn from, as the last fill read it off the originals: its counters, strings and running elements, the running elements' list, and the word interval. @type {{ counters: Record<string, number[]>, strings: Record<string, any>, running: Record<string, any>, boxes: { el: Element }[], start: number, end: number | null, block?: number | null } | null} */
     this.chrome = null;
     /** What the chrome was last drawn with, so a redraw that would change nothing does nothing. */
@@ -243,7 +270,9 @@ export class CiceroPage {
     // The fill's own law holder, taken out of the document when the fill ends, normally or not; every trial of the fill writes it, one after another.
     const holder = lawHolder(this.doc, `__prosemirror-beltype-law-${++fills}`);
     try {
+      this.late = new Set();
       const answer = await this.cutAndDraw(doc, from, render, holder, hint);
+      if (this.late.size) this.provisional();
       this.chain?.filled(this, doc, answer);
       return answer;
     } catch (error) {
@@ -802,8 +831,10 @@ export class CiceroPage {
     await this.present(t);
     const container = ctx.measure([...t.trial.fragment.childNodes], this.publish);
     t.container = container;
-    await awaitFonts(this.doc);
-    await awaitCloneImages(container);
+    // A wait that ran out in this fill is not waited for again by its later trials: the page measures with what it has (`provisional`).
+    const ms = CiceroPage.waitMs;
+    if (!this.late.has('fonts') && !await within(awaitFonts(this.doc), ms)) this.late.add('fonts');
+    if (!this.late.has('images') && !await within(awaitCloneImages(container), ms)) this.late.add('images');
     const report = takeReport(container, { contentHeight: this.conditions.contentH });
     return { report, pageStart: truncateLead ? report.contentTop + this.spentLead(t, report, doc, from, start) : 0 };
   }
@@ -1099,6 +1130,24 @@ export class CiceroPage {
       for (const el of [node, ...node.querySelectorAll('*')]) {
         if (forced) removeWord(el, ADJOIN);
         if (isFixedBox(el)) addWord(el, AWAY);
+      }
+    }
+  }
+
+  /**
+   * A fill whose wait ran out (`late`): its account says `provisional`, the page says so once, and it is drawn again when the truth arrives, the fonts' `ready` or the first of the shown page's unsettled images to load or fail. The next fill writes a new account, which is provisional only if its own wait runs out.
+   */
+  provisional() {
+    const late = [...this.late];
+    const account = this.account;
+    if (account) account.provisional = true;
+    console.warn(`prosemirror-beltype: page ${this.index + 1} was measured before its ${late.join(' and ')} arrived (${CiceroPage.waitMs} ms); it is provisional and is drawn again when they arrive`);
+    const redraw = () => { if (this.account === account && this.rendered) this.moved.dispatchEvent(new Event('moved')); };
+    if (this.late.has('fonts')) this.doc.fonts.ready.then(redraw);
+    if (this.late.has('images')) {
+      for (const img of this.dom.querySelectorAll('img')) if (!img.complete) {
+        img.addEventListener('load', redraw, { once: true });
+        img.addEventListener('error', redraw, { once: true });
       }
     }
   }

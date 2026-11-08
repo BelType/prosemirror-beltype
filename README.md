@@ -42,6 +42,10 @@ The view's `window: { build: 'near' }` is not supported with Cicero pages: the c
 
 Late truth, a size or element that arrives after a fill, is heard through the page's own `ResizeObserver` over its top-level nodes, not through the engine's rim (`watchLateTruth` in Cicero's `seam/rim`), which no public export of `@beltype/cicero` reaches yet, 0.1.9 included. The fragmented view refills the page that moved and the page before it, whose cut may have read the content that moved.
 
+A page waits for the fonts and its images for at most four seconds (`WAIT_MS`, read through `CiceroPage.waitMs`). A page whose wait ran out is measured with what it has, says so once with a `console.warn` naming the page and what it lacked, carries `provisional: true` in its account, and is filled again when the fonts are ready or the first missing image loads or fails; that fill clears it. A host that prints must not print a provisional page.
+
+A PDF embed whose fallback `<img>` has no `alt` is warned of in the editor, by its `data`, and drawn with no alternative text, so the pages still fill and Caster refuses the figure at print. This needs the Cicero release whose facsimile `install` takes `missingAlt: 'warn'`; Cicero 0.1.9, the pinned one, refuses at intake, and every page the embed's document reaches fails.
+
 `collapsedSpaces()` is a trade: it writes U+00A0 into the model wherever a typed space would collapse, as the platform's own contenteditable does in its DOM, so the saved document holds non-breaking spaces where the author typed plain ones. A host that wants a clean model leaves the plugin out and accepts that a double space, or a space at a line's edge, collapses on the page as it does in print.
 
 ## Browsers
