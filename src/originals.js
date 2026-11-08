@@ -33,7 +33,7 @@ import { askBox } from '@beltype/cicero/internal/has-words';
 /** @import { SliceRenderer, RenderedSlice } from 'prosemirror-fragview/src/fragmentainer.js' */
 /** @import { Keep } from '@beltype/cicero/fragmentation' */
 
-/** The holder's id: a body child, so its elements have a computed style, and hidden, so it lays nothing out. */
+/** The holder's id: a body child, so its elements have a computed style, and hidden, so it lays nothing out. One per factory, since two views in one document each render the whole of their own state: `ciceroContainers` names the scope, and the default is the id this package always used. */
 const HOLDER = '__prosemirror-beltype-originals';
 /** How many renderings' costs are kept for the measurement. */
 const TIMINGS_KEPT = 64;
@@ -218,9 +218,13 @@ export const rebased = (pos, { base, at }) => pos - base + at;
  */
 
 export class Originals {
-  /** @param {Document} [document] */
-  constructor(document = globalThis.document) {
+  /**
+   * @param {Document} [document]
+   * @param {string} [holderId] The id of the hidden holder this rendering stands in; one per view in a document.
+   */
+  constructor(document = globalThis.document, holderId = HOLDER) {
     this.document = document;
+    this.holderId = holderId;
     /** @type {OriginalsState | null} */
     this.state = null;
     /** The chain's length once a page ran to the document's end, else null. @type {number | null} */
@@ -299,10 +303,10 @@ export class Originals {
    */
   place(doc, render) {
     const d = this.document;
-    let holder = d.getElementById(HOLDER);
+    let holder = d.getElementById(this.holderId);
     if (!holder) {
       holder = d.createElement('div');
-      holder.id = HOLDER;
+      holder.id = this.holderId;
       holder.style.display = 'none';
     }
     // The first of body's children, so `getElementById` finds an original before any copy: the reads loop takes a target as the first element in tree order with its id (`reads.js`' header), and the pages' slices, the law copy and a root's light children keep the author's ids.
@@ -456,7 +460,7 @@ export class Originals {
 
   /** The hidden holder the rendering stands in. */
   holder() {
-    return /** @type {Element} */ (this.document.getElementById(HOLDER));
+    return /** @type {Element} */ (this.document.getElementById(this.holderId));
   }
 
   /**

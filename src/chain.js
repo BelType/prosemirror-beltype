@@ -459,6 +459,7 @@ export class Chain {
       warm: reason ? null : value?.delivered ?? null,
       warmFacts: reason ? null : value?.facts ?? null,
       hide: 'beltype-page',
+      scope: this,
       keep: state.keep
     }).then((result) => {
       record.ms = performance.now() - record.started;

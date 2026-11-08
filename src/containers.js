@@ -24,23 +24,27 @@ import { Originals } from './originals.js';
 import { Chain } from './chain.js';
 import { warnScopedRules } from './scoped-css.js';
 
+/** The factories made, which names the scope of one that is not given a name. */
+let factories = 0;
+
 /** @import { ContainerFactory } from 'prosemirror-fragview/src/fragmentainer.js' */
 
 /**
  * @param {Document} [document]
  * @param {object} [options]
  * @param {ReturnType<typeof readGeometryTable>} [options.table] A geometry table the host already read; read from the document when omitted.
+ * @param {string} [options.scope] A name for this view in its document, which keeps its hidden holder apart from another view's; unique per factory when omitted.
  * @param {boolean} [options.relaxDpr] Pass the engine's render-condition check at a device pixel ratio other than 1, as the CLI's preview does (I5); the default.
  * @returns {ContainerFactory & { originals: Originals, chain: Chain }}
  */
-export function ciceroContainers(document = globalThis.document, { table, relaxDpr = true } = {}) {
+export function ciceroContainers(document = globalThis.document, { table, relaxDpr = true, scope = `f${++factories}` } = {}) {
   assertRenderConditions(document, { relaxDpr });
   ensureDressing(document);
   ensureContinuationDressing(document);
   registerGcpmProperties(/** @type {any} */ (document.defaultView));
   const geometry = table ?? readGeometryTable(document);
   const intake = () => takeFacsimile(document);
-  const originals = new Originals(document);
+  const originals = new Originals(document, `__prosemirror-beltype-originals-${scope}`);
   const chain = new Chain({ originals, table: geometry, document });
   let checked = false;
   const mounted = (/** @type {Element} */ host) => {
