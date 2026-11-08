@@ -61,6 +61,18 @@ test('the state round-trips through JSON, the warm tables with it', () => {
   assert.equal(b.reads.runs, 1);
 });
 
+test('a state reopened from JSON with the chain keeps its rows through the next transaction', () => {
+  const state = filledState();
+  const plugins = { ledger: /** @type {any} */ (ledgerKey.get(state)), fragments: /** @type {any} */ (fragmentsKey.get(state)) };
+  const json = JSON.parse(JSON.stringify(state.toJSON(plugins)));
+  let back = EditorState.fromJSON({ schema, plugins: state.plugins }, json, plugins);
+  assert.deepEqual(fragmentsKey.getState(back)?.entries.map((e) => e.key), [0, 1, 2]);
+  // The first transaction after the reopen: the Ledger's appended transaction meets every row's entry, so none is dropped.
+  back = back.apply(back.tr.insertText('X', 2));
+  assert.deepEqual([...(ledgerKey.getState(back)?.rows.keys() ?? [])], [0, 1, 2]);
+  assert.equal(ledgerKey.getState(back)?.rows.get(1)?.end, 6);
+});
+
 test('pageOf is an index lookup over the entries and the rows, a cut belonging to the page after it', () => {
   let state = filledState();
   assert.equal(pageOf(state, 0), 1);
