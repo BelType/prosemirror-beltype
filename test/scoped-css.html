@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Content CSS scoped under the editor's element</title>
+  <style>
+    @page { size: 400px 300px; margin: 20px; }
+    html { font: 14px/20px sans-serif; }
+    body { margin: 0; }
+    p { margin: 0 0 10px; }
+  </style>
+  <style id="scoped">
+    @layer house { #host p { color: red; } }
+    @media screen { .editor table td { padding: 0; } }
+    #host { outline: none; }
+    #other p, div p, * > p { color: blue; }
+    #host + p { color: green; }
+  </style>
+</head>
+<body><div id="other"></div><div id="mount"></div></body>
+</html>

@@ -6,6 +6,10 @@ prosemirror-fragview 0.1.2 (2026-11-08).
 
 - The `prosemirror-fragview` dev pin moves from the git commit `c715783` to `0.1.2` on npm, and the peer range from `*` to `^0.1.2`: block node views, the paced ripple, the one-step delete and the browser scope. `test/block-faces.test.js` runs green without `FRAGVIEW`. 88 of 88 serially against the pin.
 
+Content CSS is document-level (ruled 2026-11-08).
+
+- At its first fill the factory reads the document's sheets once, `@media`, `@layer`, `@supports` and `@import` bodies included and a cross-origin sheet skipped, and warns on the console for every selector that scopes a content element under the view's element (`warnScopedRules`, `src/scoped-css.js`): a descendant or child combinator whose left part matches the host and not a bare `div` at the end of `body`, where the engine's measure stands. The warning names the selector and says the rule does not reach the measure; ten are named, then one line counts the rest. A rule on the host itself, a document-level rule, one scoped under another element and one on a highlight pseudo-element pass. A combinator inside `:is()` or `:where()` is not parsed. `test/scoped-css.test.js` has the cases, red before the change.
+
 The view's paced ripple (prosemirror-fragview's `fix/ripple-yields`, 2026-11-08).
 
 - `settled()` waits while the view is `rippling`. The fragmented view now fills the pages in view and one more before the next paint and the rest in idle slices, so between two slices it holds a dirty entry with no fill in flight, which `Chain.check` took for a chain stopped short: the reads loop settled over the first pages, delivered their reads, and never read again when the slices filled the rest, so the contents' page numbers were those of the half-filled chain (seed 6 of `test/random.test.js` against fragview main: pages 1, 2 and 5 read 5 where the cold fill reads 7). A view with no `rippling`, the pinned one among them, reads as one that never pauses. `test/chain.test.js` has the case, red before the change.

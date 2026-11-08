@@ -36,6 +36,8 @@ The rounds of the assessment of 2026-11-07, the third batch: a page answers `sho
 
 Mount the view with `containers: ciceroContainers(document)` and `handleFillRejected`, both exported here. A page whose fill throws already answers past the node at its start, unmeasured, with `failed` in its account; `handleFillRejected` is for a fill whose safety net throws too, which the view would otherwise leave dirty, so every page after it would wait. With it the page is shown empty, answers past the node, and `chain.settled(doc)` answers incomplete naming the page, so a host that prints must refuse while it is so.
 
+Keep the content CSS document-level. Cicero measures every page in its own container at the end of `body`, outside the view's element, and the chain's rendering of the whole state sits outside it too, so a rule scoped under the host (`.ProseMirror p`, `#editor table`) dresses what the reader sees and not what was cut. At its first fill the factory reads the document's sheets once and warns on the console for every such selector, naming it, ten at most and then a count; a rule on the host itself, and one on a highlight such as `::selection`, passes. The root carries no `ProseMirror` class unless the host gives it one.
+
 Prefix the ids in the author's content, or keep the host app's own ids out of the document the pages stand in. Cicero 0.1.6 resolves a `target-text()` reference by id across the whole document, so an author's `#intro` can read the text of a host app's element of the same id and print it on the page and into the PDF.
 
 The view's `window: { build: 'near' }` is not supported with Cicero pages: the chain stays incomplete there, and the engine's reads loop takes a partial chain for a whole one. Use the default window.
