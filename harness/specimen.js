@@ -456,13 +456,17 @@ export async function refillWhole() {
  * @param {number} pageNo
  * @param {number} n
  */
-export async function keystrokes(pageNo, n) {
+export async function keystrokes(pageNo, n, inside = false) {
   const { view, factory } = mounted;
   const entry = view.entries[pageNo - 1];
   /** @type {number | null} */
   let at = null;
   view.state.doc.nodesBetween(entry.from, entry.to ?? view.state.doc.content.size, (/** @type {any} */ node, /** @type {number} */ pos) => {
-    if (at == null && node.isTextblock && pos >= entry.from && node.textContent.length > 8) at = pos + 1 + node.textContent.indexOf(' ');
+    if (inside && at == null && node.isTextblock) {
+      // measure.mjs: a page that begins inside a textblock (a long paragraph) is typed into at its first space from the page's start, not at the textblock's.
+      const space = node.textContent.indexOf(' ', Math.max(0, entry.from - (pos + 1)));
+      if (space >= 0) at = pos + 1 + space;
+    } else if (!inside && at == null && node.isTextblock && pos >= entry.from && node.textContent.length > 8) at = pos + 1 + node.textContent.indexOf(' ');
     return at == null;
   });
   const out = [];
