@@ -1,0 +1,3 @@
+{"fixture":"table-auto-200","load":"4.0","cliPages":0,"cliMs":80818,"viewPages":198,"viewMs":3367673,"fills":198,"settled":false,"keys":{"last:198":[3455175.4]},"errors":[]}
+{"fixture":"table-fixed-200","load":"2.4","cliPages":0,"cliMs":44072,"viewPages":199,"viewMs":1389206,"fills":199,"settled":true,"keys":{"last:199":[1523758.9]},"errors":[]}
+{"fixture":"flex-nowrap-200","load":"12.7","cliPages":0,"cliMs":40255,"viewPages":198,"viewMs":717854,"fills":198,"settled":true,"keys":{"last:198":[802323.6]},"errors":[]}

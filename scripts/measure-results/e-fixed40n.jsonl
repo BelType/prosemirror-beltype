@@ -1,0 +1,3 @@
+{"fixture":"table-fixed-40n","load":"33.6","cliPages":0,"cliMs":2092,"viewPages":40,"viewMs":14626,"fills":40,"settled":true,"keys":{"last:40":[14697.3,14176.9,14490.7]},"errors":[]}
+{"fixture":"table-fixed-40n","load":"31.2","cliPages":0,"cliMs":2053,"viewPages":40,"viewMs":14590,"fills":40,"settled":true,"keys":{"last:40":[14369.7,14213.9,14234.1]},"errors":[]}
+{"fixture":"table-fixed-40n","load":"31.6","cliPages":0,"cliMs":2172,"viewPages":40,"viewMs":14562,"fills":40,"settled":true,"keys":{"last:40":[14457.9,14232.5,14213.2]},"errors":[]}

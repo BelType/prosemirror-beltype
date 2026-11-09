@@ -502,8 +502,13 @@ export class CiceroPage {
     let end;
     // The page's start as the driver's cursor stands: its first in-flow box, past a running element, a fixed box or a whitespace leaf at `from` (`inFlowStart`).
     let first = from;
+    /** The last pour that stopped above the edge: its bound before and after `sealedEnd`. @type {{ raw: number, end: number } | null} */
+    let short = null;
     for (let pours = 1; ; pours++) {
       end = this.boundAt(doc, from + span);
+      // A doubled span whose bound lands between where the last short pour's did and where `sealedEnd` moved it pours that same trial again and stops above the edge again: the bound of a span ending inside a textblock is past it (`boundAt`), and one ending inside the box `sealedEnd` named is moved past that box again, the box's ancestors being the same. It is doubled on without pouring.
+      if (short && end != null && end >= short.raw && end <= short.end) { span *= 2; continue; }
+      const raw = end;
       t = this.trial(doc, from, end, render, forced, start, holder);
       // The bound never falls inside a box whose layout reads its whole interior (the Cast-off's rule, `neverCutInside`): a monolith, a parallel flow, a table, a flex or grid container.
       const sealed = end == null ? null : this.sealedEnd(t, doc, end);
@@ -516,6 +521,7 @@ export class CiceroPage {
       }
       ({ report, pageStart } = await this.measure(ctx, t, truncateLead, doc, from, start));
       if (end == null || reachesBelowTheEdge({ report, sourceOf: this.sourceOf(t), pageStart, contentHeight: this.conditions.contentH })) break;
+      short = { raw, end };
       span *= 2;
     }
 
