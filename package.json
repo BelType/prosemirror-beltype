@@ -31,16 +31,16 @@
     "specimen": "node scripts/specimen.mjs"
   },
   "peerDependencies": {
-    "@beltype/cicero": "^0.1.10",
-    "prosemirror-fragview": "^0.1.4",
+    "@beltype/cicero": "^0.1.12",
+    "prosemirror-fragview": "^0.1.5",
     "prosemirror-model": "^1.25.0",
     "prosemirror-state": "^1.4.0",
     "prosemirror-transform": "^1.12.0"
   },
   "devDependencies": {
-    "@beltype/cicero": "0.1.10",
+    "@beltype/cicero": "0.1.12",
     "playwright": "1.63.0",
-    "prosemirror-fragview": "0.1.4",
+    "prosemirror-fragview": "0.1.5",
     "prosemirror-history": "1.5.1",
     "prosemirror-model": "1.25.12",
     "prosemirror-state": "1.4.4",

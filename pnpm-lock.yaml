@@ -9,14 +9,14 @@ importers:
   .:
     devDependencies:
       '@beltype/cicero':
-        specifier: 0.1.10
-        version: 0.1.10
+        specifier: 0.1.12
+        version: 0.1.12
       playwright:
         specifier: 1.63.0
         version: 1.63.0
       prosemirror-fragview:
-        specifier: 0.1.4
-        version: 0.1.4(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-transform@1.12.2)
+        specifier: 0.1.5
+        version: 0.1.5(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-transform@1.12.2)
       prosemirror-history:
         specifier: 1.5.1
         version: 1.5.1
@@ -35,8 +35,8 @@ importers:
 
 packages:
 
-  '@beltype/cicero@0.1.10':
-    resolution: {integrity: sha512-P/ROeFC8JScitPS/J4psD/CKZIg1NuIFuvrWyGzpjCRmb+yjkyJxhdWubbeBW35+i+GB6W3cdTkBmDIxD8xTQQ==}
+  '@beltype/cicero@0.1.12':
+    resolution: {integrity: sha512-m3wCT7i09zlo2M2lclZkggbJls1yI2jAG1L46ZhQDwjlat6waXl8hNwrvd8iSjzrCbN+tojpwpv0mAD5bLVotw==}
     engines: {node: '>=22'}
 
   '@beltype/common@0.1.2':
@@ -352,8 +352,8 @@ packages:
     resolution: {integrity: sha512-LJlKCCAUFKOuZxipUdYw1NzIITEsPcgyOG9LkvRJvuKj/bRzbuRY0ARXvL0pWGpsZvn8jku+LMep2eU0seHp8g==}
     engines: {node: ^10 || ^12 || >=14}
 
-  prosemirror-fragview@0.1.4:
-    resolution: {integrity: sha512-jig++somXdlukeaqbvkI7Y/chqnpY9v6t7VTmgOHiz8XLNq0QDijXbAOwBjdqQ9b+Bvhq/1UlldvQjIvR2owAw==}
+  prosemirror-fragview@0.1.5:
+    resolution: {integrity: sha512-sOCn20OuaJrp7tZtyOdYBQuO8S8GWaCy7zPhRGPpDYkw7keG7l5slia5uxERN2QS9SwRppMOHKK4GZ8GCtMyvw==}
     peerDependencies:
       prosemirror-model: ^1.25.0
       prosemirror-state: ^1.4.0
@@ -435,7 +435,7 @@ packages:
 
 snapshots:
 
-  '@beltype/cicero@0.1.10':
+  '@beltype/cicero@0.1.12':
     dependencies:
       '@beltype/common': 0.1.2
       css-tree: 3.2.1
@@ -629,7 +629,7 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.2
 
-  prosemirror-fragview@0.1.4(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-transform@1.12.2):
+  prosemirror-fragview@0.1.5(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-transform@1.12.2):
     dependencies:
       prosemirror-model: 1.25.12
       prosemirror-state: 1.4.4
