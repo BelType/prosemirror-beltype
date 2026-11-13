@@ -6,7 +6,7 @@
  *
  * `fill(doc, from, render)` is the driver's page cycle (`driver.js`, `paginateOnce`), with the engine's functions called and the gaps filled the ProseMirror way:
  * 1. Conditions. The page's name is the effective page name at its first in-flow box at or after `from` (`inFlowStart`: a running element, a fixed box or a whitespace leaf at `from` is passed over, since the driver's intake took them out before its cursor ever stood there), read off the trial's law copy (below) as the driver's `nameAt` reads it off the source; its geometry is the table's for that name, its side (`parityAt`), `:first` for the first page and `:blank` for a blank one.
- * 2. Trial. The slice from `from` is rendered twice: once into the engine's measure context (`createMeasureContext` at the page's content width, which neutralizes the native break properties and transforms inside it), and once into a hidden holder outside it, the LAW COPY. The two are the same tree, paired element by element, and the copy answers `sourceOf`: the Stonehand reads `break-*`, `orphans`, `widows` and the monolith grounds from the source because the measure context neutralizes them on what it lays out, so a slice cannot be its own source in the measure context. The trial is bounded as `OverflowBox` bounds its own (`firstSpan`), at a block boundary and never inside a box the driver's bound never cuts inside (`boundAt`, `sealedEnd`, the Cast-off's `neverCutInside`), and doubled until it reaches below the page's edge (`reachesBelowTheEdge`, the Cast-off's check) or the document's end. A fixed box or a running element (`isFixedBox`) is put away (`away`) on both copies and on the page, at any depth, which is the engine's zero footprint for both; the page that begins with one holds its positions, invisible. Its copy in a margin box is the chrome's (below). What the page begins with besides its slice, a shell or a row's pieces (below), is built on both copies before they are measured, as the driver's feed is built with them.
+ * 2. Trial. The slice from `from` is rendered twice: once into the engine's measure context (`createMeasureContext` at the page's content width, which neutralizes the native break properties and transforms inside it), and once into a hidden holder outside it, the LAW COPY. The two are the same tree, paired element by element, and the copy answers `sourceOf`: the Stonehand reads `break-*`, `orphans`, `widows` and the monolith grounds from the source because the measure context neutralizes them on what it lays out, so a slice cannot be its own source in the measure context. The trial is bounded as `OverflowBox` bounds its own (`firstSpan`), at a block boundary and never inside a box the driver's bound never cuts inside (`boundAt`, `sealedEnd`, the Cast-off's `neverCutInside`), and doubled until it reaches below the page's edge (`reachesBelowTheEdge`, the Cast-off's check) or the document's end. A fixed box or a running element (`isFixedBox`) is put away (`away`) on both copies and on the page, at any depth, which is the engine's zero footprint for both; the page that begins with one holds its positions, invisible. Its copy in a margin box is the chrome's (below). What the page begins with besides its slice, a shell or a row's pieces (below), is built on both copies before they are measured, as the driver's feed is built with them. The header group of a table the page resumes is seated on both as a copy (`seatHeaders`, *the header repeats*), and put away again where it does not lay out as a header group or stands taller than a quarter of the page area (`decline`), Blink's guard as the driver applies it.
  * 3. The grab. The engine's `forcingIndexOf` is built over the law copy's top-level blocks with readers this package supplies, and asked for the first forcing event strictly after the page's start, its first in-flow box, so an event there (a named page, a `break-before`) names the page or sets its side and does not end it; where it finds one in the trial, the trial is rendered again up to the event, as the driver cuts its feed there.
  * 4. Judgement. The fonts and the trial's images are awaited (`awaitFonts`, `awaitCloneImages`), each raced against `WAIT_MS` (4 s): a wait that runs out leaves the page measured with what it has, its account `provisional` and the page drawn again when the truth arrives (`provisional`), the report taken (`takeReport`), the lead read (`report.contentTop` and the spent extent above a resumed box, `spentLead`), and the page's in-flow bottom compared with its content height as the driver compares it. A page that fits ends at the forced event or at the document's end; one that does not has the Stonehand rank the candidates (`adjudicate`).
  * 5. The verdict as the page's end (`cutOf`). A Class A boundary before a box is that box's position entered down its first-child chain (`enter`), the fragmented view's convention for a cut; a Class B cut between lines is the position of the first character the line after the cut shows, a word and, where the line begins inside it, a character (`placeAt`, `wordPoint`), so the breaking space before it stays on this page; a start-edge Class C resumes before the child after the gap. The three verdicts that continue a box in a form one position cannot say are built as the engine builds them (`shells.js` says what each side shows): the page edge's cut through a box (`E`) ends the page at the box's own position and the page after paints it, an end-gap Class C ends it after the box and the page after shows it as a blank shell, and a cut through a row ends it at the last item's place and gives every other item a piece of its own. Each is said to the page after in the hint (`next`: `at`, the position it was left for, `shell` and `row.items`).
@@ -47,12 +47,12 @@ import { copyOf, isFixedBox, noteSource } from '@beltype/cicero/fragmentation';
 import { presentation } from '@beltype/cicero/fragmentation';
 import '@beltype/cicero/page';
 import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition, wholeAfter, advances, inFlowStart, carriedHint, startFrom, endsNowhere } from './turn.js';
-import { Positions, nodeDom, nodeStart, continueAsShell, endAsShell, endFirstFragment, wrapResumed, seatPieces, shellsOf, endsOf, pinTracks } from './shells.js';
+import { Positions, nodeDom, nodeStart, continueAsShell, endAsShell, endFirstFragment, wrapResumed, seatPieces, seatHeaders, declineHeader, shellsOf, endsOf, pinTracks } from './shells.js';
 import { stateOfPage, runningPlaced, sameElements } from './originals.js';
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
 /** @import { FillResult, RenderedSlice, SliceRenderer, ContainerHint } from 'prosemirror-fragview/src/fragmentainer.js' */
-/** @import { Shell, Piece } from './shells.js' */
+/** @import { Shell, Piece, Head } from './shells.js' */
 /** @import { Originals, OriginalsState } from './originals.js' */
 
 /**
@@ -111,6 +111,7 @@ const TEXT_MECHANICS = ['whiteSpace', 'overflowWrap', 'fontVariantLigatures', 'f
  * @property {Element[]} blocks The law copy's top-level blocks, fixed boxes left out, as the driver's `topLevelBlocks`.
  * @property {Element | null} container The measure context's container once the trial is laid out in it.
  * @property {Map<Element, number>} shelled The trial's blank shells, each the shallow sibling it was made of, by the position of its node: an element the renderer wrote no span for.
+ * @property {{ el: Element, law: Element, pos: number }[]} heads The header groups the trial repeats (`seatHeaders`), each copy with the law copy's.
  */
 
 /**
@@ -213,6 +214,10 @@ export class CiceroPage {
     this.account = null;
     /** The waits that ran out in the current fill (`measure`), `fonts` and `images`. @type {Set<'fonts' | 'images'>} */
     this.late = new Set();
+    /** The header groups the page repeats, as its last fill seated them (`seatHeaders`): a clean page whose group an edit replaced is dirtied (`headsMoved`). @type {Head[]} */
+    this.heads = [];
+    /** The header groups the current cut does not repeat, by position (`trial`, `measure`). @type {Set<number>} */
+    this.declined = new Set();
     /** What the page's chrome is drawn from, as the last fill read it off the originals: its counters, strings and running elements, the running elements' list, and the word interval. @type {{ counters: Record<string, number[]>, strings: Record<string, any>, running: Record<string, any>, boxes: { el: Element }[], start: number, end: number | null, block?: number | null } | null} */
     this.chrome = null;
     /** What the chrome was last drawn with, so a redraw that would change nothing does nothing. */
@@ -304,6 +309,7 @@ export class CiceroPage {
     const { to } = wholeAfter(doc, from);
     this.to = to;
     this.pieced = false;
+    this.heads = [];
     this.observer.disconnect();
     this.heights.clear();
     let rendered = null;
@@ -479,6 +485,8 @@ export class CiceroPage {
   async cutOnce(doc, from, render, holder) {
     this.to = null;
     this.pieced = false;
+    this.heads = [];
+    this.declined = new Set();
     this.observer.disconnect();
     this.heights.clear();
     if (this.blank) {
@@ -769,6 +777,9 @@ export class CiceroPage {
       seatPieces(trial.fragment, tp, doc, render, start.pieces);
       seatPieces(law.fragment, lp, doc, render, start.pieces);
     }
+    // The header group of a table the page resumes, repeated as a copy on both (*the header repeats*); a page that resumes a painted shell shows its box whole, header and all.
+    const copies = start.shell?.paint != null ? [] : seatHeaders(trial.fragment, tp, doc, render, from, this.declined);
+    const lawCopies = copies.length ? seatHeaders(law.fragment, lp, doc, render, from, this.declined) : [];
     /** @type {Map<Element, Element>} */
     const lawOf = new Map();
     const a = this.doc.createTreeWalker(trial.fragment, NodeFilter.SHOW_ELEMENT);
@@ -780,6 +791,9 @@ export class CiceroPage {
       if (forced) { removeWord(x, ADJOIN); removeWord(y, ADJOIN); }
       if (isFixedBox(y)) { addWord(x, AWAY); addWord(y, AWAY); }
     }
+    // A group repeats where it lays out as a header group (the engine's `mayRepeat`), asked of the law copy now that it is in the document.
+    const heads = copies.map((c, i) => ({ el: c.el, law: lawCopies[i].el, pos: c.pos }));
+    for (const h of heads) if (/** @type {Window} */ (this.doc.defaultView).getComputedStyle(h.law).display !== 'table-header-group') this.decline(h);
     // The shells after the pairing: a painted shell's wrapper is the engine's own element, with no source, as in the driver's feed. A blank shell's law is its shallow sibling, shown, so the Stonehand reads the box's own style off it.
     /** @type {Map<Element, number>} */
     const shelled = new Map();
@@ -798,7 +812,29 @@ export class CiceroPage {
     wrapResumed(trial.fragment, tp, doc, from, (_, el) => lawOf.get(el) ?? null);
     wrapResumed(lawRoot, lp, doc, from, (_, el) => el);
     const blocks = [...lawRoot.children].filter((el) => !isFixedBox(el));
-    return { trial: { ...trial, positions: /** @type {any} */ (tp) }, law: { ...law, positions: /** @type {any} */ (lp) }, lawOf, lawRoot, blocks, container: null, shelled };
+    return { trial: { ...trial, positions: /** @type {any} */ (tp) }, law: { ...law, positions: /** @type {any} */ (lp) }, lawOf, lawRoot, blocks, container: null, shelled, heads };
+  }
+
+  /**
+   * A header group the current cut does not repeat: its copies are put away on the trial and the law copy, and the page's own slice is rendered without it.
+   * @param {{ el: Element, law: Element, pos: number }} head
+   */
+  decline(head) {
+    if (this.declined.has(head.pos)) return;
+    this.declined.add(head.pos);
+    declineHeader(head.el);
+    declineHeader(head.law);
+  }
+
+  /**
+   * Whether a header group the page repeats is no longer the node it copied, in `doc` with the page's start at `from`: an edit inside the group replaces its node and leaves the page's own range untouched, so the chain dirties the page (`Chain.rechrome`).
+   * @param {PMNode} doc
+   * @param {number} from
+   */
+  headsMoved(doc, from) {
+    if (!this.heads.length) return false;
+    const $from = doc.resolve(from);
+    return this.heads.some((h) => $from.depth < h.depth || $from.node(h.depth).maybeChild(h.index) !== h.node);
   }
 
   /**
@@ -845,6 +881,8 @@ export class CiceroPage {
     const ms = CiceroPage.waitMs;
     if (!this.late.has('fonts') && !await within(awaitFonts(this.doc), ms)) this.late.add('fonts');
     if (!this.late.has('images') && !await within(awaitCloneImages(container), ms)) this.late.add('images');
+    // Blink's guard, as the driver applies it (`decideRepeats`): a header group taller than a quarter of the page area does not repeat. ponytail: judged on each page that would repeat it, where the driver judges once, at the table's first fragment, and carries the answer in its account; the two part only where the table's pages differ in size and the group's height falls between their quarters, and a hint carried from the table's first page is the upgrade.
+    for (const h of t.heads) if (h.el.getBoundingClientRect().height > this.conditions.contentH / 4) this.decline(h);
     const report = takeReport(container, { contentHeight: this.conditions.contentH });
     return { report, pageStart: truncateLead ? report.contentTop + this.spentLead(t, report, doc, from, start) : 0 };
   }
@@ -867,7 +905,7 @@ export class CiceroPage {
   }
 
   /**
-   * The spent extent at the head of a continuation, the driver's `spentLeadOf`: where the page resumes inside a top-level block, the smallest gap that stands above the boxes it resumes at and is not their containers' own border and padding (the engine's `gapAbove`), read off this page's report (a table's border-spacing or its collapsed border above the row the page resumes at, a grid's spent track). Zero where the page begins at a block's start, and where it resumes a painted shell, whose box is pulled above the page on purpose. The places are this package's (a shell and a row's pieces, where the driver reads its cursor), and so is the quarter pixel below which a gap is none. This package repeats no header, so the engine's branch for a repeated header's copy is never taken.
+   * The spent extent at the head of a continuation, the driver's `spentLeadOf`: where the page resumes inside a top-level block, the smallest gap that stands above the boxes it resumes at and is not their containers' own border and padding (the engine's `gapAbove`), read off this page's report (a table's border-spacing or its collapsed border above the row the page resumes at, a grid's spent track). Zero where the page begins at a block's start, and where it resumes a painted shell, whose box is pulled above the page on purpose. The places are this package's (a shell and a row's pieces, where the driver reads its cursor), and so is the quarter pixel below which a gap is none. A header group the page repeats (`seatHeaders`) is the engine's `artifact`, so above it only the spacing a separated table puts there is owed, the engine's branch.
    * @param {Trial} t
    * @param {ReturnType<typeof takeReport>} report
    * @param {PMNode} doc
@@ -1120,6 +1158,7 @@ export class CiceroPage {
     const positions = new Positions(rendered.positions);
     const root = rendered.fragment;
     seatPieces(root, positions, doc, render, cut.pieces ?? start.pieces ?? []);
+    this.heads = start.shell?.paint != null ? [] : seatHeaders(root, positions, doc, render, from, this.declined);
     const law = (/** @type {Shell} */ shell) => nodeDom(t.lawRoot, t.law.positions, doc, shell.pos);
     const begins = shellsOf({ shell: start.shell, pieces: cut.pieces ?? start.pieces });
     for (const shell of begins) continueAsShell(root, positions, doc, shell, law(shell));

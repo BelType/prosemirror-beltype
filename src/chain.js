@@ -13,7 +13,7 @@
  *
  * THE TIMELINE CLEARED (*the run keeps time*, amended 2026-11-08: the long-lived host clears what it has read). The engine writes a `performance.measure` named `cicero:…` per phase and never clears, and the browser keeps every entry for the page's life, so at the end of each settle that is still the view's, the `cicero:` measures are totalled by name onto the settle's record (`measures`, what the harness reads) and cleared with the `cicero:` marks; an overtaken settle clears nothing, since the entries since its start are the newer settle's too.
  *
- * THE CHROME OF CLEAN PAGES (docs/found.md, "A page an edit does not refill keeps the chrome it was drawn with"). On a new document every clean page's interval, translated by the view's mapping, is read again off the new rendering (`stateOfPage`), and its row is staged for the next transaction on that document; a page whose counters, strings or running elements moved, by value or by a running element it places being replaced by one of other content (`runningPlaced`, `sameElements`), has its chrome redrawn without a refill (`drawChrome`), unless its strings moved and a flow site that reads a page fact stands on it (`Originals.sitesIn`), which is a line that may move, so the page is dirtied (`dirtied`, deferred to a microtask so the view's update is not re-entered). Counters are chrome (*the run resumes from an entry*: named strings, running elements and counters reach no cut).
+ * THE CHROME OF CLEAN PAGES (docs/found.md, "A page an edit does not refill keeps the chrome it was drawn with"). On a new document every clean page's interval, translated by the view's mapping, is read again off the new rendering (`stateOfPage`), and its row is staged for the next transaction on that document; a page whose counters, strings or running elements moved, by value or by a running element it places being replaced by one of other content (`runningPlaced`, `sameElements`), has its chrome redrawn without a refill (`drawChrome`), unless its strings moved and a flow site that reads a page fact stands on it (`Originals.sitesIn`), which is a line that may move, so the page is dirtied (`dirtied`, deferred to a microtask so the view's update is not re-entered). A page that repeats a table's header group (`CiceroPage.heads`) is dirtied the same way when the group is no longer the node it copied (`headsMoved`). Counters are chrome (*the run resumes from an entry*: named strings, running elements and counters reach no cut).
  *
  * THE VIEW'S INVALIDATION. `invalidate()` releases every built container at once, which nothing else does (the window policy keeps the near ones built): the last release tells the originals to forget their rendering and its kept parts (`Originals.forget`), before the first new fill asks for them, so the conditions that moved are read afresh over a whole rendering.
  *
@@ -420,7 +420,8 @@ export class Chain {
       prevEnd = end;
       const facts = stateOfPage(state, start, end);
       const strings = !same(facts.strings, c.strings);
-      if (strings && o.sitesIn(state, e.from, e.to)) { dirty.push(e.key); continue; }
+      // A page that repeats a table's header group shows a copy of a node outside its range: an edit inside the group dirties it.
+      if ((strings && o.sitesIn(state, e.from, e.to)) || page.headsMoved(doc, e.from)) { dirty.push(e.key); continue; }
       const moved = strings || !same(facts.counters, c.counters) || !same(facts.running, c.running) || !sameElements(runningPlaced(facts.running, state.boxes), runningPlaced(c.running, c.boxes));
       page.chrome = { ...facts, boxes: state.boxes, start, end, block: endAt?.block ?? null };
       if (moved) { page.drawChrome(); this.counts.redrawn++; }
