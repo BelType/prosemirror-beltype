@@ -167,7 +167,7 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 ### Known from phase 1, not met by the studio
 
 - `adjoin` after a forced break: the fill strips it; no difference traced to it.
-- The repeated table header and the footer's reservation: the studio's schema holds every table as an atom (the entry above), so the header question never arose; under the generic schema the showcase's tables are not where its first difference is.
+- The repeated table header and the footer's reservation: the studio's schema holds every table as an atom (the entry above), so the header question never arose; under the generic schema the showcase's tables are not where its first difference is. **The header is built, 2026-11-13** (`fix/second-wave`): a page that resumes a table seats a copy of its header group in the trial, the law copy and the shown slice (`seatHeaders`, `src/shells.js`), under Blink's quarter-of-the-page guard judged on each such page, and an edit inside the group dirties the pages that repeat it (`CiceroPage.headsMoved`, asked by `Chain.rechrome`, so a host without `ledger()` keeps the stale copy). `fixtures/header` agrees with the CLI on 12 of 12 pages (collapsed, separated, and a header too tall to repeat), and `fixtures/measure/table-fixed-10`, which the view cut in 15 pages against the CLI's 16 for this reason alone, agrees on 16 of 16. Still owed: the footer's reservation and its copy, and the lift of a collapsed header whose bottom border is wider than the first row's top, which is the engine's private `liftRepeatedHeader` (`fragments.ts`); a header the driver judged on a first page of another size than the page that repeats it.
 - `invalidate()` after a conditions change: met through the amendments pane (an amendment is a new sheet): the view refilled every page, 80 pages for a `body { font-size: 13pt }` rule in about 700 ms, and undo brought the sheet and the pages back.
 - The `near` window policy: see the view's entry on the first frame.
 
@@ -290,7 +290,8 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 
 - **Seen**: on `fixtures/flow`, 2026-11-06, after a `paste`, the `enter`, `start` and `end` edits fill page 24 19 or 20 times, the page's `from` and answer unchanged. Every result agrees with a fresh fill. The pin a4ac0a5 does the same.
 - **Layer**: not traced.
-- **State**: OPEN.
+- **Traced 2026-11-13** (`fix/second-wave`, and `main` at 6d96f65 alike, Cicero 0.1.12 and fragview 0.1.5): it no longer happens. `node scripts/specimen.mjs fixtures/flow --edits 'paste;enter;start;end'`, now 26 pages, with the view's `dispatch` and `fill` and the chain's `resume` wrapped for the length of each edit and 1.5 s after it: `paste` and `enter` each fill page 25 once, from the view's `refresh` after the edit's own transaction, and page 26 once, from the `refresh` after page 25's `refilled`; `start` fills page 1 alone and `end` page 26 alone. No `dirtied` transaction is dispatched during any of them, so no `moved` and no `chain.resume`; the last entry's `asked` goes 0, 1, 3 only by the comparison's own `invalidate()` between two edits. What filled it twenty times on 2026-11-06 was not found: the script of that day spawned BelType's CLI on a target that is gone, so the commit that recorded it (b546c72, Cicero 0.1.6, fragview a4ac0a5) could not be run again. The nearest fix by date is the late-truth baseline of 2026-11-07 (bdaed0b: a scale read off the rounded `offsetHeight` refilled `fixtures/repage` 80 times through `moved`), which is a guess and not a measurement.
+- **State**: NOT REPRODUCED 2026-11-13; left open until someone sees it again or runs the old pins.
 
 ## The engine (BelType)
 
@@ -377,6 +378,20 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Layer**: the engine, `src/forcing-memo.js` (`keep` takes the top-level box) and the walks that ask it per top-level block; and this package, which renders per top-level node.
 - **Fix**: a part per box at a depth the host names, the engine's question; this package's per-node rendering would follow it down.
 - **State**: OPEN, a question for a later round.
+
+### The view names a page it resumes inside a box, and closes its counters, by the rules before Cicero 0.1.12
+
+- **Seen**: by reading, 2026-11-13. Cicero 0.1.12 names a page that begins inside a box by `usedPageName` (css-page-3 §8.1: a box the `page` property does not apply to, an inline box, a table cell, a flex or grid item, a float, takes its parent's name), and hands `counterStateAt` the depth of the page's opening place (`depthOfCut`), so a counter scope that ended before the page with nothing logged between is closed. `CiceroPage.nameAt` still asks `effectivePageName` of that box, and `stateOfPage` calls `counterStateAt(ops, start)` with no depth: a page that resumes inside such a box named for another page is cut and drawn under that name, and `counter(list-item)` past a list whose last item holds a list reads the inner list's count. No fixture holds either case, so every comparison with the CLI agrees.
+- **Layer**: the engine's face, then this package. 0.1.12's `fragmentation` face exports neither name: `usedPageName` is the driver module's (`@beltype/cicero/internal/driver`), `depthOfCut` a closure of `paginateOnce`.
+- **Fix**: the engine's half is on Cicero's branch `fix/second-wave` (0b3bc59, not merged, not released): the face exports `usedPageName(el, styleOf)` and `depthOfCut(cut, ancestors)`. With a release that carries it, here: `nameAt` returns `usedPageName(el, styleOf)` where the position stands inside the box; `cutAndDraw` reads the depth of the page's start off the trial, `depthOfCut(this.addressAt(t, first).cut, 2)` (a shell the page begins with counted as a `px`, the two ancestors the `html` and `body` the originals hand `documentOpsOf`), and hands it to `stateOfPage`, which passes it as `counterStateAt`'s fourth argument; `Chain.rechrome` reads a clean page's state again with the depth its last fill kept. A fixture for each: a page resumed inside a table cell or an inline-block named for another page, and the engine's `list-continuation` case.
+- **State**: OPEN, waiting on the release. Not the fault of "Random edits leave a page cut for a page name the cold fill does not see" above: that one was a divided root that lost its `:has()` arm, fixed here on 2026-11-07, and its chapter `section` is a block the property applies to, which both rules name alike.
+
+### The engine's `inFlowChildren` is not exported
+
+- **Seen**: 2026-11-13, by the grab's memo of each parent's in-flow children (`CiceroPage.grab`), which writes the engine's one line again over `inDisplayOrder`, imported from `@beltype/cicero/internal/word-space`.
+- **Layer**: the engine, `src/positions.ts`.
+- **Fix**: export `inFlowChildren` (or a `pathOf` that keeps its own memo for a call), and use it here.
+- **State**: OPEN.
 
 ### `firstBelowTheEdge` is not on the engine's face
 

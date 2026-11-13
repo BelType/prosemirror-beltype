@@ -85,7 +85,7 @@ test('the page total is blank until a page runs to the end, and moves only there
 test('the chain redraws every other live page when its total moves, and none when it does not', () => {
   const o = new Originals(/** @type {any} */ ({}));
   const drawn = [];
-  const pages = [0, 1, 2].map((index) => ({ index, drawChrome: () => drawn.push(index) }));
+  const pages = [0, 1, 2].map((index) => ({ index, totalMoved: () => drawn.push(index) }));
   for (const p of pages) o.pages.add(p);
   o.settle(pages[0], 100);
   o.settle(pages[1], 200);
@@ -96,4 +96,27 @@ test('the chain redraws every other live page when its total moves, and none whe
   drawn.length = 0;
   o.settle(pages[1], 200);
   assert.deepEqual(drawn, [], 'a refill that leaves the total leaves the others');
+});
+
+test('a total gone blank tells no page, and the chain\'s completion tells them once', () => {
+  const o = new Originals(/** @type {any} */ ({}));
+  const told = [];
+  const pages = [0, 1, 2, 3].map((index) => ({ index, totalMoved: () => told.push(index) }));
+  for (const p of pages.slice(0, 3)) o.pages.add(p);
+  o.settle(pages[2], null);
+  told.length = 0;
+  o.settle(pages[2], 300);
+  assert.equal(o.total, null, 'the last page cuts: the chain is not complete');
+  assert.equal(o.shown, 3, 'the pages keep the total they show');
+  assert.deepEqual(told, [], 'and none is told');
+  o.pages.add(pages[3]);
+  o.settle(pages[3], null);
+  assert.equal(o.shown, 4);
+  assert.deepEqual(told, [0, 1, 2], 'the chain completes: every other page is told, once');
+  told.length = 0;
+  o.settle(pages[3], 400);
+  o.settle(pages[3], null);
+  assert.deepEqual(told, [], 'a chain that completes at the total it showed tells nobody');
+  o.forget();
+  assert.equal(o.shown, null, 'an invalidation shows no total until a chain completes again');
 });
