@@ -11,7 +11,7 @@
  * 4. Judgement. The fonts and the trial's images are awaited (`awaitFonts`, `awaitCloneImages`), each raced against `WAIT_MS` (4 s): a wait that runs out leaves the page measured with what it has, its account `provisional` and the page drawn again when the truth arrives (`provisional`), the report taken (`takeReport`), the lead read (`report.contentTop` and the spent extent above a resumed box, `spentLead`), and the page's in-flow bottom compared with its content height as the driver compares it. A page that fits ends at the forced event or at the document's end; one that does not has the Stonehand rank the candidates (`adjudicate`).
  * 5. The verdict as the page's end (`cutOf`). A Class A boundary before a box is that box's position entered down its first-child chain (`enter`), the fragmented view's convention for a cut; a Class B cut between lines is the position of the first character the line after the cut shows, a word and, where the line begins inside it, a character (`placeAt`, `wordPoint`), so the breaking space before it stays on this page; a start-edge Class C resumes before the child after the gap. The three verdicts that continue a box in a form one position cannot say are built as the engine builds them (`shells.js` says what each side shows): the page edge's cut through a box (`E`) ends the page at the box's own position and the page after paints it, an end-gap Class C ends it after the box and the page after shows it as a blank shell, and a cut through a row ends it at the last item's place and gives every other item a piece of its own. Each is said to the page after in the hint (`next`: `at`, the position it was left for, `shell` and `row.items`).
  * 6. The page. The slice from `from` to the cut's own end (`openedAt(doc, to)`, or past `to` to the end of a box the page shows whole) is rendered into the page (`setContent`), the row pieces seated, the shells made, the tables and grids the page divides pinned to the tracks the trial laid them out at (`pinTracks`), the flow given the lead, the extent the verdict used and the extension a divided box takes (`setFlow`, `extensionPx`), and the answer is `{ to, next }` (`hintAfter`).
- * 7. The chrome, as the root draws it (`drawChrome`, `root.js`' `#chrome`): the page's state read off the chain's one rendering of the whole state (`Originals`, `originals.js`) over the page's interval in the engine's word positions, its counters at its first word, its strings and running elements in their four readings; the margin boxes' `content` transliterated and dressed, `setCounters` with `page N` and, once the chain is complete, `pages T`, `setStrings`, each running element a copy of the originals' slotted into its box, and the bands measured. The trial is measured wearing what the page publishes (`publish`), and a page whose strings a flow site reads is cut again when its interval reads them otherwise (`fill`).
+ * 7. The chrome, as the root draws it (`drawChrome`, `root.js`' `#chrome`): the page's state read off the chain's one rendering of the whole state (`Originals`, `originals.js`) over the page's interval in the engine's word positions, its counters at its first word, its strings and running elements in their four readings; the margin boxes' `content` transliterated and dressed, `setCounters` with `page N` and, once a chain has completed, `pages T`, `setStrings`, each running element a copy of the originals' slotted into its box, and the bands measured. The trial is measured wearing what the page publishes (`publish`), and a page whose strings a flow site reads is cut again when its interval reads them otherwise (`fill`).
  *
  * The page never throws (*the build cannot fail*, C2), and a fill that throws all the same shows the node at its start unmeasured and answers past it (`failSafe`). A verdict that maps to no position (a cut inside a leaf, which a schema's atom has none of) or to the page's own start with nothing entered or shrunk (`advances`) is an uncuttable run at the page's start. A block atom there taller than the page area is sliced at the page's edge as a painted shell, as the engine slices a monolith (`paintedAtom`; @see a-tall-atom-is-a-painted-shell). Anything else there is taken whole (`wholeAfter`), rendered as it is, its overflow clipped by the page as the engine's own page clips it, and the console says so once, with the page and the node's type.
  *
@@ -414,19 +414,19 @@ export class CiceroPage {
   }
 
   /**
-   * What the page publishes on its host, as the measure container wears it (`reads.js`' `pageFactsOf`, for one page): `page N`, `pages T` once the chain's total is known, and each named string's four properties.
+   * What the page publishes on its host, as the measure container wears it (`reads.js`' `pageFactsOf`, for one page): `page N`, `pages T` with the total the pages show (`Originals.shown`), and each named string's four properties.
    * @param {Record<string, Record<string, string>>} strings
    */
   publishOf(strings) {
     /** @type {Record<string, string>} */
     const props = {};
     for (const [name, values] of Object.entries(strings)) for (const which of STRING_KEYWORDS) props[encodeStringProp(name, which)] = cssString(values?.[which] ?? '');
-    const total = this.originals?.total;
+    const total = this.originals?.shown;
     return { counterReset: `page ${this.index + 1}${total != null ? ` pages ${total}` : ''}`, props };
   }
 
   /**
-   * The page's chrome, drawn as the root draws it (`root.js`, `#chrome`): the page context and each margin box's `content` transliterated (`transliterateContent`, `counter(pages)` blank until the chain's total is known) dressed into the page's shadow, the page's counters (`page N`, `pages T`, the document's counters at its first word) and its named strings published on its host, each running element a page's box places cloned from the originals into the box, and the bands measured. Called at the end of every fill and again, with no refill, when the chain's total moves.
+   * The page's chrome, drawn as the root draws it (`root.js`, `#chrome`): the page context and each margin box's `content` transliterated (`transliterateContent`, `counter(pages)` blank until the chain's total is known) dressed into the page's shadow, the page's counters (`page N`, `pages T`, the document's counters at its first word) and its named strings published on its host, each running element a page's box places cloned from the originals into the box, and the bands measured. Called at the end of every fill and again, with no refill, when the total the pages show moves and a margin box reads it (`totalMoved`). The total is the last one known (`Originals.shown`), so a page filled while the chain is being cut longer shows the old total until the new one is known.
    *
    * @remarks
    * A running element's clone is the page's own light child, slotted into its margin box directly (`runningPart`): `setMarginBox` takes the node itself as a part, which is the form for a page outside the root, since the root's chain forwards through a slot that is a light child of a page inside the root's shadow tree, and a `<slot>` outside one does not draw what it holds (measured 2026-10-25 on the running fixture: the clone, the slot's child, laid out no box). The cell's slot is assigned the clone.
@@ -434,7 +434,7 @@ export class CiceroPage {
   drawChrome() {
     const c = this.chrome;
     if (!c) return;
-    const total = this.originals?.total ?? null;
+    const total = this.originals?.shown ?? null;
     const boxes = /** @type {Record<string, string>} */ (/** @type {any} */ (this.conditions).marginBoxes ?? {});
     const plan = Object.entries(boxes).map(([box, value]) => /** @type {[string, ReturnType<typeof transliterateContent>]} */ ([box, transliterateContent(value, { pagesKnown: total != null })]));
     const key = JSON.stringify([this.conditions.name, this.blank, plan, this.index, total, c.counters, c.strings, c.running]);
@@ -452,6 +452,18 @@ export class CiceroPage {
     for (const [box, t] of plan) this.dom.setMarginBox(box, t ? t.parts.map((part) => (typeof part === 'string' ? part : this.runningPart(c.running?.[part.element]?.[part.which], c.boxes))) : null);
     this.boxesDrawn = Object.keys(boxes);
     this.dom.layoutBands();
+  }
+
+  /**
+   * The total the pages show moved (`Originals.settle`): a page whose margin boxes read `counter(pages)` draws its chrome again, and any other only publishes the total on its host, for a flow site that reads it, its margins left as they are.
+   */
+  totalMoved() {
+    const c = this.chrome;
+    if (!c) return;
+    const boxes = /** @type {Record<string, string>} */ (/** @type {any} */ (this.conditions).marginBoxes ?? {});
+    // The test `transliterateContent` blanks a term by.
+    if (Object.values(boxes).some((value) => /\bcounters?\(\s*pages\s*[,)]/i.test(value ?? ''))) return this.drawChrome();
+    this.dom.setCounters(c.counters, { page: this.index + 1, pages: this.originals?.shown ?? null });
   }
 
   /**

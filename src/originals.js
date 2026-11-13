@@ -10,7 +10,7 @@
  *
  * THE POSITION MAPPING. A page knows its `from` and `to` as model positions; the engine's state is ordered by the flat word position of its index (`positions.js`). The renderer's map turns a model position into a DOM point of this rendering (`pointOf`: the node that holds the position, then `pointAt` over its element alone at the position rebased to its slice; between nodes, the holder before the next element), the point's top-level block is found by climbing to the holder, and the word position is the block's base plus the words of the block wholly before the point (`wordsBeforePoint`), tokenized as `indexBlock` tokenizes, fixed boxes and running elements skipped at any depth, a character inside a word counted as that word's (`wordsBeforeChar`'s rule). A point between blocks is the next block's base, and a point at or past the last block the index's total. So a Class A cut before a box is the words before the box, which is the driver's `posOfCut` of a bare path; a Class B cut mid-paragraph is the position of the first character the next line shows, the first word of that line, which is `wordsBefore(leaf) + word`; a cut whose line begins inside a word (a hyphen the browser drew) is that word, as the driver's `char` is consumed within its word. Measured against the CLI's `entry.pos` on every fixture (docs/results.md, "The page wears its chrome").
  *
- * THE PAGE TOTAL. `counter(pages)` is blank until the chain is complete, as the CLI's `run({ until })` leaves it blank until the document is: the view says the chain is complete when a fill answers `to: null` (an entry whose `to` is the document's end; the view drops every entry after it), and the view fills the first dirty entry first, so every page before it is filled. `totalAfter` is the arithmetic, and `settle` redraws every live page's chrome when the total moves, without refilling any.
+ * THE PAGE TOTAL. `counter(pages)` is blank until the chain is complete, as the CLI's `run({ until })` leaves it blank until the document is: the view says the chain is complete when a fill answers `to: null` (an entry whose `to` is the document's end; the view drops every entry after it), and the view fills the first dirty entry first, so every page before it is filled. `totalAfter` is the arithmetic, and `settle` tells every live page when the total it shows moves, without refilling any: the pages show the last total known (`shown`) while a chain is being cut longer or shorter, and draw once when it completes.
  *
  * The holder is body's first child: the reads loop takes a target as the first element in tree order with its id (`reads.js`' header), and the pages' slices, the law copy and a root's light children keep the author's ids, so an original must precede every copy (measured 2026-10-25: with the holder after the view, the specimen's nine targets read as outside the flow and its 15 reads showed nothing). Not here: the reads loop and the chrome of a page an edit did not refill (`chain.js`), and a carried flow's remainders (`remaindersOf`; the view carries no parallel flow).
  *
@@ -229,7 +229,9 @@ export class Originals {
     this.state = null;
     /** The chain's length once a page ran to the document's end, else null. @type {number | null} */
     this.total = null;
-    /** The live pages, each redrawn when the total moves. @type {Set<{ index: number, drawChrome: () => void }>} */
+    /** The total the pages show: the last one known, kept while the chain is cut longer or shorter and the total is blank, so a folio does not go blank and come back; null until a chain first completes, and after `forget`. @type {number | null} */
+    this.shown = null;
+    /** The live pages, each told when the total they show moves. @type {Set<{ index: number, totalMoved: () => void }>} */
     this.pages = new Set();
     /** The engine's memo of the walks' parts per top-level box, kept across states (*a resumed run keeps its reads*). */
     this.memo = new ForcingMemo();
@@ -245,6 +247,7 @@ export class Originals {
   forget() {
     this.state = null;
     this.total = null;
+    this.shown = null;
     this.memo.clear();
   }
 
@@ -474,14 +477,17 @@ export class Originals {
   }
 
   /**
-   * A page answered: the total moves by `totalAfter`, and every other live page redraws its chrome when it moved.
+   * A page answered: the total moves by `totalAfter`, and when the chain is complete again with another total than the pages show, every other live page is told (`CiceroPage.totalMoved`).
+   *
+   * @remarks
+   * A total gone blank tells nobody: the pages keep the total they show until the chain completes. Measured 2026-11-13 (`test/total.test.js`), paragraphs added at the end of five pages: every page the edit left alone drew its margins twice, once with a blank total when the last page cut and once with 6 when the new page ran to the end.
    * @param {{ index: number }} page
    * @param {number | null} to
    */
   settle(page, to) {
-    const total = totalAfter(this.total, page.index, to);
-    if (total === this.total) return;
-    this.total = total;
-    for (const p of this.pages) if (p !== page) p.drawChrome();
+    this.total = totalAfter(this.total, page.index, to);
+    if (this.total == null || this.total === this.shown) return;
+    this.shown = this.total;
+    for (const p of this.pages) if (p !== page) p.totalMoved();
   }
 }
