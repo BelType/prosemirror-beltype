@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.3 (2026-11-14)
 
 - `firstBelowTheEdge` is imported from the engine's `fragmentation` face, which has carried it since Cicero 0.1.12, and no longer from `internal/stonehand`.
 - **A place inside a box the `page` property does not apply to is named by the box's parent, as Cicero 0.1.12 names it.** `CiceroPage.nameAt` asked `effectivePageName` of the box a position stands inside, so a cut inside a table cell or a flex item named for another page left the next page a hint with that name (`next.name`, `narrow` on seven fills of `fixtures/page-names`); it now asks the engine's `usedPageName` (css-page-3 §8.1). No page was cut or drawn under the wrong name: every page that renders a trial reads its own name again at its start, where its slice begins and no text stands before the place, through `pageNameDownFrom`, which has ended in `usedPageName` since 0.1.12, so `fixtures/page-names` agreed with the CLI before the change and agrees after it, 10 pages. `test/page-rules.test.js` holds the hint, red before.
