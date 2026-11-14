@@ -37,7 +37,7 @@ import { takeReport } from '@beltype/cicero/fragmentation';
 import { adjudicate, reachesBelowTheEdge, isOutOfFlow, neverCutInside, processionBottoms, fitsPage } from '@beltype/cicero/fragmentation';
 import { firstBelowTheEdge } from '@beltype/cicero/internal/stonehand';
 import { inDisplayOrder } from '@beltype/cicero/internal/word-space';
-import { forcingIndexOf, gapAbove, pageNameDownFrom } from '@beltype/cicero/fragmentation';
+import { depthOfCut, forcingIndexOf, gapAbove, pageNameDownFrom } from '@beltype/cicero/fragmentation';
 import { effectivePageName, transliterateContent } from '@beltype/cicero/fragmentation';
 import { encodeStringProp, STRING_KEYWORDS } from '@beltype/cicero/fragmentation';
 import { cssString } from '@beltype/cicero/fragmentation';
@@ -218,8 +218,10 @@ export class CiceroPage {
     this.heads = [];
     /** The header groups the current cut does not repeat, by position (`trial`, `measure`). @type {Set<number>} */
     this.declined = new Set();
-    /** What the page's chrome is drawn from, as the last fill read it off the originals: its counters, strings and running elements, the running elements' list, and the word interval. @type {{ counters: Record<string, number[]>, strings: Record<string, any>, running: Record<string, any>, boxes: { el: Element }[], start: number, end: number | null, block?: number | null } | null} */
+    /** What the page's chrome is drawn from, as the last fill read it off the originals: its counters, strings and running elements, the running elements' list, and the word interval. @type {{ counters: Record<string, number[]>, strings: Record<string, any>, running: Record<string, any>, boxes: { el: Element }[], start: number, end: number | null, block?: number | null, depth?: number } | null} */
     this.chrome = null;
+    /** The depth of the page's start in the counter log's terms, as the last cut read it off its trial (the engine's `depthOfCut`); undefined on a blank page, which renders no trial, and its counters are then read as before Cicero 0.1.12. @type {number | undefined} */
+    this.depth = undefined;
     /** What the chrome was last drawn with, so a redraw that would change nothing does nothing. */
     this.chromeKey = '';
     /** The running elements the chrome last placed (`runningPlaced`). @type {(Element | null)[]} */
@@ -398,12 +400,12 @@ export class CiceroPage {
       answer = await this.cutOnce(doc, from, withHasWords(render, o, state), holder);
       at = answer.to == null ? null : o.addressAt(state, answer.to);
       end = at?.pos ?? null;
-      const truth = stateOfPage(state, start, this.blank ? start : end);
+      const truth = stateOfPage(state, start, this.blank ? start : end, this.depth);
       const moved = JSON.stringify(truth.strings) !== JSON.stringify(facts.strings);
       facts = truth;
       if (this.blank || !moved || recuts >= 2 || !o.sitesIn(state, from, answer.to)) break;
     }
-    this.chrome = { ...facts, boxes: state.boxes, start, end: this.blank ? start : end, block: at?.block ?? null };
+    this.chrome = { ...facts, boxes: state.boxes, start, end: this.blank ? start : end, block: at?.block ?? null, depth: this.depth };
     const t2 = performance.now();
     o.settle(this, answer.to);
     const t3 = performance.now();
@@ -496,6 +498,7 @@ export class CiceroPage {
    */
   async cutOnce(doc, from, render, holder) {
     this.to = null;
+    this.depth = undefined;
     this.pieced = false;
     this.heads = [];
     this.declined = new Set();
@@ -617,6 +620,10 @@ export class CiceroPage {
     }
 
     const startCut = this.addressAt(t, first);
+    // The depth of the page's start in the counter log's terms (the engine's `depthOfCut`, the driver's `conditionsAt`), which closes a counter scope that ended before the page: the two ancestors are the `html` and `body` the originals hand `documentOpsOf`. A page that begins with a shell resumes inside the shell's box, as the driver's `px` cut does. A page that begins with a row's pieces is read at its main place alone.
+    const shellAt = start.shell ? nodeDom(t.lawRoot, t.law.positions, doc, start.shell.pos) : null;
+    const shellTop = shellAt && t.blocks.find((block) => block.contains(shellAt));
+    this.depth = depthOfCut(shellAt && shellTop ? { path: pathOf(shellAt, shellTop, 0), word: null, px: start.shell } : startCut.cut, 2);
     const endCut = to == null ? null : this.addressAt(t, to);
     // A page that ends in a shell takes no extension, nor one that resumes a painted shell (`extensionPx`, *the end gap takes no extension*); a row's divided items reach the foot.
     const shellEnd = !!cut?.shell && !cut.pieces?.length;

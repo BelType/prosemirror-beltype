@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Counters</title>
+  <link rel="stylesheet" href="../base.css">
+  <style>
+/* The counters fixture, the engine's list-continuation cases (Cicero's `test/browser/list-continuation.browser.ts`, cicero-counter-scope-stays-open-at-page): twelve lines a page. A counter scope that ended before a page with nothing logged between is closed on that page. Page 2 begins past a list whose last item holds a list, so `counter(list-item)` reads the outer list's 2 there and not the inner list's 3; page 4 begins past a nested reset of an author's counter that ended with its parent, so `counter(c)` reads the outer instance's 1 and not the inner's 3. Each is read in the flow and in a margin box. */
+@page { size: 200px 300px; margin: 30px; @top-center { content: "n" counter(list-item) "." counter(c) "."; } }
+html { font: 12px/20px monospace; }
+body { margin: 0; counter-reset: c; }
+p { margin: 0; }
+ol { margin: 0; padding-left: 40px; }
+li { margin: 0; }
+.n { counter-reset: c; }
+.i { counter-increment: c; }
+.second { break-before: page; }
+.x::after { content: " #" counter(list-item) "." counter(c) "."; }
+  </style>
+</head>
+<body>
+<p>line a0 of the text</p>
+<p>line a1 of the text</p>
+<ol><li>item a</li><li>item o<ol><li>item a</li><li>item b</li><li>item c</li></ol></li></ol>
+<p>line b0 of the text</p>
+<p>line b1 of the text</p>
+<p>line b2 of the text</p>
+<p>line b3 of the text</p>
+<p>line b4 of the text</p>
+<p>line b5 of the text</p>
+<p class="x">after</p>
+<p class="second">line c0 of the text</p>
+<p>line c1 of the text</p>
+<div><p class="i">one</p><div class="n"><p class="i">a</p><p class="i">b</p><p class="i">c</p></div></div>
+<p>line d0 of the text</p>
+<p>line d1 of the text</p>
+<p>line d2 of the text</p>
+<p>line d3 of the text</p>
+<p>line d4 of the text</p>
+<p>line d5 of the text</p>
+<p>line d6 of the text</p>
+<p class="x">after</p>
+</body>
+</html>

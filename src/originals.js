@@ -116,14 +116,15 @@ export function wordAddressOf(holder, blockIndex, index, point, reads) {
 export const wordPositionOf = (holder, blockIndex, index, point, reads) => wordAddressOf(holder, blockIndex, index, point, reads).pos;
 
 /**
- * A page's state, as the driver writes it on the page's `closes`: the document's counters at its first word (`counterStateAt`), the four readings of every named string over its interval (`namedStringsForPage`), and of every running element, `null` the empty value. `end` is the next page's first word, null on the last page; a blank page's interval is empty.
+ * A page's state, as the driver writes it on the page's `closes`: the document's counters at its first word (`counterStateAt`), the four readings of every named string over its interval (`namedStringsForPage`), and of every running element, `null` the empty value. `end` is the next page's first word, null on the last page; a blank page's interval is empty. `depth` is the depth of the page's start in the log's terms (the engine's `depthOfCut`), which ends every counter instance created deeper; absent, the replay keeps what the last operation before `start` left open.
  * @param {{ ops: any[], strings: { name: string, value: string, pos: number }[], running: { name: string, value: number, pos: number }[] }} log
  * @param {number} start
  * @param {number | null} end
+ * @param {number} [depth]
  */
-export function stateOfPage({ ops, strings, running }, start, end) {
+export function stateOfPage({ ops, strings, running }, start, end, depth) {
   return {
-    counters: counterStateAt(ops, start),
+    counters: counterStateAt(ops, start, undefined, depth),
     strings: namedStringsForPage(strings, start, end),
     running: namedStringsForPage(running, start, end, {}, null)
   };
