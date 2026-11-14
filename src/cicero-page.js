@@ -34,10 +34,9 @@ import { openedAt, pointAt, posAt } from 'prosemirror-fragview';
 import { addWord, AWAY, ADJOIN, ARTIFACT, END, FRAGMENT, SPLIT, hasWord, removeWord } from '@beltype/cicero/fragmentation';
 import { createMeasureContext, awaitFonts, awaitCloneImages } from '@beltype/cicero/fragmentation';
 import { takeReport } from '@beltype/cicero/fragmentation';
-import { adjudicate, reachesBelowTheEdge, isOutOfFlow, neverCutInside, processionBottoms, fitsPage } from '@beltype/cicero/fragmentation';
-import { firstBelowTheEdge } from '@beltype/cicero/internal/stonehand';
+import { adjudicate, firstBelowTheEdge, reachesBelowTheEdge, isOutOfFlow, neverCutInside, processionBottoms, fitsPage } from '@beltype/cicero/fragmentation';
 import { inDisplayOrder } from '@beltype/cicero/internal/word-space';
-import { forcingIndexOf, gapAbove, pageNameDownFrom } from '@beltype/cicero/fragmentation';
+import { depthOfCut, forcingIndexOf, gapAbove, pageNameDownFrom, usedPageName } from '@beltype/cicero/fragmentation';
 import { effectivePageName, transliterateContent } from '@beltype/cicero/fragmentation';
 import { encodeStringProp, STRING_KEYWORDS } from '@beltype/cicero/fragmentation';
 import { cssString } from '@beltype/cicero/fragmentation';
@@ -218,8 +217,10 @@ export class CiceroPage {
     this.heads = [];
     /** The header groups the current cut does not repeat, by position (`trial`, `measure`). @type {Set<number>} */
     this.declined = new Set();
-    /** What the page's chrome is drawn from, as the last fill read it off the originals: its counters, strings and running elements, the running elements' list, and the word interval. @type {{ counters: Record<string, number[]>, strings: Record<string, any>, running: Record<string, any>, boxes: { el: Element }[], start: number, end: number | null, block?: number | null } | null} */
+    /** What the page's chrome is drawn from, as the last fill read it off the originals: its counters, strings and running elements, the running elements' list, and the word interval. @type {{ counters: Record<string, number[]>, strings: Record<string, any>, running: Record<string, any>, boxes: { el: Element }[], start: number, end: number | null, block?: number | null, depth?: number } | null} */
     this.chrome = null;
+    /** The depth of the page's start in the counter log's terms, as the last cut read it off its trial (the engine's `depthOfCut`); a blank page, which renders no trial, takes it from the hint the page before left. @type {number | undefined} */
+    this.depth = undefined;
     /** What the chrome was last drawn with, so a redraw that would change nothing does nothing. */
     this.chromeKey = '';
     /** The running elements the chrome last placed (`runningPlaced`). @type {(Element | null)[]} */
@@ -398,12 +399,12 @@ export class CiceroPage {
       answer = await this.cutOnce(doc, from, withHasWords(render, o, state), holder);
       at = answer.to == null ? null : o.addressAt(state, answer.to);
       end = at?.pos ?? null;
-      const truth = stateOfPage(state, start, this.blank ? start : end);
+      const truth = stateOfPage(state, start, this.blank ? start : end, this.depth);
       const moved = JSON.stringify(truth.strings) !== JSON.stringify(facts.strings);
       facts = truth;
       if (this.blank || !moved || recuts >= 2 || !o.sitesIn(state, from, answer.to)) break;
     }
-    this.chrome = { ...facts, boxes: state.boxes, start, end: this.blank ? start : end, block: at?.block ?? null };
+    this.chrome = { ...facts, boxes: state.boxes, start, end: this.blank ? start : end, block: at?.block ?? null, depth: this.depth };
     const t2 = performance.now();
     o.settle(this, answer.to);
     const t3 = performance.now();
@@ -496,6 +497,7 @@ export class CiceroPage {
    */
   async cutOnce(doc, from, render, holder) {
     this.to = null;
+    this.depth = undefined;
     this.pieced = false;
     this.heads = [];
     this.declined = new Set();
@@ -503,6 +505,7 @@ export class CiceroPage {
     this.heights.clear();
     if (this.blank) {
       // A page nothing flows onto (§3.1's second break): the cursor does not move, and the demand is spent.
+      this.depth = this.hint.depth;
       this.show(render(doc, from, from));
       this.account = { from, to: from, name: this.conditions.name, kind: 'blank', cls: null, next: hintAfterBlank(this.hint) };
       return { to: from, next: hintAfterBlank(this.hint) };
@@ -617,6 +620,10 @@ export class CiceroPage {
     }
 
     const startCut = this.addressAt(t, first);
+    // The depth of the page's start in the counter log's terms (the engine's `depthOfCut`, the driver's `conditionsAt`), which closes a counter scope that ended before the page: the two ancestors are the `html` and `body` the originals hand `documentOpsOf`. A page that begins with a shell resumes inside the shell's box, as the driver's `px` cut does. A page that begins with a row's pieces is read at its main place alone.
+    const shellAt = start.shell ? nodeDom(t.lawRoot, t.law.positions, doc, start.shell.pos) : null;
+    const shellTop = shellAt && t.blocks.find((block) => block.contains(shellAt));
+    this.depth = depthOfCut(shellAt && shellTop ? { path: pathOf(shellAt, shellTop, 0), word: null, px: start.shell } : startCut.cut, 2);
     const endCut = to == null ? null : this.addressAt(t, to);
     // A page that ends in a shell takes no extension, nor one that resumes a painted shell (`extensionPx`, *the end gap takes no extension*); a row's divided items reach the foot.
     const shellEnd = !!cut?.shell && !cut.pieces?.length;
@@ -648,6 +655,8 @@ export class CiceroPage {
     const clipped = whole ? null : this.clippedBy(parallel, !shaped);
     const byEvent = event && to === eventTo;
     const next = to == null ? undefined : { ...hintAfter({ index: this.index, name: nextName, forced: !!byEvent, parity: byEvent ? event.parity : null }), ...carriedHint(to, cut?.next) };
+    // A blank page renders no trial, so the page that owes it says the depth of the place it stands at, which is where this page ends.
+    if (next?.blank && endCut) next.depth = depthOfCut(endCut.cut, 2);
     this.account = { from, to, name: this.conditions.name, forced, cls: verdict?.cls ?? (byEvent ? 'A' : null), kind: whole ? 'whole' : verdict?.kind ?? (byEvent ? (event.namedSwitch ? 'name' : 'forced') : 'terminal'), y: verdict?.y ?? null, pageStart, usedPx, extPx, next, ...(clipped ? { clipped } : {}), ...this.ratio() };
     // A row's pieces show positions outside the page's range: the rest of an earlier item, below `from`, on the page that resumes the row, and the rest of the row past `to` on the page that cuts it; a box shown whole past `to` likewise (a painted shell).
     this.pieced = !!(start.pieces?.length || cut?.pieces?.length);
@@ -1018,7 +1027,7 @@ export class CiceroPage {
   }
 
   /**
-   * The effective page name at a position, as the driver's `nameAt` reads it: the box the page begins in, or, at a box's start, the deepest in-flow block that begins there (the engine's `pageNameDownFrom`, with a line before a child read off the law copy's text, where the driver reads its word index).
+   * The page name at a position, as the driver's `nameAt` reads it: inside a box, the box's used page name (the engine's `usedPageName`: its parent's where the `page` property does not apply to it, a table cell, a flex or grid item, an inline-level box), or, at a box's start, the deepest in-flow block that begins there (the engine's `pageNameDownFrom`, with a line before a child read off the law copy's text, where the driver reads its word index).
    * @param {Trial} t
    * @param {number} pos
    */
@@ -1027,7 +1036,8 @@ export class CiceroPage {
     const win = /** @type {Window} */ (this.doc.defaultView);
     if (el === t.lawRoot) return '';
     // The descent is the engine's (`pageNameDownFrom`); a line before a child is read off the law copy's text, since this package holds no word index over it.
-    return inside ? effectivePageName(el) : pageNameDownFrom(el, { styleOf: (c) => win.getComputedStyle(c), runBefore: (parent, child) => /\S/.test(textBefore(parent, child)) });
+    const styleOf = (/** @type {Element} */ c) => win.getComputedStyle(c);
+    return inside ? usedPageName(el, styleOf) : pageNameDownFrom(el, { styleOf, runBefore: (parent, child) => /\S/.test(textBefore(parent, child)) });
   }
 
   /**

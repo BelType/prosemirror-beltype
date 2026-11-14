@@ -384,7 +384,14 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen**: by reading, 2026-11-13. Cicero 0.1.12 names a page that begins inside a box by `usedPageName` (css-page-3 §8.1: a box the `page` property does not apply to, an inline box, a table cell, a flex or grid item, a float, takes its parent's name), and hands `counterStateAt` the depth of the page's opening place (`depthOfCut`), so a counter scope that ended before the page with nothing logged between is closed. `CiceroPage.nameAt` still asks `effectivePageName` of that box, and `stateOfPage` calls `counterStateAt(ops, start)` with no depth: a page that resumes inside such a box named for another page is cut and drawn under that name, and `counter(list-item)` past a list whose last item holds a list reads the inner list's count. No fixture holds either case, so every comparison with the CLI agrees.
 - **Layer**: the engine's face, then this package. 0.1.12's `fragmentation` face exports neither name: `usedPageName` is the driver module's (`@beltype/cicero/internal/driver`), `depthOfCut` a closure of `paginateOnce`.
 - **Fix**: the engine's half is on Cicero's branch `fix/second-wave` (0b3bc59, not merged, not released): the face exports `usedPageName(el, styleOf)` and `depthOfCut(cut, ancestors)`. With a release that carries it, here: `nameAt` returns `usedPageName(el, styleOf)` where the position stands inside the box; `cutAndDraw` reads the depth of the page's start off the trial, `depthOfCut(this.addressAt(t, first).cut, 2)` (a shell the page begins with counted as a `px`, the two ancestors the `html` and `body` the originals hand `documentOpsOf`), and hands it to `stateOfPage`, which passes it as `counterStateAt`'s fourth argument; `Chain.rechrome` reads a clean page's state again with the depth its last fill kept. A fixture for each: a page resumed inside a table cell or an inline-block named for another page, and the engine's `list-continuation` case.
-- **State**: OPEN, waiting on the release. Not the fault of "Random edits leave a page cut for a page name the cold fill does not see" above: that one was a divided root that lost its `:has()` arm, fixed here on 2026-11-07, and its chapter `section` is a block the property applies to, which both rules name alike.
+- **State**: CLOSED 2026-11-14 on `fix/page-rules`, under Cicero 0.1.13, with one correction to what was seen. The counters were as read: `fixtures/counters` (the engine's two `list-continuation` cases) differed from the CLI in its state on pages 2 to 4 and in the flow's generated text on pages 2 and 4, and agrees now; the depth is kept on the page's chrome and `Chain.rechrome` reads with it. The page name was not: no page was cut or drawn under the wrong name, because a page that renders a trial reads its own name again at its start, where its slice begins and no text stands before the place, so `nameAt` takes the arm of `pageNameDownFrom`, which has ended in `usedPageName` since 0.1.12. Only the hint a page leaves the next carried the box's own name (`next.name`); `fixtures/page-names` agreed with the CLI before the change and after it, and `test/page-rules.test.js` holds the hint and the counters. What is left is "A page's depth for its counters is not the driver's in two places", below. Not the fault of "Random edits leave a page cut for a page name the cold fill does not see" above: that one was a divided root that lost its `:has()` arm, fixed here on 2026-11-07, and its chapter `section` is a block the property applies to, which both rules name alike.
+
+### A page's depth for its counters is not the driver's in two places
+
+- **Seen**: by reading, 2026-11-14, on `fix/page-rules`; no fixture holds either. A page that begins with a row's pieces takes the depth of its main place alone, and its counters are read with no `away`, where the driver hands `counterStateAt` the remainders the cut carries in (`remaindersOf`). `addressAt` normalises a bare path with no `mayDrop`, so a page that begins at a first block child with a line of its parent's before it is taken one level shallower than the driver's `cutTo` takes it.
+- **Layer**: this package, `CiceroPage.cutOnce` and `addressAt`.
+- **Fix**: a case for each first, against the CLI.
+- **State**: OPEN.
 
 ### The engine's `inFlowChildren` is not exported
 
@@ -398,7 +405,7 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen**: by `reachOf`, 2026-11-06, which imports it from `@beltype/cicero/internal/stonehand`.
 - **Layer**: the engine's `fragmentation` face, which exports `reachesBelowTheEdge`, the same function asked whether there is one.
 - **Fix**: export it beside `reachesBelowTheEdge`, and change the import here.
-- **State**: OPEN.
+- **State**: CLOSED 2026-11-14 on `fix/page-rules`. The face has carried it since Cicero 0.1.12, and `src/cicero-page.js` imports it from `@beltype/cicero/fragmentation`.
 
 ## The studio's wiring
 
