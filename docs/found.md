@@ -398,7 +398,7 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen**: by `reachOf`, 2026-11-06, which imports it from `@beltype/cicero/internal/stonehand`.
 - **Layer**: the engine's `fragmentation` face, which exports `reachesBelowTheEdge`, the same function asked whether there is one.
 - **Fix**: export it beside `reachesBelowTheEdge`, and change the import here.
-- **State**: OPEN.
+- **State**: CLOSED 2026-11-14 on `fix/page-rules`. The face has carried it since Cicero 0.1.12, and `src/cicero-page.js` imports it from `@beltype/cicero/fragmentation`.
 
 ## The studio's wiring
 
