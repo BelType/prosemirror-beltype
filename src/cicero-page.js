@@ -37,7 +37,7 @@ import { takeReport } from '@beltype/cicero/fragmentation';
 import { adjudicate, reachesBelowTheEdge, isOutOfFlow, neverCutInside, processionBottoms, fitsPage } from '@beltype/cicero/fragmentation';
 import { firstBelowTheEdge } from '@beltype/cicero/internal/stonehand';
 import { inDisplayOrder } from '@beltype/cicero/internal/word-space';
-import { depthOfCut, forcingIndexOf, gapAbove, pageNameDownFrom } from '@beltype/cicero/fragmentation';
+import { depthOfCut, forcingIndexOf, gapAbove, pageNameDownFrom, usedPageName } from '@beltype/cicero/fragmentation';
 import { effectivePageName, transliterateContent } from '@beltype/cicero/fragmentation';
 import { encodeStringProp, STRING_KEYWORDS } from '@beltype/cicero/fragmentation';
 import { cssString } from '@beltype/cicero/fragmentation';
@@ -1025,7 +1025,7 @@ export class CiceroPage {
   }
 
   /**
-   * The effective page name at a position, as the driver's `nameAt` reads it: the box the page begins in, or, at a box's start, the deepest in-flow block that begins there (the engine's `pageNameDownFrom`, with a line before a child read off the law copy's text, where the driver reads its word index).
+   * The page name at a position, as the driver's `nameAt` reads it: inside a box, the box's used page name (the engine's `usedPageName`: its parent's where the `page` property does not apply to it, a table cell, a flex or grid item, an inline-level box), or, at a box's start, the deepest in-flow block that begins there (the engine's `pageNameDownFrom`, with a line before a child read off the law copy's text, where the driver reads its word index).
    * @param {Trial} t
    * @param {number} pos
    */
@@ -1034,7 +1034,8 @@ export class CiceroPage {
     const win = /** @type {Window} */ (this.doc.defaultView);
     if (el === t.lawRoot) return '';
     // The descent is the engine's (`pageNameDownFrom`); a line before a child is read off the law copy's text, since this package holds no word index over it.
-    return inside ? effectivePageName(el) : pageNameDownFrom(el, { styleOf: (c) => win.getComputedStyle(c), runBefore: (parent, child) => /\S/.test(textBefore(parent, child)) });
+    const styleOf = (/** @type {Element} */ c) => win.getComputedStyle(c);
+    return inside ? usedPageName(el, styleOf) : pageNameDownFrom(el, { styleOf, runBefore: (parent, child) => /\S/.test(textBefore(parent, child)) });
   }
 
   /**

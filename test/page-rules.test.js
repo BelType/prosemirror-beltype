@@ -1,5 +1,5 @@
 /**
- * The rules a page's counters are closed by where it begins (Cicero 0.1.12's, on the engine's face since 0.1.13), on real `CiceroPage`s in a browser: a counter scope that ended before a page is closed on it (`depthOfCut`), on a fill and where a clean page's chrome is read again.
+ * The rules a page is named and its counters closed by where it begins (Cicero 0.1.12's, on the engine's face since 0.1.13), on real `CiceroPage`s in a browser: a counter scope that ended before a page is closed on it (`depthOfCut`), on a fill and where a clean page's chrome is read again, and a place inside a box the `page` property does not apply to takes the box's parent's name (`usedPageName`).
  */
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -38,4 +38,11 @@ test('a clean page reads its counters again at the depth its last fill kept', ()
   assert.deepEqual(read.refilled.slice(1), [0, 0, 0], 'the pages after the edit were not filled again');
   assert.deepEqual(read.edited[1].counters['list-item'], [2]);
   assert.deepEqual(read.edited[3].counters.c, [1]);
+});
+
+test('a cut inside a table cell named for another page names the next page by the cell\'s parent', () => {
+  assert.equal(read.namesAnswer.complete, true);
+  assert.ok(read.names.length >= 3, `the cell runs over ${read.names.length} pages`);
+  for (const p of read.names) assert.equal(p.name, '');
+  assert.deepEqual(read.names.slice(0, -1).map((/** @type {any} */ p) => p.next), read.names.slice(0, -1).map(() => ''));
 });
