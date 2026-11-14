@@ -219,7 +219,7 @@ export class CiceroPage {
     this.declined = new Set();
     /** What the page's chrome is drawn from, as the last fill read it off the originals: its counters, strings and running elements, the running elements' list, and the word interval. @type {{ counters: Record<string, number[]>, strings: Record<string, any>, running: Record<string, any>, boxes: { el: Element }[], start: number, end: number | null, block?: number | null, depth?: number } | null} */
     this.chrome = null;
-    /** The depth of the page's start in the counter log's terms, as the last cut read it off its trial (the engine's `depthOfCut`); undefined on a blank page, which renders no trial, and its counters are then read as before Cicero 0.1.12. @type {number | undefined} */
+    /** The depth of the page's start in the counter log's terms, as the last cut read it off its trial (the engine's `depthOfCut`); a blank page, which renders no trial, takes it from the hint the page before left. @type {number | undefined} */
     this.depth = undefined;
     /** What the chrome was last drawn with, so a redraw that would change nothing does nothing. */
     this.chromeKey = '';
@@ -505,6 +505,7 @@ export class CiceroPage {
     this.heights.clear();
     if (this.blank) {
       // A page nothing flows onto (§3.1's second break): the cursor does not move, and the demand is spent.
+      this.depth = this.hint.depth;
       this.show(render(doc, from, from));
       this.account = { from, to: from, name: this.conditions.name, kind: 'blank', cls: null, next: hintAfterBlank(this.hint) };
       return { to: from, next: hintAfterBlank(this.hint) };
@@ -654,6 +655,8 @@ export class CiceroPage {
     const clipped = whole ? null : this.clippedBy(parallel, !shaped);
     const byEvent = event && to === eventTo;
     const next = to == null ? undefined : { ...hintAfter({ index: this.index, name: nextName, forced: !!byEvent, parity: byEvent ? event.parity : null }), ...carriedHint(to, cut?.next) };
+    // A blank page renders no trial, so the page that owes it says the depth of the place it stands at, which is where this page ends.
+    if (next?.blank && endCut) next.depth = depthOfCut(endCut.cut, 2);
     this.account = { from, to, name: this.conditions.name, forced, cls: verdict?.cls ?? (byEvent ? 'A' : null), kind: whole ? 'whole' : verdict?.kind ?? (byEvent ? (event.namedSwitch ? 'name' : 'forced') : 'terminal'), y: verdict?.y ?? null, pageStart, usedPx, extPx, next, ...(clipped ? { clipped } : {}), ...this.ratio() };
     // A row's pieces show positions outside the page's range: the rest of an earlier item, below `from`, on the page that resumes the row, and the rest of the row past `to` on the page that cuts it; a box shown whole past `to` likewise (a painted shell).
     this.pieced = !!(start.pieces?.length || cut?.pieces?.length);
