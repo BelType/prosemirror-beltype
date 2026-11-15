@@ -35,13 +35,12 @@ import { addWord, AWAY, ADJOIN, ARTIFACT, END, FRAGMENT, SPLIT, hasWord, removeW
 import { createMeasureContext, awaitFonts, awaitCloneImages } from '@beltype/cicero/fragmentation';
 import { takeReport } from '@beltype/cicero/fragmentation';
 import { adjudicate, firstBelowTheEdge, reachesBelowTheEdge, isOutOfFlow, neverCutInside, processionBottoms, fitsPage } from '@beltype/cicero/fragmentation';
-import { inDisplayOrder } from '@beltype/cicero/internal/word-space';
 import { liftRepeatedHeader } from '@beltype/cicero/internal/fragments';
 import { depthOfCut, forcingIndexOf, gapAbove, pageNameDownFrom, usedPageName } from '@beltype/cicero/fragmentation';
 import { effectivePageName, transliterateContent } from '@beltype/cicero/fragmentation';
 import { encodeStringProp, STRING_KEYWORDS } from '@beltype/cicero/fragmentation';
 import { cssString } from '@beltype/cicero/fragmentation';
-import { pathOf, normalizePath, extensionPx, divides } from '@beltype/cicero/fragmentation';
+import { pathOf, normalizePath, extensionPx, divides, inFlowChildren } from '@beltype/cicero/fragmentation';
 import { joinedWords, mayRepeat } from '@beltype/cicero/fragmentation';
 import { copyOf, isFixedBox, noteSource } from '@beltype/cicero/fragmentation';
 import { presentation } from '@beltype/cicero/fragmentation';
@@ -1004,13 +1003,13 @@ export class CiceroPage {
    */
   grab(t, from) {
     const win = /** @type {Window} */ (this.doc.defaultView);
-    // Each parent's in-flow children, read once for the grab and asked by `pathOf` as its `indexOf`: the default reads them again for every box (the engine's `inFlowIndex`), which on a page deep in a long table is every row put away before it, once per row. Measured 2026-11-13 on `fixtures/measure/table-auto-40`: a keystroke on page 20 took 20.5 s and one on page 40 27.0 s. The list is the engine's own `inFlowChildren`, which is not exported: fixed boxes left out, in display order.
+    // Each parent's in-flow children, read once for the grab and asked by `pathOf` as its `indexOf`: the default reads them again for every box (the engine's `inFlowIndex`), which on a page deep in a long table is every row put away before it, once per row. Measured 2026-11-13 on `fixtures/measure/table-auto-40`: a keystroke on page 20 took 20.5 s and one on page 40 27.0 s. The list is the engine's own `inFlowChildren`, on its face since Cicero 0.1.15.
     /** @type {Map<Element, Map<Element, number>>} */
     const kids = new Map();
     const indexOf = (/** @type {Element} */ e) => {
       const parent = /** @type {Element} */ (e.parentElement);
       let index = kids.get(parent);
-      if (!index) kids.set(parent, (index = new Map(inDisplayOrder(parent, [...parent.children].filter((c) => !isFixedBox(c))).map((c, i) => [c, i]))));
+      if (!index) kids.set(parent, (index = new Map(inFlowChildren(parent).map((c, i) => [c, i]))));
       return index.get(e) ?? -1;
     };
     const index = forcingIndexOf(t.blocks, {
