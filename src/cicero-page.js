@@ -46,7 +46,7 @@ import { copyOf, isFixedBox, noteSource } from '@beltype/cicero/fragmentation';
 import { presentation } from '@beltype/cicero/fragmentation';
 import '@beltype/cicero/page';
 import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition, wholeAfter, advances, inFlowStart, carriedHint, startFrom, endsNowhere } from './turn.js';
-import { Positions, nodeDom, nodeStart, continueAsShell, endAsShell, endFirstFragment, wrapResumed, seatPieces, seatHeaders, declineHeader, shellsOf, endsOf, pinTracks } from './shells.js';
+import { Positions, nodeDom, nodeStart, continueAsShell, endAsShell, endFirstFragment, wrapResumed, seatPieces, seatHeaders, declineHeader, tallHeaders, openAt, shellsOf, endsOf, pinTracks } from './shells.js';
 import { stateOfPage, runningPlaced, sameElements } from './originals.js';
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
@@ -500,7 +500,8 @@ export class CiceroPage {
     this.depth = undefined;
     this.pieced = false;
     this.heads = [];
-    this.declined = new Set();
+    // The header groups judged not to repeat on the page their table began on, as the hint carries them, relative to the page's start.
+    this.declined = new Set((this.hint.declined ?? []).map((/** @type {number} */ p) => p + from));
     this.observer.disconnect();
     this.heights.clear();
     if (this.blank) {
@@ -639,6 +640,8 @@ export class CiceroPage {
     const reach = to == null ? null : this.reachOf(doc, t, report, pageStart, end);
     const flowPx = usedPx + extPx + (extPx > 0 ? cost : 0);
     const parallel = to == null ? 0 : this.parallelBelow(report, t, pageStart + flowPx, to);
+    // Whether a header group repeats is judged once, on the page its table begins on, against that page's area (Blink's guard, as the driver's `decideRepeats` applies it), and the verdict rides the hint for as long as the cut stands inside the table.
+    const declined = to == null || !t.container ? [] : [...[...this.declined].filter((p) => openAt(doc, to, p)), ...tallHeaders(t.container, t.trial.positions, doc, from, to, contentH / 4)];
     ctx.dispose();
 
     this.show(this.page(doc, from, render, t, start, cut ?? { to }, tracks, extPx), forced);
@@ -657,6 +660,7 @@ export class CiceroPage {
     const next = to == null ? undefined : { ...hintAfter({ index: this.index, name: nextName, forced: !!byEvent, parity: byEvent ? event.parity : null }), ...carriedHint(to, cut?.next) };
     // A blank page renders no trial, so the page that owes it says the depth of the place it stands at, which is where this page ends.
     if (next?.blank && endCut) next.depth = depthOfCut(endCut.cut, 2);
+    if (next && to != null && declined.length) next.declined = declined.map((p) => p - to);
     this.account = { from, to, name: this.conditions.name, forced, cls: verdict?.cls ?? (byEvent ? 'A' : null), kind: whole ? 'whole' : verdict?.kind ?? (byEvent ? (event.namedSwitch ? 'name' : 'forced') : 'terminal'), y: verdict?.y ?? null, pageStart, usedPx, extPx, next, ...(clipped ? { clipped } : {}), ...this.ratio() };
     // A row's pieces show positions outside the page's range: the rest of an earlier item, below `from`, on the page that resumes the row, and the rest of the row past `to` on the page that cuts it; a box shown whole past `to` likewise (a painted shell).
     this.pieced = !!(start.pieces?.length || cut?.pieces?.length);
@@ -837,7 +841,7 @@ export class CiceroPage {
   }
 
   /**
-   * A header group the current cut does not repeat: its copies are put away on the trial and the law copy, and the page's own slice is rendered without it.
+   * A header group the page does not repeat: its copies are put away on the trial and the law copy, and the page's own slice is rendered without it.
    * @param {{ el: Element, law: Element, pos: number }} head
    */
   decline(head) {
@@ -902,8 +906,6 @@ export class CiceroPage {
     const ms = CiceroPage.waitMs;
     if (!this.late.has('fonts') && !await within(awaitFonts(this.doc), ms)) this.late.add('fonts');
     if (!this.late.has('images') && !await within(awaitCloneImages(container), ms)) this.late.add('images');
-    // Blink's guard, as the driver applies it (`decideRepeats`): a header group taller than a quarter of the page area does not repeat. ponytail: judged on each page that would repeat it, where the driver judges once, at the table's first fragment, and carries the answer in its account; the two part only where the table's pages differ in size and the group's height falls between their quarters, and a hint carried from the table's first page is the upgrade.
-    for (const h of t.heads) if (h.el.getBoundingClientRect().height > this.conditions.contentH / 4) this.decline(h);
     const report = takeReport(container, { contentHeight: this.conditions.contentH });
     return { report, pageStart: truncateLead ? report.contentTop + this.spentLead(t, report, doc, from, start) : 0 };
   }

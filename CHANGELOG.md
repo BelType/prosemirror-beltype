@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Whether a table's header group repeats is judged once, on the page the table begins on, as Blink and the CLI round judge it.** The page judged each copy against its own area (`CiceroPage.measure`), so a table that crossed pages of two sizes with a header between their quarters repeated it where the CLI did not (`fixtures/header-once`, page 2). The page a table begins on now measures the group against a quarter of its own area (`tallHeaders`) and leaves the verdict in the hint, `next.declined`, relative to the cut, for as long as the cut stands inside the table; a blank page passes it on.
+- Fixtures `footer` and `header-once`, and in `fixtures/header` a collapsed header whose bottom border is wider than the first row's top.
+- The Cicero dev pin moves from 0.1.13 to 0.1.15 and the peer range to `^0.1.15`.
+
 ## 0.1.3 (2026-11-14)
 
 - `firstBelowTheEdge` is imported from the engine's `fragmentation` face, which has carried it since Cicero 0.1.12, and no longer from `internal/stonehand`.

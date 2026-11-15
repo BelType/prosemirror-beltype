@@ -65,7 +65,7 @@ export function hintAfter({ index, name, forced = false, parity = null }) {
  * @param {ContainerHint & { forced?: boolean }} hint The blank page's own hint.
  * @returns {ContainerHint & { forced?: boolean }}
  */
-export const hintAfterBlank = (hint) => ({ name: hint.name ?? '', forced: true });
+export const hintAfterBlank = (hint) => ({ name: hint.name ?? '', forced: true, ...(hint.declined ? { declined: hint.declined } : {}) });
 
 /**
  * Whether a feed that stopped short of the document's end decided nothing: it fit, or the walk found no boundary in it, with no forced event and no fallback taken. The driver throws here, and a page would otherwise take the rest of the document and close the chain.
