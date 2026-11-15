@@ -3,6 +3,8 @@
 ## Unreleased
 
 - **Whether a table's header group repeats is judged once, on the page the table begins on, as Blink and the CLI round judge it.** The page judged each copy against its own area (`CiceroPage.measure`), so a table that crossed pages of two sizes with a header between their quarters repeated it where the CLI did not (`fixtures/header-once`, page 2). The page a table begins on now measures the group against a quarter of its own area (`tallHeaders`) and leaves the verdict in the hint, `next.declined`, relative to the cut, for as long as the cut stands inside the table; a blank page passes it on.
+- **A collapsed header copy whose bottom border is wider than the first row's top is lifted into the table's caption, as the CLI round lifts it.** The engine's `liftRepeatedHeader` (Cicero 0.1.15, `internal/fragments`) is called on the trial's copy once it is laid out, and what it wrote is replayed on the page's own copy before the tracks are pinned; the law copy stays a header group, as the engine's source does. The table piece on each continuation page of `fixtures/header` was 958.5 px against the CLI's 947, and is 947.
+- The harness's `readPages` reads the height of each table piece a page shows, and `scripts/verdicts.mjs` compares it: what a repeated group adds to a piece moves no word.
 - Fixtures `footer` and `header-once`, and in `fixtures/header` a collapsed header whose bottom border is wider than the first row's top.
 - The Cicero dev pin moves from 0.1.13 to 0.1.15 and the peer range to `^0.1.15`.
 

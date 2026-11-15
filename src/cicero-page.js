@@ -36,6 +36,7 @@ import { createMeasureContext, awaitFonts, awaitCloneImages } from '@beltype/cic
 import { takeReport } from '@beltype/cicero/fragmentation';
 import { adjudicate, firstBelowTheEdge, reachesBelowTheEdge, isOutOfFlow, neverCutInside, processionBottoms, fitsPage } from '@beltype/cicero/fragmentation';
 import { inDisplayOrder } from '@beltype/cicero/internal/word-space';
+import { liftRepeatedHeader } from '@beltype/cicero/internal/fragments';
 import { depthOfCut, forcingIndexOf, gapAbove, pageNameDownFrom, usedPageName } from '@beltype/cicero/fragmentation';
 import { effectivePageName, transliterateContent } from '@beltype/cicero/fragmentation';
 import { encodeStringProp, STRING_KEYWORDS } from '@beltype/cicero/fragmentation';
@@ -110,7 +111,7 @@ const TEXT_MECHANICS = ['whiteSpace', 'overflowWrap', 'fontVariantLigatures', 'f
  * @property {Element[]} blocks The law copy's top-level blocks, fixed boxes left out, as the driver's `topLevelBlocks`.
  * @property {Element | null} container The measure context's container once the trial is laid out in it.
  * @property {Map<Element, number>} shelled The trial's blank shells, each the shallow sibling it was made of, by the position of its node: an element the renderer wrote no span for.
- * @property {{ el: Element, law: Element, pos: number }[]} heads The header groups the trial repeats (`seatHeaders`), each copy with the law copy's.
+ * @property {{ el: Element, law: Element, pos: number, lift?: string }[]} heads The header groups the trial repeats (`seatHeaders`), each copy with the law copy's and the inline style the engine's lift wrote on it.
  */
 
 /**
@@ -902,6 +903,13 @@ export class CiceroPage {
     await this.present(t);
     const container = ctx.measure([...t.trial.fragment.childNodes], this.publish);
     t.container = container;
+    // The engine's lift of a collapsed header copy whose bottom border is wider than the first row's top (`liftRepeatedHeader`), on the trial now that it is laid out and its styles can be read; what it wrote is kept for the page's own copy (`page`), which is seated before it is in the document.
+    for (const h of t.heads) {
+      if (hasWord(h.el, AWAY)) continue;
+      const before = /** @type {HTMLElement} */ (h.el).style.cssText;
+      liftRepeatedHeader(/** @type {HTMLElement} */ (h.el));
+      h.lift = /** @type {HTMLElement} */ (h.el).style.cssText.slice(before.length);
+    }
     // A wait that ran out in this fill is not waited for again by its later trials: the page measures with what it has (`provisional`).
     const ms = CiceroPage.waitMs;
     if (!this.late.has('fonts') && !await within(awaitFonts(this.doc), ms)) this.late.add('fonts');
@@ -1183,6 +1191,8 @@ export class CiceroPage {
     const root = rendered.fragment;
     seatPieces(root, positions, doc, render, cut.pieces ?? start.pieces ?? []);
     this.heads = start.shell?.paint != null ? [] : seatHeaders(root, positions, doc, render, from, this.declined);
+    // The lift the trial's copy took, written before the tracks are pinned, so the lifted rows take the grid's columns (`pinTable`).
+    for (const h of this.heads) /** @type {HTMLElement} */ (h.el).style.cssText += t.heads.find((x) => x.pos === h.pos)?.lift ?? '';
     const law = (/** @type {Shell} */ shell) => nodeDom(t.lawRoot, t.law.positions, doc, shell.pos);
     const begins = shellsOf({ shell: start.shell, pieces: cut.pieces ?? start.pieces });
     for (const shell of begins) continueAsShell(root, positions, doc, shell, law(shell));
