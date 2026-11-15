@@ -422,7 +422,7 @@ export class Chain {
       const facts = stateOfPage(state, start, end, c.depth);
       const strings = !same(facts.strings, c.strings);
       // A page that repeats a table's header group shows a copy of a node outside its range: an edit inside the group dirties it.
-      if ((strings && o.sitesIn(state, e.from, e.to)) || page.headsMoved(doc, e.from)) { dirty.push(e.key); continue; }
+      if ((strings && o.sitesIn(state, e.from, e.to)) || page.headsMoved(doc, e.from, e.to)) { dirty.push(e.key); continue; }
       const moved = strings || !same(facts.counters, c.counters) || !same(facts.running, c.running) || !sameElements(runningPlaced(facts.running, state.boxes), runningPlaced(c.running, c.boxes));
       page.chrome = { ...facts, boxes: state.boxes, start, end, block: endAt?.block ?? null, depth: c.depth };
       if (moved) { page.drawChrome(); this.counts.redrawn++; }

@@ -256,8 +256,8 @@ export function seatPieces(root, positions, doc, render, pieces) {
 }
 
 /**
- * A header group a page repeats: the copy seated in a slice, the position of the group's node, and where the node stands, the depth of its table among the ancestors of the page's start and its index there.
- * @typedef {{ el: Element, pos: number, depth: number, index: number, node: PMNode }} Head
+ * A header or footer group a page repeats: the copy seated in a slice, the position of the group's node, and where the node stands, the depth of its table among the ancestors of the page's start and its index there.
+ * @typedef {{ el: Element, pos: number, depth: number, index: number, node: PMNode, foot?: boolean }} Head `foot`: a footer copy seated past the slice's end (`seatFooters`), whose table is an ancestor of the page's end.
  */
 
 /**
@@ -280,8 +280,9 @@ export function seatHeaders(root, positions, doc, render, from, declined = new S
   for (let d = 1; d <= $from.depth; d++) {
     if (!$from.index(d)) continue;
     const table = nodeDom(root, positions, doc, $from.before(d));
-    const shallow = table && holderOf(table, positions).querySelector(':scope > thead');
-    if (!shallow || !hasWord(shallow, AWAY) || shallow.firstChild) continue;
+    // The header, and a footer written before its rows, which stands before the slice's start as the header does.
+    for (const shallow of table ? holderOf(table, positions).querySelectorAll(':scope > thead, :scope > tfoot') : []) {
+    if (!hasWord(shallow, AWAY) || shallow.firstChild) continue;
     // The shallow siblings stand first in their holder, one per child the page draws, in order.
     const k = [.../** @type {Element} */ (shallow.parentElement).children].indexOf(shallow);
     const parent = $from.node(d);
@@ -305,6 +306,7 @@ export function seatHeaders(root, positions, doc, render, from, declined = new S
     el.setAttribute('contenteditable', 'false');
     el.setAttribute('inert', '');
     heads.push({ el, pos, depth: d, index, node });
+    }
   }
   return heads;
 }
@@ -316,28 +318,60 @@ export function declineHeader(el) {
 }
 
 /**
- * The header groups of the tables a cut at `to` stands inside that began on this page and are taller than `limit`: the groups that do not repeat, judged once (*the header is judged on the table's first page*, docs/plan.md phase 5).
+ * The header and footer groups a laid-out trial shows of the tables that begin on this page, taller than `limit`: the groups that do not repeat, judged once, on the table's first page (*the header is judged on the table's first page*, docs/plan.md phase 5; the driver's `decideRepeats`).
  * @param {Element} root The trial, laid out.
  * @param {Positions} positions
  * @param {PMNode} doc
- * @param {number} from
- * @param {number} to
+ * @param {number} from The page's start.
+ * @param {number} opened The trial's first position (`nodeStart`).
  * @param {number} limit A quarter of the page area's height, in px.
  * @returns {number[]} Their positions.
  */
-export function tallHeaders(root, positions, doc, from, to, limit) {
-  const $to = doc.resolve(to);
+export function tallGroups(root, positions, doc, from, opened, limit) {
   const $from = doc.resolve(from);
   const out = [];
-  for (let d = 1; d <= $to.depth; d++) {
+  for (const group of root.querySelectorAll('thead, tfoot')) {
+    if (hasWord(group, ARTIFACT) || hasWord(group, AWAY) || group.getBoundingClientRect().height <= limit) continue;
+    const pos = nodeStart(group, positions, doc, opened);
+    if (pos == null) continue;
     // A table the page resumes was judged on the page it began on (`seatHeaders`' own test); one whose first row opens the page begins here, though its start lies before `from`, a cut being entered down the first-child chain.
-    if (!$to.index(d) || ($from.depth >= d && $from.before(d) === $to.before(d) && $from.index(d) > 0)) continue;
-    const table = nodeDom(root, positions, doc, $to.before(d));
-    const head = table && holderOf(table, positions).querySelector(':scope > thead');
-    const span = head && positions.get(head);
-    if (head && span && head.getBoundingClientRect().height > limit) out.push(span.start);
+    const d = doc.resolve(pos).depth;
+    if ($from.depth >= d && $from.before(d) === doc.resolve(pos).before(d) && $from.index(d) > 0) continue;
+    out.push(pos);
   }
   return out;
+}
+
+/**
+ * Seat a copy of each footer group at the foot of the piece of its table a slice ends inside (*the footer repeats*, the engine's `putAway`, which keeps a repeated group as an artifact where a cut puts its siblings away): the slice stops before the group, so the copy is rendered apart and appended to the table.
+ * @param {Element | DocumentFragment} root
+ * @param {Positions} positions
+ * @param {PMNode} doc
+ * @param {(doc: PMNode, from: number, to: number | null) => RenderedSlice} render
+ * @param {number[]} feet The groups' positions, innermost table last.
+ * @returns {Head[]}
+ */
+export function seatFooters(root, positions, doc, render, feet) {
+  /** @type {Head[]} */
+  const heads = [];
+  for (const pos of feet) {
+    const $pos = doc.resolve(pos);
+    const node = $pos.nodeAfter;
+    const table = $pos.depth ? nodeDom(root, positions, doc, $pos.before()) : null;
+    if (!node || !table) continue;
+    const own = render(doc, pos, pos + node.nodeSize);
+    const el = nodeDom(own.fragment, own.positions, doc, pos);
+    const span = el && own.positions.get(el);
+    if (!el || !span) continue;
+    positions.set(el, span);
+    holderOf(table, positions).append(el);
+    addWord(el, ARTIFACT);
+    el.setAttribute('aria-hidden', 'true');
+    el.setAttribute('contenteditable', 'false');
+    el.setAttribute('inert', '');
+    heads.push({ el, pos, depth: $pos.depth, index: $pos.index(), node, foot: true });
+  }
+  return heads;
 }
 
 /** Whether the node at `pos` is a child of a box a cut at `to` stands inside. @param {PMNode} doc @param {number} to @param {number} pos */
