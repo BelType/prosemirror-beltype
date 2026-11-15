@@ -164,10 +164,17 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Fix**: `Originals.hasWordsOf` asks each top-level node's original every rewritten argument (the engine's `askBox`), once per state, and the page's renderer (`withHasWords`) writes those words on the divided root of every slice it renders, the trial, the law copy and the shown page. A divided box below the root keeps the native arm, as before (a `ponytail:` note says when that falls short).
 - **State**: CLOSED 2026-11-07 on `fix/page-name-fault`. `test/random.test.js` holds the run as a real test.
 
+### A table piece's height is not the CLI's in three fixtures
+
+- **Seen**: 2026-11-15, by the harness's `readPages`, which reads each table piece's height since that day; no word moves in any of the three. `fixtures/header`, page 4: a separated table whose first piece holds only its header group at the page's foot is 67.5 px in the CLI and 42.2 px here. `fixtures/row`, page 3: a table piece of 461.6 px against 453. `fixtures/page-names`, page 2: 461.7 px against 461.2.
+- **Layer**: the Cicero page, `src/shells.js` (`endFirstFragment`, `pinTracks`), unless the cause says otherwise.
+- **Fix**: not looked for. The first is 25.3 px, about a row: the CLI may keep a put-away row's room in a piece that ends before the first row.
+- **State**: OPEN. The cause of none of the three is known.
+
 ### Known from phase 1, not met by the studio
 
 - `adjoin` after a forced break: the fill strips it; no difference traced to it.
-- The repeated table header and the footer's reservation: the studio's schema holds every table as an atom (the entry above), so the header question never arose; under the generic schema the showcase's tables are not where its first difference is. **The header is built, 2026-11-13** (`fix/second-wave`): a page that resumes a table seats a copy of its header group in the trial, the law copy and the shown slice (`seatHeaders`, `src/shells.js`), under Blink's quarter-of-the-page guard judged on each such page, and an edit inside the group dirties the pages that repeat it (`CiceroPage.headsMoved`, asked by `Chain.rechrome`, so a host without `ledger()` keeps the stale copy). `fixtures/header` agrees with the CLI on 12 of 12 pages (collapsed, separated, and a header too tall to repeat), and `fixtures/measure/table-fixed-10`, which the view cut in 15 pages against the CLI's 16 for this reason alone, agrees on 16 of 16. Still owed: the footer's reservation and its copy, and the lift of a collapsed header whose bottom border is wider than the first row's top, which is the engine's private `liftRepeatedHeader` (`fragments.ts`); a header the driver judged on a first page of another size than the page that repeats it.
+- The repeated table header and the footer's reservation: the studio's schema holds every table as an atom (the entry above), so the header question never arose; under the generic schema the showcase's tables are not where its first difference is. **The header is built, 2026-11-13** (`fix/second-wave`): a page that resumes a table seats a copy of its header group in the trial, the law copy and the shown slice (`seatHeaders`, `src/shells.js`), under Blink's quarter-of-the-page guard judged on each such page (judged once, on the table's first page, since 2026-11-15, when the footer and the lift were built: docs/plan.md, phase 5), and an edit inside the group dirties the pages that repeat it (`CiceroPage.headsMoved`, asked by `Chain.rechrome`, so a host without `ledger()` keeps the stale copy). `fixtures/header` agrees with the CLI on 12 of 12 pages (collapsed, separated, and a header too tall to repeat), and `fixtures/measure/table-fixed-10`, which the view cut in 15 pages against the CLI's 16 for this reason alone, agrees on 16 of 16. Still owed: the footer's reservation and its copy, and the lift of a collapsed header whose bottom border is wider than the first row's top, which is the engine's private `liftRepeatedHeader` (`fragments.ts`); a header the driver judged on a first page of another size than the page that repeats it.
 - `invalidate()` after a conditions change: met through the amendments pane (an amendment is a new sheet): the view refilled every page, 80 pages for a `body { font-size: 13pt }` rule in about 700 ms, and undo brought the sheet and the pages back.
 - The `near` window policy: see the view's entry on the first frame.
 
@@ -398,7 +405,7 @@ Each entry: what is wrong as the reader sees it; where it was seen (demo, act, U
 - **Seen**: 2026-11-13, by the grab's memo of each parent's in-flow children (`CiceroPage.grab`), which writes the engine's one line again over `inDisplayOrder`, imported from `@beltype/cicero/internal/word-space`.
 - **Layer**: the engine, `src/positions.ts`.
 - **Fix**: export `inFlowChildren` (or a `pathOf` that keeps its own memo for a call), and use it here.
-- **State**: OPEN.
+- **State**: CLOSED 2026-11-15 on `feat/table-groups`: `inFlowChildren` is on the engine's `fragmentation` face since Cicero 0.1.15, the grab's memo calls it, and the import from `internal/word-space` is gone. A keystroke on `fixtures/measure/table-auto-40`, three runs of three: 3.5 to 3.9 s on page 20 and 5.7 to 6.2 s on page 40, against main's 3.6 to 3.9 s and 5.7 to 6.3 s measured the same hour.
 
 ### `firstBelowTheEdge` is not on the engine's face
 

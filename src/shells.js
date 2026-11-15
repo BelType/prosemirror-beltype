@@ -256,15 +256,15 @@ export function seatPieces(root, positions, doc, render, pieces) {
 }
 
 /**
- * A header group a page repeats: the copy seated in a slice, the position of the group's node, and where the node stands, the depth of its table among the ancestors of the page's start and its index there.
- * @typedef {{ el: Element, pos: number, depth: number, index: number, node: PMNode }} Head
+ * A header or footer group a page repeats: the copy seated in a slice, the position of the group's node, and where the node stands, the depth of its table among the ancestors of the page's start and its index there.
+ * @typedef {{ el: Element, pos: number, depth: number, index: number, node: PMNode, foot?: boolean }} Head `foot`: a footer copy seated past the slice's end (`seatFooters`), whose table is an ancestor of the page's end.
  */
 
 /**
  * Seat the header group of every table a slice resumes (*the header repeats*, the engine's `fragments.js`): the renderer wrote the group as a shallow sibling, put away, since it stands before the slice's start, and here it is rendered on its own and swapped in as a copy, an `artifact` as the engine marks its own, which the Stonehand cuts nowhere inside and `gapAbove` reads the spacing above. The copy is no text of the page: only its own span is kept, so the walks count it among its siblings and no point of the page falls inside it, and it is shut to the caret as a running element's copy is.
  *
  * @remarks
- * A group is found by its tag, `thead`, among the shallow siblings of each ancestor of `from`; whether it lays out as a header group and whether it is short enough to repeat are the caller's, once the slice is laid out (`CiceroPage.trial` and `measure`). ponytail: the header alone. A repeated footer needs its height reserved from the page (the driver's `reservePx`), and under collapsed borders a header whose bottom border is wider than the first row's top is lifted into a caption by the engine's `liftRepeatedHeader`, which is private to `fragments.js`: the footer when a document needs it, the lift when the engine exports it.
+ * A group is found by its tag, `thead`, among the shallow siblings of each ancestor of `from`; whether it is short enough to repeat was judged on the page its table began on (`tallHeaders`) and reaches here as `declined`. ponytail: the header alone. A repeated footer needs its height reserved from the page (the driver's `reservePx`): the footer when a document needs it. The lift of a collapsed header into a caption is the caller's (`CiceroPage.measure`).
  * @param {Element | DocumentFragment} root
  * @param {Positions} positions
  * @param {PMNode} doc
@@ -280,8 +280,9 @@ export function seatHeaders(root, positions, doc, render, from, declined = new S
   for (let d = 1; d <= $from.depth; d++) {
     if (!$from.index(d)) continue;
     const table = nodeDom(root, positions, doc, $from.before(d));
-    const shallow = table && holderOf(table, positions).querySelector(':scope > thead');
-    if (!shallow || !hasWord(shallow, AWAY) || shallow.firstChild) continue;
+    // The header, and a footer written before its rows, which stands before the slice's start as the header does.
+    for (const shallow of table ? holderOf(table, positions).querySelectorAll(':scope > thead, :scope > tfoot') : []) {
+    if (!hasWord(shallow, AWAY) || shallow.firstChild) continue;
     // The shallow siblings stand first in their holder, one per child the page draws, in order.
     const k = [.../** @type {Element} */ (shallow.parentElement).children].indexOf(shallow);
     const parent = $from.node(d);
@@ -305,6 +306,7 @@ export function seatHeaders(root, positions, doc, render, from, declined = new S
     el.setAttribute('contenteditable', 'false');
     el.setAttribute('inert', '');
     heads.push({ el, pos, depth: d, index, node });
+    }
   }
   return heads;
 }
@@ -313,6 +315,70 @@ export function seatHeaders(root, positions, doc, render, from, declined = new S
 export function declineHeader(el) {
   removeWord(el, ARTIFACT);
   addWord(el, AWAY);
+}
+
+/**
+ * The header and footer groups a laid-out trial shows of the tables that begin on this page, taller than `limit`: the groups that do not repeat, judged once, on the table's first page (*the header is judged on the table's first page*, docs/plan.md phase 5; the driver's `decideRepeats`).
+ * @param {Element} root The trial, laid out.
+ * @param {Positions} positions
+ * @param {PMNode} doc
+ * @param {number} from The page's start.
+ * @param {number} opened The trial's first position (`nodeStart`).
+ * @param {number} limit A quarter of the page area's height, in px.
+ * @returns {number[]} Their positions.
+ */
+export function tallGroups(root, positions, doc, from, opened, limit) {
+  const $from = doc.resolve(from);
+  const out = [];
+  for (const group of root.querySelectorAll('thead, tfoot')) {
+    if (hasWord(group, ARTIFACT) || hasWord(group, AWAY) || group.getBoundingClientRect().height <= limit) continue;
+    const pos = nodeStart(group, positions, doc, opened);
+    if (pos == null) continue;
+    // A table the page resumes was judged on the page it began on (`seatHeaders`' own test); one whose first row opens the page begins here, though its start lies before `from`, a cut being entered down the first-child chain.
+    const d = doc.resolve(pos).depth;
+    if ($from.depth >= d && $from.before(d) === doc.resolve(pos).before(d) && $from.index(d) > 0) continue;
+    out.push(pos);
+  }
+  return out;
+}
+
+/**
+ * Seat a copy of each footer group at the foot of the piece of its table a slice ends inside (*the footer repeats*, the engine's `putAway`, which keeps a repeated group as an artifact where a cut puts its siblings away): the slice stops before the group, so the copy is rendered apart and appended to the table.
+ * @param {Element | DocumentFragment} root
+ * @param {Positions} positions
+ * @param {PMNode} doc
+ * @param {(doc: PMNode, from: number, to: number | null) => RenderedSlice} render
+ * @param {number[]} feet The groups' positions, innermost table last.
+ * @returns {Head[]}
+ */
+export function seatFooters(root, positions, doc, render, feet) {
+  /** @type {Head[]} */
+  const heads = [];
+  for (const pos of feet) {
+    const $pos = doc.resolve(pos);
+    const node = $pos.nodeAfter;
+    const table = $pos.depth ? nodeDom(root, positions, doc, $pos.before()) : null;
+    if (!node || !table) continue;
+    const own = render(doc, pos, pos + node.nodeSize);
+    const el = nodeDom(own.fragment, own.positions, doc, pos);
+    const span = el && own.positions.get(el);
+    if (!el || !span) continue;
+    positions.set(el, span);
+    holderOf(table, positions).append(el);
+    addWord(el, ARTIFACT);
+    el.setAttribute('aria-hidden', 'true');
+    el.setAttribute('contenteditable', 'false');
+    el.setAttribute('inert', '');
+    heads.push({ el, pos, depth: $pos.depth, index: $pos.index(), node, foot: true });
+  }
+  return heads;
+}
+
+/** Whether the node at `pos` is a child of a box a cut at `to` stands inside. @param {PMNode} doc @param {number} to @param {number} pos */
+export function openAt(doc, to, pos) {
+  const $to = doc.resolve(to);
+  const $pos = doc.resolve(pos);
+  return $pos.depth >= 1 && $pos.depth <= $to.depth && $to.start($pos.depth) === $pos.start();
 }
 
 /**

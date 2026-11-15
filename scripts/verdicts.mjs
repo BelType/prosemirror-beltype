@@ -9,7 +9,7 @@ const read = (file) => {
   }
   return by;
 };
-const key = (pages) => pages.map((p) => `${p.first}|${p.last}|${p.count}`);
+const key = (pages) => pages.map((p) => `${p.first}|${p.last}|${p.count}|${(p.tables ?? []).join(',')}`);
 const differs = (a, b) => { const n = Math.max(a.length, b.length); for (let i = 0; i < n; i++) if (a[i] !== b[i]) return i + 1; return 0; };
 const [before, after] = process.argv.slice(2).map(read);
 let failed = false;

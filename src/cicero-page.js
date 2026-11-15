@@ -35,18 +35,18 @@ import { addWord, AWAY, ADJOIN, ARTIFACT, END, FRAGMENT, SPLIT, hasWord, removeW
 import { createMeasureContext, awaitFonts, awaitCloneImages } from '@beltype/cicero/fragmentation';
 import { takeReport } from '@beltype/cicero/fragmentation';
 import { adjudicate, firstBelowTheEdge, reachesBelowTheEdge, isOutOfFlow, neverCutInside, processionBottoms, fitsPage } from '@beltype/cicero/fragmentation';
-import { inDisplayOrder } from '@beltype/cicero/internal/word-space';
+import { liftRepeatedHeader } from '@beltype/cicero/internal/fragments';
 import { depthOfCut, forcingIndexOf, gapAbove, pageNameDownFrom, usedPageName } from '@beltype/cicero/fragmentation';
 import { effectivePageName, transliterateContent } from '@beltype/cicero/fragmentation';
 import { encodeStringProp, STRING_KEYWORDS } from '@beltype/cicero/fragmentation';
 import { cssString } from '@beltype/cicero/fragmentation';
-import { pathOf, normalizePath, extensionPx, divides } from '@beltype/cicero/fragmentation';
-import { joinedWords } from '@beltype/cicero/fragmentation';
+import { pathOf, normalizePath, extensionPx, divides, inFlowChildren } from '@beltype/cicero/fragmentation';
+import { joinedWords, mayRepeat } from '@beltype/cicero/fragmentation';
 import { copyOf, isFixedBox, noteSource } from '@beltype/cicero/fragmentation';
 import { presentation } from '@beltype/cicero/fragmentation';
 import '@beltype/cicero/page';
 import { firstSpan, conditionOf, hintAfter, hintAfterBlank, enter, verdictPosition, wholeAfter, advances, inFlowStart, carriedHint, startFrom, endsNowhere } from './turn.js';
-import { Positions, nodeDom, nodeStart, continueAsShell, endAsShell, endFirstFragment, wrapResumed, seatPieces, seatHeaders, declineHeader, shellsOf, endsOf, pinTracks } from './shells.js';
+import { Positions, nodeDom, nodeStart, continueAsShell, endAsShell, endFirstFragment, wrapResumed, seatPieces, seatHeaders, seatFooters, declineHeader, tallGroups, openAt, shellsOf, endsOf, pinTracks } from './shells.js';
 import { stateOfPage, runningPlaced, sameElements } from './originals.js';
 
 /** @import { Node as PMNode } from 'prosemirror-model' */
@@ -110,7 +110,7 @@ const TEXT_MECHANICS = ['whiteSpace', 'overflowWrap', 'fontVariantLigatures', 'f
  * @property {Element[]} blocks The law copy's top-level blocks, fixed boxes left out, as the driver's `topLevelBlocks`.
  * @property {Element | null} container The measure context's container once the trial is laid out in it.
  * @property {Map<Element, number>} shelled The trial's blank shells, each the shallow sibling it was made of, by the position of its node: an element the renderer wrote no span for.
- * @property {{ el: Element, law: Element, pos: number }[]} heads The header groups the trial repeats (`seatHeaders`), each copy with the law copy's.
+ * @property {{ el: Element, law: Element, pos: number, lift?: string }[]} heads The header groups the trial repeats (`seatHeaders`), each copy with the law copy's and the inline style the engine's lift wrote on it.
  */
 
 /**
@@ -500,7 +500,8 @@ export class CiceroPage {
     this.depth = undefined;
     this.pieced = false;
     this.heads = [];
-    this.declined = new Set();
+    // The header groups judged not to repeat on the page their table began on, as the hint carries them, relative to the page's start.
+    this.declined = new Set((this.hint.declined ?? []).map((/** @type {number} */ p) => p + from));
     this.observer.disconnect();
     this.heights.clear();
     if (this.blank) {
@@ -578,8 +579,26 @@ export class CiceroPage {
     let whole = null;
     /** @type {Cut | null} */
     let cut = null;
+    // Whether a header or footer group repeats is judged once, on the page its table begins on, against that page's area (Blink's guard, as the driver's `decideRepeats` applies it), and the verdict rides the hint for as long as the cut stands inside the table.
+    const tall = t.container ? tallGroups(t.container, t.trial.positions, doc, from, t.trial.from, contentH / 4) : [];
+    const repeats = (/** @type {Element} */ f) => { const at = nodeStart(f, t.trial.positions, doc, t.trial.from) ?? t.trial.positions.get(f)?.start; return f.getClientRects().length > 0 && mayRepeat(f) && at != null && !tall.includes(at) && !this.declined.has(at); };
+    // The footer's reservation, as the driver's: a piece that is not its table's last gives up the repeated footer's height, and a separated table's spacing, from the page before the cut.
+    let reservePx = 0;
+    if (!fits && t.container) {
+      const top = t.container.getBoundingClientRect().top;
+      const edge = pageStart + contentH;
+      for (const f of t.container.querySelectorAll('tfoot')) {
+        const table = f.closest('table');
+        if (!table || !repeats(f)) continue;
+        const r = table.getBoundingClientRect();
+        if (r.top - top < edge && r.bottom - top > edge) {
+          reservePx = f.getBoundingClientRect().height + (parseFloat(String(getComputedStyle(table).borderSpacing).split(' ').pop() ?? '') || 0);
+          break; // ponytail: one table's footer per page, the outermost in document order, as the driver; a nested table's own footer is not reserved
+        }
+      }
+    }
     if (!fits) {
-      verdict = adjudicate({ report, sourceOf, pageStart, contentHeight: contentH });
+      verdict = adjudicate({ report, sourceOf, pageStart, contentHeight: contentH - reservePx });
       // No verdict: one uncuttable run taller than the page overflows in place (C2), and the page ends where it would have.
       if (verdict) {
         cut = this.cutOf(doc, t, verdict, report, start, from);
@@ -627,7 +646,7 @@ export class CiceroPage {
     const endCut = to == null ? null : this.addressAt(t, to);
     // A page that ends in a shell takes no extension, nor one that resumes a painted shell (`extensionPx`, *the end gap takes no extension*); a row's divided items reach the foot.
     const shellEnd = !!cut?.shell && !cut.pieces?.length;
-    const extPx = endCut && !whole && !shellEnd && start.shell?.paint == null ? extensionPx({ blank: false, start: { b: startCut.b, cut: startCut.cut }, end: { b: endCut.b, cut: endCut.cut }, closes: { contentH } }, { usedPx, cost }) : 0;
+    const extPx = endCut && !whole && !shellEnd && start.shell?.paint == null ? extensionPx({ blank: false, start: { b: startCut.b, cut: startCut.cut }, end: { b: endCut.b, cut: endCut.cut }, closes: { contentH } }, { usedPx, cost, reservePx }) : 0;
     // The tracks the trial laid its tables and grids out at, read before the measure context goes, for the pieces of them the page holds.
     /** @type {Map<number, any>} */
     const tracks = new Map();
@@ -639,11 +658,19 @@ export class CiceroPage {
     const reach = to == null ? null : this.reachOf(doc, t, report, pageStart, end);
     const flowPx = usedPx + extPx + (extPx > 0 ? cost : 0);
     const parallel = to == null ? 0 : this.parallelBelow(report, t, pageStart + flowPx, to);
+    const declined = to == null ? [] : [...this.declined, ...tall].filter((p) => openAt(doc, to, p));
+    // The footers the page's own piece shows as a copy: of each table the cut stands inside, the footer group the cut stands before.
+    /** @type {number[]} */
+    const feet = [];
+    if (to != null && t.container) for (const f of t.container.querySelectorAll('tfoot')) {
+      const at = nodeStart(f, t.trial.positions, doc, t.trial.from);
+      if (at != null && !hasWord(f, ARTIFACT) && repeats(f) && openAt(doc, to, at) && (at >= to || enter(doc, at) === to)) feet.push(at);
+    }
     ctx.dispose();
 
-    this.show(this.page(doc, from, render, t, start, cut ?? { to }, tracks, extPx), forced);
+    this.show(this.page(doc, from, render, t, start, cut ?? { to }, tracks, extPx, feet), forced);
     t.lawRoot.replaceChildren();
-    this.dom.setFlow({ leadPx: pageStart, usedPx, extPx, costPx: extPx > 0 ? cost : 0 });
+    this.dom.setFlow({ leadPx: pageStart, usedPx, extPx, costPx: extPx > 0 ? cost : 0, reservePx });
     this.to = to;
     if (to != null) this.span = to - from;
     for (const node of /** @type {Element[]} */ (this.given())) {
@@ -657,7 +684,8 @@ export class CiceroPage {
     const next = to == null ? undefined : { ...hintAfter({ index: this.index, name: nextName, forced: !!byEvent, parity: byEvent ? event.parity : null }), ...carriedHint(to, cut?.next) };
     // A blank page renders no trial, so the page that owes it says the depth of the place it stands at, which is where this page ends.
     if (next?.blank && endCut) next.depth = depthOfCut(endCut.cut, 2);
-    this.account = { from, to, name: this.conditions.name, forced, cls: verdict?.cls ?? (byEvent ? 'A' : null), kind: whole ? 'whole' : verdict?.kind ?? (byEvent ? (event.namedSwitch ? 'name' : 'forced') : 'terminal'), y: verdict?.y ?? null, pageStart, usedPx, extPx, next, ...(clipped ? { clipped } : {}), ...this.ratio() };
+    if (next && to != null && declined.length) next.declined = declined.map((p) => p - to);
+    this.account = { from, to, name: this.conditions.name, forced, cls: verdict?.cls ?? (byEvent ? 'A' : null), kind: whole ? 'whole' : verdict?.kind ?? (byEvent ? (event.namedSwitch ? 'name' : 'forced') : 'terminal'), y: verdict?.y ?? null, pageStart, usedPx, extPx, ...(reservePx ? { reservePx } : {}), next, ...(clipped ? { clipped } : {}), ...this.ratio() };
     // A row's pieces show positions outside the page's range: the rest of an earlier item, below `from`, on the page that resumes the row, and the rest of the row past `to` on the page that cuts it; a box shown whole past `to` likewise (a painted shell).
     this.pieced = !!(start.pieces?.length || cut?.pieces?.length);
     const shows = showsOf(from, to, start, cut);
@@ -814,7 +842,7 @@ export class CiceroPage {
     }
     // A group repeats where it lays out as a header group (the engine's `mayRepeat`), asked of the law copy now that it is in the document.
     const heads = copies.map((c, i) => ({ el: c.el, law: lawCopies[i].el, pos: c.pos }));
-    for (const h of heads) if (/** @type {Window} */ (this.doc.defaultView).getComputedStyle(h.law).display !== 'table-header-group') this.decline(h);
+    for (const h of heads) if (/** @type {Window} */ (this.doc.defaultView).getComputedStyle(h.law).display !== (h.el.tagName === 'TFOOT' ? 'table-footer-group' : 'table-header-group')) this.decline(h);
     // The shells after the pairing: a painted shell's wrapper is the engine's own element, with no source, as in the driver's feed. A blank shell's law is its shallow sibling, shown, so the Stonehand reads the box's own style off it.
     /** @type {Map<Element, number>} */
     const shelled = new Map();
@@ -837,7 +865,7 @@ export class CiceroPage {
   }
 
   /**
-   * A header group the current cut does not repeat: its copies are put away on the trial and the law copy, and the page's own slice is rendered without it.
+   * A header group the page does not repeat: its copies are put away on the trial and the law copy, and the page's own slice is rendered without it.
    * @param {{ el: Element, law: Element, pos: number }} head
    */
   decline(head) {
@@ -848,14 +876,19 @@ export class CiceroPage {
   }
 
   /**
-   * Whether a header group the page repeats is no longer the node it copied, in `doc` with the page's start at `from`: an edit inside the group replaces its node and leaves the page's own range untouched, so the chain dirties the page (`Chain.rechrome`).
+   * Whether a group the page repeats is no longer the node it copied, in `doc` with the page's range at `from` and `to`: an edit inside the group replaces its node and leaves the page's own range untouched, so the chain dirties the page (`Chain.rechrome`). A header's table is an ancestor of the page's start; a footer copy's, of its end, where the cut stands inside the table.
    * @param {PMNode} doc
    * @param {number} from
+   * @param {number | null} [to]
    */
-  headsMoved(doc, from) {
+  headsMoved(doc, from, to = null) {
     if (!this.heads.length) return false;
     const $from = doc.resolve(from);
-    return this.heads.some((h) => $from.depth < h.depth || $from.node(h.depth).maybeChild(h.index) !== h.node);
+    const $to = to == null ? null : doc.resolve(to);
+    return this.heads.some((h) => {
+      const $at = h.foot ? $to : $from;
+      return !$at || $at.depth < h.depth || $at.node(h.depth).maybeChild(h.index) !== h.node;
+    });
   }
 
   /**
@@ -898,12 +931,17 @@ export class CiceroPage {
     await this.present(t);
     const container = ctx.measure([...t.trial.fragment.childNodes], this.publish);
     t.container = container;
+    // The engine's lift of a collapsed header copy whose bottom border is wider than the first row's top (`liftRepeatedHeader`), on the trial now that it is laid out and its styles can be read; what it wrote is kept for the page's own copy (`page`), which is seated before it is in the document.
+    for (const h of t.heads) {
+      if (hasWord(h.el, AWAY) || h.el.tagName !== 'THEAD') continue;
+      const before = /** @type {HTMLElement} */ (h.el).style.cssText;
+      liftRepeatedHeader(/** @type {HTMLElement} */ (h.el));
+      h.lift = /** @type {HTMLElement} */ (h.el).style.cssText.slice(before.length);
+    }
     // A wait that ran out in this fill is not waited for again by its later trials: the page measures with what it has (`provisional`).
     const ms = CiceroPage.waitMs;
     if (!this.late.has('fonts') && !await within(awaitFonts(this.doc), ms)) this.late.add('fonts');
     if (!this.late.has('images') && !await within(awaitCloneImages(container), ms)) this.late.add('images');
-    // Blink's guard, as the driver applies it (`decideRepeats`): a header group taller than a quarter of the page area does not repeat. ponytail: judged on each page that would repeat it, where the driver judges once, at the table's first fragment, and carries the answer in its account; the two part only where the table's pages differ in size and the group's height falls between their quarters, and a hint carried from the table's first page is the upgrade.
-    for (const h of t.heads) if (h.el.getBoundingClientRect().height > this.conditions.contentH / 4) this.decline(h);
     const report = takeReport(container, { contentHeight: this.conditions.contentH });
     return { report, pageStart: truncateLead ? report.contentTop + this.spentLead(t, report, doc, from, start) : 0 };
   }
@@ -965,13 +1003,13 @@ export class CiceroPage {
    */
   grab(t, from) {
     const win = /** @type {Window} */ (this.doc.defaultView);
-    // Each parent's in-flow children, read once for the grab and asked by `pathOf` as its `indexOf`: the default reads them again for every box (the engine's `inFlowIndex`), which on a page deep in a long table is every row put away before it, once per row. Measured 2026-11-13 on `fixtures/measure/table-auto-40`: a keystroke on page 20 took 20.5 s and one on page 40 27.0 s. The list is the engine's own `inFlowChildren`, which is not exported: fixed boxes left out, in display order.
+    // Each parent's in-flow children, read once for the grab and asked by `pathOf` as its `indexOf`: the default reads them again for every box (the engine's `inFlowIndex`), which on a page deep in a long table is every row put away before it, once per row. Measured 2026-11-13 on `fixtures/measure/table-auto-40`: a keystroke on page 20 took 20.5 s and one on page 40 27.0 s. The list is the engine's own `inFlowChildren`, on its face since Cicero 0.1.15.
     /** @type {Map<Element, Map<Element, number>>} */
     const kids = new Map();
     const indexOf = (/** @type {Element} */ e) => {
       const parent = /** @type {Element} */ (e.parentElement);
       let index = kids.get(parent);
-      if (!index) kids.set(parent, (index = new Map(inDisplayOrder(parent, [...parent.children].filter((c) => !isFixedBox(c))).map((c, i) => [c, i]))));
+      if (!index) kids.set(parent, (index = new Map(inFlowChildren(parent).map((c, i) => [c, i]))));
       return index.get(e) ?? -1;
     };
     const index = forcingIndexOf(t.blocks, {
@@ -1174,13 +1212,16 @@ export class CiceroPage {
    * @param {Map<number, any>} tracks The trial's tables' and grids' tracks, by position (`pinTracks`).
    * @returns {RenderedSlice}
    */
-  page(doc, from, render, t, start, cut, tracks, extPx = 0) {
+  page(doc, from, render, t, start, cut, tracks, extPx = 0, feet = []) {
     const end = cut.end ?? (cut.to == null ? null : openedAt(doc, cut.to));
     const rendered = render(doc, from, end);
     const positions = new Positions(rendered.positions);
     const root = rendered.fragment;
     seatPieces(root, positions, doc, render, cut.pieces ?? start.pieces ?? []);
     this.heads = start.shell?.paint != null ? [] : seatHeaders(root, positions, doc, render, from, this.declined);
+    this.heads.push(...seatFooters(root, positions, doc, render, feet));
+    // The lift the trial's copy took, written before the tracks are pinned, so the lifted rows take the grid's columns (`pinTable`).
+    for (const h of this.heads) /** @type {HTMLElement} */ (h.el).style.cssText += t.heads.find((x) => x.pos === h.pos)?.lift ?? '';
     const law = (/** @type {Shell} */ shell) => nodeDom(t.lawRoot, t.law.positions, doc, shell.pos);
     const begins = shellsOf({ shell: start.shell, pieces: cut.pieces ?? start.pieces });
     for (const shell of begins) continueAsShell(root, positions, doc, shell, law(shell));
